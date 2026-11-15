@@ -11,12 +11,11 @@ public sealed class NativeRelations{
         internal static partial class DatabaseGenerator;
         public sealed partial class Db(DatabaseContainerOptions options):DatabaseContainer(options){
             [ForeignKey("AB","Bs",new[]{"Other"},new[]{"Id"})]
-            public Table<Keys.Row,Records.Row> As=>this.Table<Keys.Row,Records.Row>(row=>new(row.Id));
+            public Table<Keys.Row,Tables.Row> As=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Id));
             [ForeignKey("BA","As",new[]{"Other"},new[]{"Id"})]
-            public Table<Keys.Row,Records.Row> Bs=>this.Table<Keys.Row,Records.Row>(row=>new(row.Id));
+            public Table<Keys.Row,Tables.Row> Bs=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Id));
         }
-        namespace Keys{public partial struct Row{public partial int Id{get;}}}
-        namespace Records{public partial struct Row{public partial int Id{get;}public partial int Other{get;}}}
+        namespace Tables{public partial struct Row{[Key] public partial int Id{get;}public partial int Other{get;}}}
         }
         """;
     private static (System.Runtime.Loader.AssemblyLoadContext Context,System.Reflection.Assembly Assembly) Load(){
@@ -27,7 +26,7 @@ public sealed class NativeRelations{
     }
     [Fact]public void CyclesValidateAtFinalCommit(){
         var loaded=Load();try{
-            dynamic row(int id,int other)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Records.Row")!,id,other)!;
+            dynamic row(int id,int other)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Tables.Row")!,key(id),other)!;
             dynamic key(int id)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Keys.Row")!,id)!;
             using var database=(Seamless.Database.DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Relations.Db")!,Options())!;dynamic db=database;
             using(var tx=database.BeginTransaction()){db.As.Add(row(1,2));db.Bs.Add(row(2,1));tx.Commit();}
@@ -40,7 +39,7 @@ public sealed class NativeRelations{
     }
     [Fact]public async Task AsyncCyclesAndSavepoint(){
         var loaded=Load();try{
-            dynamic row(int id,int other)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Records.Row")!,id,other)!;
+            dynamic row(int id,int other)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Tables.Row")!,key(id),other)!;
             dynamic key(int id)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Keys.Row")!,id)!;
             using var database=(Seamless.Database.DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Relations.Db")!,Options())!;dynamic db=database;
             dynamic tx=await db.BeginTransactionAsync();try{tx.As.Add(row(1,2));tx.Bs.Add(row(2,1));await tx.CommitAsync();}finally{await tx.DisposeAsync();}

@@ -104,7 +104,10 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             }
 
             var declarations = CollectObjects(target.Symbol);
-            var declaredObjects = CollectDeclaredObjects(uniqueTypes, namespaceName);
+            // [宣言/手書きの表] Tables の型を手書きの表のプロパティ(Table<Keys.X,Tables.X>)で使っていれば、その型の表のプロパティは作らない。
+            // 手書きのプロパティは、1つの行の型を複数の表で共有するときや、外部キーの属性を付けるときに使う。
+            var handWritten=new HashSet<string>(declarations.Where(static item=>item.ImportKind=="Table").Select(static item=>item.RecordTypeName),StringComparer.Ordinal);
+            var declaredObjects = CollectDeclaredObjects(uniqueTypes, namespaceName).Where(item=>!handWritten.Contains(item.RecordTypeName)).ToImmutableArray();
             var tableObjects=declarations.Concat(declaredObjects).Where(static item=>item.ImportKind is "Table" or "MaterializedView").ToArray();
             var schemaMarkers=SchemaMarkers(target.Symbol);
             var queries=CollectQueries(target.Symbol,receivers,[..tableObjects,..schemaMarkers]);
@@ -283,10 +286,23 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
                 var name = string.IsNullOrEmpty(schema) ? symbol.Name : $"{schema}.{symbol.Name}";
                 var recordTypeName = "global::" + symbol.ToDisplayString();
                 var keyTypeName = "global::" + keyNs + ".@" + symbol.Name;
-                builder.Add(new ObjectDeclaration(kind, name, recordTypeName, "Table", symbol.Locations.FirstOrDefault() ?? Location.None, keyTypeName));
+                builder.Add(new ObjectDeclaration(kind, name, recordTypeName, "Table", symbol.Locations.FirstOrDefault() ?? Location.None, keyTypeName){PropertyAttributes=CopiedAttributes(symbol)});
             }
         }
         return builder.ToImmutable();
+    }
+
+    // [宣言/属性] 行の型に付けた属性のうち、読む側がコンテナ(スキーマ)の表のプロパティから読むもの(取込の実名)を、生成するプロパティへ写す。
+    private static readonly string[] CopiedAttributeNames=["Seamless.Database.ImportedDatabaseObjectAttribute"];
+    private static string CopiedAttributes(INamedTypeSymbol symbol){
+        var builder=new StringBuilder();
+        foreach(var attribute in symbol.GetAttributes()){
+            if(attribute.AttributeClass is not{} type||!CopiedAttributeNames.Contains(type.ToDisplayString(),StringComparer.Ordinal)){continue;}
+            var arguments=attribute.ConstructorArguments.Select(static argument=>argument.ToCSharpString())
+                .Concat(attribute.NamedArguments.Select(static pair=>pair.Key+"="+pair.Value.ToCSharpString()));
+            builder.Append("[global::"+type.ToDisplayString()+"("+string.Join(",",arguments)+")]");
+        }
+        return builder.ToString();
     }
 
     private static void CollectObjects(
@@ -419,14 +435,14 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             builder.AppendLine($"{indent}        public new {className} Database => ({className})base.Database;");
             foreach(var item in group) {
                 var propName = Identifier(item.Name.Substring(schemaName.Length + 1));
-                builder.AppendLine($"{indent}        public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
+                builder.AppendLine($"{indent}        {item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
             }
             builder.AppendLine($"{indent}    }}");
             builder.AppendLine($"{indent}    public {schemaClass} {Identifier(schemaName)} => new(this);");
         }
         foreach(var item in declaredObjects.Where(static d => !d.Name.Contains('.'))) {
             var propName = Identifier(item.Name);
-            builder.AppendLine($"{indent}    public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
+            builder.AppendLine($"{indent}    {item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
         }
         builder.AppendLine($"{indent}    private static readonly global::Seamless.Database.System.SystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject> GeneratedDatabaseObjects=");
         builder.AppendLine($"{indent}        CreateSystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject>(");
@@ -490,7 +506,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             builder.AppendLine($"partial class {Identifier(schema.Name)}{{");
             foreach(var item in group){
                 var propertyName=Identifier(item.Name.Substring(group.Key.Length+1));
-                builder.AppendLine($"public global::Seamless.Database.Table<{item.KeyTypeName},{item.RecordTypeName}> {propertyName}=>this.Table<{item.KeyTypeName},{item.RecordTypeName}>(static row=>row.Key);");
+                builder.AppendLine($"{item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName},{item.RecordTypeName}> {propertyName}=>this.Table<{item.KeyTypeName},{item.RecordTypeName}>(static row=>row.Key);");
             }
             builder.AppendLine("}");
             if(schemaNamespace.Length>0){builder.AppendLine("}");}
@@ -530,8 +546,10 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         public string? ImportKind { get; }=importKind;
         public Location Location { get; }=location;
         public string? KeyTypeName{get;}=keyTypeName;
+        /// <summary>生成する表のプロパティへ写す属性(C# の属性の構文)。</summary>
+        public string PropertyAttributes{get;init;}=string.Empty;
         public QueryMember? Query{get;private init;}
-        public ObjectDeclaration WithQuery(QueryMember query)=>new(this.Kind,this.Name,this.RecordTypeName,this.ImportKind,this.Location,this.KeyTypeName){Query=query};
+        public ObjectDeclaration WithQuery(QueryMember query)=>new(this.Kind,this.Name,this.RecordTypeName,this.ImportKind,this.Location,this.KeyTypeName){Query=query,PropertyAttributes=this.PropertyAttributes};
     }
     private static void AppendTransactions(StringBuilder builder,string indent,string className,ImmutableArray<ObjectDeclaration> declarations,ObjectDeclaration[] schemaMarkers){
         var tables=declarations.Where(static d=>d.ImportKind is "Table" or "MaterializedView").ToArray();

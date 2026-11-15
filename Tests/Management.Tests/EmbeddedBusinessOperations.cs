@@ -12,7 +12,7 @@ public sealed class EmbeddedBusinessOperations{
         var root=Root();await using var application=await Host.CreateAsync(new(root,ManagementExecutionMode.Embedded){Defaults=new(){ReadAuditEnabled=false}});
         var host=application.Embedded!;Initialize(host);var threads=new ConcurrentQueue<int>();var rowThreads=new ConcurrentQueue<int>();
         host.Invoke((service,user)=>{
-            NativeWorkflow.Publish(service,user,Query("stream","System.Collections.Generic.IEnumerable<object?>","var db=context.GetDatabase<Db>();db.Rows.Add(new Records.Row(id,id));yield return id;if(mode==1){throw new System.InvalidOperationException(\"rollback\");}if(mode==2){yield return \"wrong\";}else{yield return id+1;}",true,",int id,int mode"));
+            NativeWorkflow.Publish(service,user,Query("stream","System.Collections.Generic.IEnumerable<object?>","var db=context.GetDatabase<Db>();db.Rows.Add(new Tables.Row(new(id),id));yield return id;if(mode==1){throw new System.InvalidOperationException(\"rollback\");}if(mode==2){yield return \"wrong\";}else{yield return id+1;}",true,",int id,int mode"));
             NativeWorkflow.Publish(service,user,Query("texts","System.Collections.Generic.IEnumerable<string>","for(var i=0;i<40;i++){yield return i+new string('x',100);}",false));
             service.BeforeQueryExecution=()=>threads.Enqueue(Environment.CurrentManagedThreadId);service.AfterQueryRow=()=>rowThreads.Enqueue(Environment.CurrentManagedThreadId);return true;
         });
@@ -138,7 +138,7 @@ public sealed class EmbeddedBusinessOperations{
         var database=NativeWorkflow.Database();database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text=file.Text+"\nnamespace Model{public static class DbQueries{extension(Db.IReader q){public int TimesTen(int value)=>value*10;}}}"}).ToArray()}};
         NativeWorkflow.Publish(service,user,database);
         NativeWorkflow.Publish(service,user,Query("count","int","return context.GetDatabase<Db>().Rows.Count;",false));
-        NativeWorkflow.Publish(service,user,Query("mutate","object?","var db=context.GetDatabase<Db>();db.Rows.Add(new Records.Row(id,id*10));if(mode==1){throw new System.InvalidOperationException(\"rollback\");}if(mode==2){return new int[0];}if(mode==3){return new[]{1,2};}if(mode==4){return \"not-a-number\";}if(mode==5){return null;}return db.Rows.Count;",true,",int id,int mode"));return true;
+        NativeWorkflow.Publish(service,user,Query("mutate","object?","var db=context.GetDatabase<Db>();db.Rows.Add(new Tables.Row(new(id),id*10));if(mode==1){throw new System.InvalidOperationException(\"rollback\");}if(mode==2){return new int[0];}if(mode==3){return new[]{1,2};}if(mode==4){return \"not-a-number\";}if(mode==5){return null;}return db.Rows.Count;",true,",int id,int mode"));return true;
     });
     private static Definition Query(string id,string result,string body,bool writes,string parameters="")=>new(id,"Native",DefinitionKind.Query,"Model.Query","Run",new("1",[new("query.cs","using Seamless.Management.Server;namespace Model;public static class Query{public static "+result+" Run(ManagementExecutionContext context"+parameters+"){"+body+"}}")],[]),writes);
     private static ExecuteRequest Request(string id,int rowId=0,int mode=0)=>new(id,null,ManagementJson.Element(new{id=rowId,mode}));

@@ -6,20 +6,20 @@ public sealed class DatabaseTransactionTests {
     public void Commit_AppliesStagedRows() {
         using var database=new SpecDatabase();
         using(var transaction=database.BeginTransaction()) {
-            Assert.True(transaction.Items.Add(new Records.Item(1,"Apple")));
-            Assert.Equal("Apple",transaction.Items[new Keys.Item(1)].Name);
+            Assert.True(transaction.Items.Add(new Tables.Items(new(1),"Apple")));
+            Assert.Equal("Apple",transaction.Items[new Keys.Items(1)].Name);
             transaction.Commit();
         }
 
         using var reader=database.BeginRead();
-        Assert.Equal("Apple",reader.Items[new Keys.Item(1)].Name);
+        Assert.Equal("Apple",reader.Items[new Keys.Items(1)].Name);
     }
 
     [Fact,Trait("Category","Unit")]
     public void DisposeWithoutCommit_RollsBack() {
         using var database=new SpecDatabase();
         using(var transaction=database.BeginTransaction()) {
-            Assert.True(transaction.Items.Add(new Records.Item(1,"Apple")));
+            Assert.True(transaction.Items.Add(new Tables.Items(new(1),"Apple")));
             Assert.True(transaction.Items.ContainsKey(new(1)));
         }
 
@@ -31,9 +31,9 @@ public sealed class DatabaseTransactionTests {
     public void InnerRollback_AbortsWholeTransaction() {
         using var database=new SpecDatabase();
         using(var outer=database.BeginTransaction()) {
-            Assert.True(outer.Items.Add(new Records.Item(1,"Outer")));
+            Assert.True(outer.Items.Add(new Tables.Items(new(1),"Outer")));
             using(var inner=outer.BeginTransaction()) {
-                Assert.True(inner.Items.Add(new Records.Item(2,"Inner")));
+                Assert.True(inner.Items.Add(new Tables.Items(new(2),"Inner")));
                 inner.Rollback();
             }
             // 子の取消は根全体を取消し専用にするので、根の確定は失敗する。
@@ -51,15 +51,15 @@ public sealed class DatabaseTransactionTests {
         };
         using var database=new SpecDatabase(options);
         using(var transaction=database.BeginTransaction()) {
-            Assert.True(transaction.Items.Add(new Records.Item(1,"One")));
-            Assert.True(transaction.Items.Add(new Records.Item(2,"Two")));
+            Assert.True(transaction.Items.Add(new Tables.Items(new(1),"One")));
+            Assert.True(transaction.Items.Add(new Tables.Items(new(2),"Two")));
             Assert.Equal(2,transaction.Items.AsEnumerable().Count());
             transaction.Commit();
         }
 
         using var reader=database.BeginRead();
-        Assert.Equal("One",reader.Items[new Keys.Item(1)].Name);
-        Assert.Equal("Two",reader.Items[new Keys.Item(2)].Name);
+        Assert.Equal("One",reader.Items[new Keys.Items(1)].Name);
+        Assert.Equal("Two",reader.Items[new Keys.Items(2)].Name);
     }
 
     [Fact,Trait("Category","Unit")]
@@ -72,7 +72,7 @@ public sealed class DatabaseTransactionTests {
         using var database=new SpecDatabase(options);
         using var transaction=database.BeginTransaction();
         var error=Assert.Throws<global::Seamless.Execution.ResourceLimitException>(
-            ()=>transaction.Items.Add(new Records.Item(1,"One")));
+            ()=>transaction.Items.Add(new Tables.Items(new(1),"One")));
         Assert.Equal(global::Seamless.Execution.ResourceLimitKind.TemporaryStorage,error.Kind);
     }
 }

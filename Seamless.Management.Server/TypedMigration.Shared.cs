@@ -9,18 +9,18 @@ namespace Seamless.Management.Server;
 internal static partial class TypedMigration{
     private delegate void RowWriter(IEnumerable<object[]> rows,CancellationToken cancellation,Action rowCopied,DatabaseContainer.UnpublishedSnapshotBuilder? snapshot);
     private static bool SameAssemblyName(Type before,Type after)=>string.Equals(before.Assembly.GetName().Name,after.Assembly.GetName().Name,StringComparison.OrdinalIgnoreCase);
-    private static bool UseValueBridge(Type before,Type after,TablePlan[] tables)=>SameAssemblyName(before,after)||tables.Any(table=>table.Constructor.GetParameters().Any(parameter=>parameter.ParameterType.IsCollectible));
+    private static bool UseValueBridge(Type before,Type after,TablePlan[] tables)=>SameAssemblyName(before,after)||tables.Any(table=>table.Types.Any(type=>type.IsCollectible));
     private static CompiledMigration CompileReader(Type before,Type after,byte[] beforeBytes,TablePlan[] tables,CapturedSourceBuild? beforeBuild){
         //同名の新旧DLLを一つのALCへ束縛できないため、旧型だけを参照する読み出し側を生成する。
         var code=new StringBuilder("extern alias previous;public static class Migration{");
         var converter=new MigrationValueConverter(before.Assembly,after.Assembly);
         for(var index=0;index<tables.Length;index++){
-            var table=tables[index];var parameters=table.Constructor.GetParameters();
+            var table=tables[index];var parameters=table.Types;
             code.Append("public static global::System.Collections.Generic.IEnumerable<object[]> Read").Append(index).Append("(object source,global::System.Threading.CancellationToken cancellation){var before=(previous::").Append(TypeName(before)).Append(")source;foreach(var row in before.").Append(Access(table.Before.Path)).Append("){cancellation.ThrowIfCancellationRequested();yield return new object[]{");
             for(var column=0;column<parameters.Length;column++){
                 if(column>0){code.Append(',');}
                 if(table.Values[column]=="default"){code.Append("null");continue;}
-                var type=converter.Prepare(parameters[column].ParameterType);
+                var type=converter.Prepare(parameters[column]);
                 code.Append('(').Append(ReaderTypeName(type,before.Assembly)).Append(")(").Append(table.Values[column]).Append(')');
             }
             code.Append("};}}");
@@ -52,14 +52,14 @@ internal static partial class TypedMigration{
         var converter=new MigrationValueConverter(before.Assembly,after.Assembly);var parameters=new Type[tables.Length][];
         for(var index=0;index<tables.Length;index++){
             var table=tables[index];readers[index]=readerAssembly.GetType("Migration")!.GetMethod("Read"+index)!.CreateDelegate<Func<object,CancellationToken,IEnumerable<object[]>>>();
-            parameters[index]=table.Constructor.GetParameters().Select(parameter=>parameter.ParameterType).ToArray();
+            parameters[index]=table.Types;
             for(var parameter=0;parameter<parameters[index].Length;parameter++){
                 if(table.Values[parameter]=="default"){converter.PrepareDefault(parameters[index][parameter]);}
                 else{converter.Prepare(parameters[index][parameter]);}
             }
             var types=table.After.Property.PropertyType.GenericTypeArguments;var method=nameof(CreateSetWriter);if(types.Length==2){method=nameof(CreateKeyedWriter);}
-            var factory=typeof(TypedMigration).GetMethod(method,BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(types).CreateDelegate<Func<object,ConstructorInfo,RowWriter>>();
-            writers[index]=factory(table.After.GetTable(after.Database),table.Constructor);
+            var factory=typeof(TypedMigration).GetMethod(method,BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(types).CreateDelegate<Func<object,TablePlan,RowWriter>>();
+            writers[index]=factory(table.After.GetTable(after.Database),table);
         }
         return(source,_,cancellation,checkpoint,snapshot)=>{
             long count=0;
@@ -70,12 +70,20 @@ internal static partial class TypedMigration{
             }
         };
     }
-    private static Func<object[],TRecord> Constructor<TRecord>(ConstructorInfo constructor){
-        var values=Expression.Parameter(typeof(object[]),"values");var arguments=constructor.GetParameters().Select((parameter,index)=>Expression.Convert(Expression.ArrayIndex(values,Expression.Constant(index)),parameter.ParameterType));
-        return Expression.Lambda<Func<object[],TRecord>>(Expression.New(constructor,arguments),values).Compile();
+    // 列の値の配列(TablePlan.Columns の順)から行を作る。生成した行は作り方に従い、手書きの行は同じ型の並びのコンストラクターを呼ぶ。
+    private static Func<object[],TRecord> Constructor<TRecord>(TablePlan table){
+        var values=Expression.Parameter(typeof(object[]),"values");
+        Expression Value(int index)=>Expression.Convert(Expression.ArrayIndex(values,Expression.Constant(index)),table.Types[index]);
+        Expression body;
+        if(GeneratedRecordShape.TryCreate(typeof(TRecord)) is{} shape){body=shape.New(name=>Value(Array.IndexOf(table.Columns,name)));}
+        else{
+            var constructor=typeof(TRecord).GetConstructor(table.Types)??throw new ManagementException("MigrationRequired","公開された行コンストラクターが必要です。");
+            body=Expression.New(constructor,table.Types.Select((_,index)=>Value(index)));
+        }
+        return Expression.Lambda<Func<object[],TRecord>>(body,values).Compile();
     }
-    private static RowWriter CreateKeyedWriter<TKey,TRecord>(object target,ConstructorInfo constructor) where TKey:struct where TRecord:struct{
-        var table=(Table<TKey,TRecord>)target;var create=Constructor<TRecord>(constructor);
+    private static RowWriter CreateKeyedWriter<TKey,TRecord>(object target,TablePlan plan) where TKey:struct where TRecord:struct{
+        var table=(Table<TKey,TRecord>)target;var create=Constructor<TRecord>(plan);
         return(rows,cancellation,rowCopied,snapshot)=>{
             foreach(var values in rows){
                 cancellation.ThrowIfCancellationRequested();var row=create(values);
@@ -85,8 +93,8 @@ internal static partial class TypedMigration{
             }
         };
     }
-    private static RowWriter CreateSetWriter<TRecord>(object target,ConstructorInfo constructor) where TRecord:struct{
-        var table=(Table<TRecord>)target;var create=Constructor<TRecord>(constructor);
+    private static RowWriter CreateSetWriter<TRecord>(object target,TablePlan plan) where TRecord:struct{
+        var table=(Table<TRecord>)target;var create=Constructor<TRecord>(plan);
         return(rows,cancellation,rowCopied,snapshot)=>{
             foreach(var values in rows){
                 cancellation.ThrowIfCancellationRequested();var row=create(values);

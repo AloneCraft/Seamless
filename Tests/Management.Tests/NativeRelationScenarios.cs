@@ -13,17 +13,16 @@ public sealed class NativeRelationScenarios{
         internal static partial class DatabaseGenerator;
         public sealed partial class Db(DatabaseContainerOptions options):DatabaseContainer(options){
           [ForeignKey("AB","Bs",new[]{"Tenant","Other"},new[]{"Tenant","Id"})]
-          public Table<Keys.Row,Records.Row> As=>this.Table<Keys.Row,Records.Row>(row=>new(row.Tenant,row.Id));
+          public Table<Keys.Row,Tables.Row> As=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Tenant,row.Id));
           [ForeignKey("BC","Nested.Cs",new[]{"Tenant","Other"},new[]{"Tenant","Id"})]
-          public Table<Keys.Row,Records.Row> Bs=>this.Table<Keys.Row,Records.Row>(row=>new(row.Tenant,row.Id));
+          public Table<Keys.Row,Tables.Row> Bs=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Tenant,row.Id));
           public Schema Nested=>new(this);
         }
         public sealed partial class Schema(DatabaseContainer db):DatabaseSchema(db,"Nested"){
           [ForeignKey("CA","As",new[]{"Tenant","Other"},new[]{"Tenant","Id"})]
-          public Table<Keys.Row,Records.Row> Cs=>this.Table<Keys.Row,Records.Row>(row=>new(row.Tenant,row.Id));
+          public Table<Keys.Row,Tables.Row> Cs=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Tenant,row.Id));
         }
-        namespace Keys{public partial struct Row{public partial int Tenant{get;}public partial int Id{get;}}}
-        namespace Records{public partial struct Row{public partial int Tenant{get;}public partial int Id{get;}public partial int Other{get;}}}}
+        namespace Tables{public partial struct Row{[Key] public partial int Tenant{get;}[Key] public partial int Id{get;}public partial int Other{get;}}}}
         """;
     private static DatabaseContainerOptions Options()=>new(){IndexSize=1024,PageSize=1<<20,SegmentSize=1<<24,MemorySize=1<<24,TemporaryDirectory=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,Guid.NewGuid().ToString("N"))};
     private static (AssemblyLoadContext Context,System.Reflection.Assembly Assembly) Load(string source){var compiled=new RuntimeCompiler().Compile(new("1",[new("shape.cs",source)],[]));Assert.DoesNotContain(compiled.Result.Diagnostics,item=>item.Severity=="Error");var context=new AssemblyLoadContext("Shape_"+Guid.NewGuid(),true);return(context,context.LoadFromStream(new MemoryStream(compiled.AssemblyBytes)));}
@@ -31,7 +30,7 @@ public sealed class NativeRelationScenarios{
         var loaded=Load(Composite);try{
             var options=Options();
             using var database=(DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Shapes.Db")!,options)!;dynamic db=database;
-            dynamic row(int id,int other,int tenant=3)=>Activator.CreateInstance(loaded.Assembly.GetType("Shapes.Records.Row")!,tenant,id,other)!;
+            dynamic row(int id,int other,int tenant=3)=>Activator.CreateInstance(loaded.Assembly.GetType("Shapes.Tables.Row")!,Activator.CreateInstance(loaded.Assembly.GetType("Shapes.Keys.Row")!,tenant,id),other)!;
             dynamic key(int id)=>Activator.CreateInstance(loaded.Assembly.GetType("Shapes.Keys.Row")!,3,id)!;
             using(var tx=database.BeginTransaction()){db.As.Add(row(1,2));db.Bs.Add(row(2,3));db.Nested.Cs.Add(row(3,1));tx.Commit();}
             using(var tx=database.BeginTransaction()){tx.CreateSavepoint("unchanged");db.Nested.Cs.Remove(key(3));tx.RollbackToSavepoint("unchanged");tx.Commit();}
@@ -45,7 +44,7 @@ public sealed class NativeRelationScenarios{
         var loaded=Load(NativeRelations.Source.Replace("\"AB\",\"Bs\"","\"AB\",\"As\""));try{
             var options=Options() with{TransactionConcurrency=TransactionConcurrencyMode.Optimistic,TransactionHistory=new(){MaxRetainedMemoryBytes=4<<20,MaxRetainedStorageBytes=4<<20,MaxMetadataBytes=4<<20,MaintenanceReserveMemoryBytes=1<<20,MaintenanceReserveStorageBytes=4<<20,MaintenanceWaitTimeout=TimeSpan.FromSeconds(5)}};
             using var database=(DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Relations.Db")!,options)!;dynamic db=database;
-            dynamic row(int id,int other)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Records.Row")!,id,other)!;
+            dynamic row(int id,int other)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Tables.Row")!,key(id),other)!;
             dynamic key(int id)=>Activator.CreateInstance(loaded.Assembly.GetType("Relations.Keys.Row")!,id)!;
             dynamic seed=await db.BeginTransactionAsync();try{seed.As.Add(row(1,1));await seed.CommitAsync();}finally{await seed.DisposeAsync();}
             dynamic delete=await db.BeginTransactionAsync();try{
@@ -57,7 +56,7 @@ public sealed class NativeRelationScenarios{
     }
     [Fact]public void UnpublishedSnapshotCannotBypassRelations(){
         var loaded=Load(NativeRelations.Source);try{
-            using var database=(DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Relations.Db")!,Options() with{RecordSerialization=DatabaseRecordSerialization.CanonicalV1})!;dynamic db=database;dynamic row=Activator.CreateInstance(loaded.Assembly.GetType("Relations.Records.Row")!,1,99)!;
+            using var database=(DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Relations.Db")!,Options() with{RecordSerialization=DatabaseRecordSerialization.CanonicalV1})!;dynamic db=database;dynamic row=Activator.CreateInstance(loaded.Assembly.GetType("Relations.Tables.Row")!,Activator.CreateInstance(loaded.Assembly.GetType("Relations.Keys.Row")!,1),99)!;
             dynamic snapshot=db.BeginUnpublishedSnapshot();try{snapshot.Insert(db.As,row);Assert.Throws<ForeignKeyViolationException>(()=>{snapshot.Complete();});}finally{snapshot.Dispose();}
         }finally{loaded.Context.Unload();}
     }
@@ -66,8 +65,8 @@ public sealed class NativeRelationScenarios{
     }
     [Fact]public void GeneratedImportDefersRelationsAcrossAllTables(){
         var loaded=Load(NativeRelations.Source);try{
-            var options=Options();using var database=(DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Relations.Db")!,options)!;dynamic db=database;var type=loaded.Assembly.GetType("Relations.Records.Row")!;
-            var source=new Dictionary<string,object[]>{{"As",[Activator.CreateInstance(type,1,2)!]},{"Bs",[Activator.CreateInstance(type,2,1)!]}};
+            var options=Options();using var database=(DatabaseContainer)Activator.CreateInstance(loaded.Assembly.GetType("Relations.Db")!,options)!;dynamic db=database;var type=loaded.Assembly.GetType("Relations.Tables.Row")!;var keyType=loaded.Assembly.GetType("Relations.Keys.Row")!;
+            var source=new Dictionary<string,object[]>{{"As",[Activator.CreateInstance(type,Activator.CreateInstance(keyType,1),2)!]},{"Bs",[Activator.CreateInstance(type,Activator.CreateInstance(keyType,2),1)!]}};
             Assert.Throws<InvalidOperationException>(()=>{db.ImportTables(new ImportSource(source,true));});Assert.Equal(0,(int)db.As.Count+(int)db.Bs.Count);
             db.ImportTables(new ImportSource(source));Assert.Equal(1,(int)db.As.Count);Assert.Equal(1,(int)db.Bs.Count);
         }finally{loaded.Context.Unload();}

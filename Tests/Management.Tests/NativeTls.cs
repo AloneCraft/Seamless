@@ -350,7 +350,7 @@ public sealed partial class NativeTls{
             }
             dynamic database=context.Database;
             if(queryId=="insert"){
-                dynamic row=Activator.CreateInstance(context.Database.GetType().Assembly.GetType("Model.Records.Row")!,id,9)!;
+                dynamic row=Activator.CreateInstance(context.Database.GetType().Assembly.GetType("Model.Tables.Row")!,Activator.CreateInstance(context.Database.GetType().Assembly.GetType("Model.Keys.Row")!,id),9)!;
                 if(!(bool)database.Rows.Add(row)){throw new InvalidOperationException("The previous transaction did not release its key.");}
                 yield return MemoryPackSerializer.Serialize(1);yield break;
             }

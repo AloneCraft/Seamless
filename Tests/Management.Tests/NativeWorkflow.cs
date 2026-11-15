@@ -10,9 +10,8 @@ public sealed class NativeWorkflow{
         using Seamless.Database;
         namespace Model{
         internal static partial class DatabaseGenerator;
-        public sealed partial class Db(DatabaseContainerOptions options):DatabaseContainer(options){public Table<Keys.Row,Records.Row> Rows=>this.Table<Keys.Row,Records.Row>(row=>new(row.Id));}
-        namespace Keys{public partial struct Row{public partial int Id{get;}}}
-        namespace Records{public partial struct Row{public partial int Id{get;}public partial int Value{get;}}}
+        public sealed partial class Db(DatabaseContainerOptions options):DatabaseContainer(options){public Table<Keys.Row,Tables.Row> Rows=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Id));}
+        namespace Tables{public partial struct Row{[Key] public partial int Id{get;}public partial int Value{get;}}}
         }
         """)],[]));
     private static Definition Query(string id,string body,bool writes=false)=>new(id,"Native",DefinitionKind.Query,"Model.Query","Run",new("1",[new("query.cs","using System.Linq;using Seamless.Management.Server;namespace Model;public static class Query{public static int Run(ManagementExecutionContext context){"+body+"}}")],[]),writes);
@@ -22,11 +21,11 @@ public sealed class NativeWorkflow{
         var root=Root();
         using(var store=ManagementStore.Initialize(root,"admin","TestPassword-123"))using(var service=new Seamless.Management.Server.ManagementService(store)){
             var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);Publish(service,user,Database());
-            var insert=Query("insert","context.GetDatabase<Db>().Rows.Add(new Records.Row(1,9));return 9;",true);Publish(service,user,insert);
+            var insert=Query("insert","context.GetDatabase<Db>().Rows.Add(new Tables.Row(new(1),9));return 9;",true);Publish(service,user,insert);
             Assert.Equal(9,Assert.Single(service.Execute(user,Request("insert"),CancellationToken.None)).Value.GetInt32());
-            var failure=Query("fail","context.GetDatabase<Db>().Rows.Add(new Records.Row(2,90));throw new System.InvalidOperationException(\"failure\");",true);Publish(service,user,failure);
+            var failure=Query("fail","context.GetDatabase<Db>().Rows.Add(new Tables.Row(new(2),90));throw new System.InvalidOperationException(\"failure\");",true);Publish(service,user,failure);
             Assert.ThrowsAny<Exception>(()=>service.Execute(user,Request("fail"),CancellationToken.None).ToArray());
-            var forbidden=Query("readonly","context.GetDatabase<Db>().Rows.Add(new Records.Row(3,900));return 1;");Publish(service,user,forbidden);
+            var forbidden=Query("readonly","context.GetDatabase<Db>().Rows.Add(new Tables.Row(new(3),900));return 1;");Publish(service,user,forbidden);
             Assert.ThrowsAny<Exception>(()=>service.Execute(user,Request("readonly"),CancellationToken.None).ToArray());
             var sum=Query("sum","return context.GetDatabase<Db>().Rows.Sum(row=>row.Value);");Publish(service,user,sum);Assert.Equal(9,Assert.Single(service.Execute(user,Request("sum"),CancellationToken.None)).Value.GetInt32());
             var draft=service.SaveDraft(user,new(Database() with{Source=Database().Source with{Revision="2"}},1,1));var validation=service.CreateValidationDraft(user,new("db",draft.Revision));Assert.True(validation.FromDraft);Assert.Equal(draft.Definition.Source.Hash(),validation.SourceHash);
@@ -36,7 +35,7 @@ public sealed class NativeWorkflow{
             Assert.Equal("Permission",Assert.Throws<ManagementException>(()=>service.AnalyzePublished(reader,"sum")).Code);Assert.Equal("Permission",Assert.Throws<ManagementException>(()=>service.Plans(reader,"sum")).Code);Assert.Throws<ManagementException>(()=>service.Seed(reader,new(validation.Id,"Rows",[])));Assert.Throws<ManagementException>(()=>service.Build(reader,new("sum",queryDraft.Revision)));
             var expanded=Database() with{Source=Database().Source with{Revision="3",Files=Database().Source.Files.Select(file=>file with{Text=file.Text.Replace("public partial int Value{get;}","public partial int Value{get;}public partial long Extra{get;}",StringComparison.Ordinal)}).ToArray()}};
             var brokenDependency=service.SaveDraft(user,new(expanded,2,1));Assert.False(service.Preview(user,new("db",brokenDependency.Revision)).CanApply);Assert.Equal(1,service.GetDefinition(user,"db").Version);
-            var extraTable=Database() with{Source=Database().Source with{Revision="4",Files=Database().Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<Keys.Row,Records.Row> Rows=>","public Table<Keys.Row,Records.Row> Other=>this.Table<Keys.Row,Records.Row>(row=>new(row.Id));public Table<Keys.Row,Records.Row> Rows=>",StringComparison.Ordinal)}).ToArray()}};
+            var extraTable=Database() with{Source=Database().Source with{Revision="4",Files=Database().Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<Keys.Row,Tables.Row> Rows=>","public Table<Keys.Row,Tables.Row> Other=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Id));public Table<Keys.Row,Tables.Row> Rows=>",StringComparison.Ordinal)}).ToArray()}};
             Publish(service,user,extraTable,3,1);Assert.Equal(2,service.GetDefinition(user,"sum").Version);Assert.Equal(9,Assert.Single(service.Execute(user,Request("sum"),CancellationToken.None)).Value.GetInt32());
             var incompatible=extraTable with{Source=extraTable.Source with{Revision="5",Files=extraTable.Source.Files.Select(file=>file with{Text=file.Text.Replace("public partial int Value{get;}","public partial long Value{get;}",StringComparison.Ordinal)}).ToArray()}};
             var rejected=service.SaveDraft(user,new(incompatible,4,2));var impact=service.Preview(user,new("db",rejected.Revision));Assert.False(impact.CanApply);Assert.Contains(impact.Diagnostics,item=>item.Code=="MigrationRequired");Assert.Equal(2,service.GetDefinition(user,"db").Version);

@@ -2,7 +2,7 @@ using System.Buffers;
 
 namespace Seamless.Database.Client;
 
-/// <summary>MemoryPack 1.21.4の外側要求を復元前に検査する。引数内部の型別検査は別に行う。</summary>
+/// <summary>MemoryPack 1.xの外側要求を復元前に検査する。引数内部の型別検査は別に行う。</summary>
 public static class NativeQueryRequestWire{
     private static readonly NativeWireLimits Limits=new(){MaximumArrayElements=NativeFrame.MaximumBytes-1,MaximumStringCharacters=1024,MaximumValueNodes=16};
     static NativeQueryRequestWire(){_=NativeWireValidation.For<NativeQueryRequest>();}

@@ -41,11 +41,17 @@ if($PackageFallbackRoot){
 }
 $env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $repository ('Seamless.Database.Generator/bin/'+$Configuration+'/net10.0/Seamless.Database.Generator.dll')
 if($isolated){$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $work ('artifacts/bin/Seamless.Database.Generator/'+$Configuration.ToLowerInvariant()+'/Seamless.Database.Generator.dll')}
-$env:SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY=Join-Path $packages 'memorypack.generator/1.21.4/analyzers/dotnet/cs/MemoryPack.Generator.dll'
-if(!(Test-Path -LiteralPath $env:SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY) -and $PackageFallbackRoot){
-    $fallbackAnalyzer=Join-Path $PackageFallbackRoot 'memorypack.generator/1.21.4/analyzers/dotnet/cs/MemoryPack.Generator.dll'
-    if(Test-Path -LiteralPath $fallbackAnalyzer){$env:SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY=$fallbackAnalyzer}
+function Get-LatestMemoryPackGenerator([string]$PackageRoot){
+    $root=Join-Path $PackageRoot 'memorypack.generator'
+    if(-not(Test-Path -LiteralPath $root)){return $null}
+    $latest=Get-ChildItem -LiteralPath $root -Directory|Where-Object{$_.Name -match '^\d+\.\d+\.\d+$'}|Sort-Object{[version]$_.Name} -Descending|Select-Object -First 1
+    if($null -eq $latest){return $null}
+    return $latest.FullName
 }
+# MemoryPack は 1.* で常に最新を使うので、生成器も置き場にある一番新しい版を使う。
+$generatorPackage=Get-LatestMemoryPackGenerator $packages
+if($null -eq $generatorPackage -and $PackageFallbackRoot){$generatorPackage=Get-LatestMemoryPackGenerator $PackageFallbackRoot}
+if($generatorPackage){$env:SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY=Join-Path $generatorPackage 'analyzers/dotnet/cs/MemoryPack.Generator.dll'}
 $flinqGenerator=$env:SEAMLESS_TEST_FLINQ_GENERATOR_ASSEMBLY
 if(!$flinqGenerator){$flinqGenerator=$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY.Replace('Seamless.Database.Generator','Seamless.FLinq.Generator').Replace('net10.0','netstandard2.0')}
 $arguments=@('test',$target,'-c',$Configuration,'--logger','trx;LogFileName=checks.trx','--results-directory',$logs)

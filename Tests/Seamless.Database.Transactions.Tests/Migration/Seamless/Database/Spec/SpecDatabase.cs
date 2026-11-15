@@ -19,23 +19,16 @@ namespace Test.Seamless.Database.Spec {
         public SpecDatabase() : this(null) {
         }
 
-        public global::Seamless.Database.Table<Keys.Item,Records.Item> Items=>
-            this.Table<Keys.Item,Records.Item>(static record=>new(record.Id));
+        // 表 Items は Tables に宣言し(Tables.Items)、このプロパティとキーの型(Keys.Items)は DB の生成器が作る。
 
         [global::Seamless.FLinq.LinqIntercept(false)]
         public global::Seamless.Database.StoredProcedure<int> NoOperation()=>this.StoredProcedure(static()=>0);
     }
 
-    namespace Records {
-        public partial struct Item {
-            public partial int Id { get; }
+    namespace Tables {
+        public partial struct Items {
+            [global::Seamless.Database.Key] public partial int Id { get; }
             public partial string Name { get; }
-        }
-    }
-
-    namespace Keys {
-        public partial struct Item {
-            public partial int Id { get; }
         }
     }
 
@@ -45,9 +38,9 @@ namespace Test.Seamless.Database.Spec {
         internal static SpecDatabase Load() {
             var database = new SpecDatabase();
             using(var tx=database.BeginTransaction()){
-                tx.Items.Add(new Records.Item(1,"Banana"));
-                tx.Items.Add(new Records.Item(2,"Apple"));
-                tx.Items.Add(new Records.Item(3,"Cherry"));
+                tx.Items.Add(new Tables.Items(new(1),"Banana"));
+                tx.Items.Add(new Tables.Items(new(2),"Apple"));
+                tx.Items.Add(new Tables.Items(new(3),"Cherry"));
                 tx.Commit();
             }
             return database;
@@ -65,19 +58,19 @@ namespace Test.Seamless.Database.Spec {
                 var declaration = this.Database.DatabaseObjects[new("Items")];
                 Assert.Equal(new DatabaseObjectKey("Items"),declaration.Key);
                 Assert.Equal(DatabaseObjectKind.Table,declaration.Kind);
-                Assert.Equal(typeof(Records.Item),declaration.RecordType);
+                Assert.Equal(typeof(Tables.Items),declaration.RecordType);
                 Assert.Equal("Items",this.Database.Items.Name);
             }
             {
                 //生成されたTable<T>プロパティが実際に読み書きできること
                 Assert.Equal(3,this.Database.Items.Count());
                 Assert.Contains(this.Database.Items,item => item.Name=="Apple");
-                Assert.Equal("Apple",this.Database.Items[new Keys.Item(2)].Name);
+                Assert.Equal("Apple",this.Database.Items[new Keys.Items(2)].Name);
                 Assert.True(this.Database.Items.TryGetValue(new(3),out var item));
                 Assert.Equal("Cherry",item.Name);
                 // 書き込みは取引からだけ。同じキーの行は追加されない(確定せずに取り消す)。
                 using var tx=this.Database.BeginTransaction();
-                Assert.False(tx.Items.Add(new Records.Item(3,"Duplicate")));
+                Assert.False(tx.Items.Add(new Tables.Items(new(3),"Duplicate")));
             }
         }
 
@@ -108,7 +101,7 @@ namespace Test.Seamless.Database.Spec {
                 //DatabaseObjectsにTableFunction種別で登録されていること
                 var declaration = this.Database.DatabaseObjects[new("ItemsAbove")];
                 Assert.Equal(DatabaseObjectKind.TableFunction,declaration.Kind);
-                Assert.Equal(typeof(Records.Item),declaration.RecordType);
+                Assert.Equal(typeof(Tables.Items),declaration.RecordType);
             }
             {
                 //引数を受け取り、呼んだ入口の内容を読むこと
@@ -118,7 +111,7 @@ namespace Test.Seamless.Database.Spec {
             {
                 //取引から呼ぶと、その取引のまだ確定していない書き込みも読むこと
                 using var tx = this.Database.BeginTransaction();
-                tx.Items.Add(new Records.Item(4,"Date"));
+                tx.Items.Add(new Tables.Items(new(4),"Date"));
                 Assert.Equal([2,3,4],tx.ItemsAbove(2).Select(item => item.Id).Order().ToArray());
             }
             {
@@ -126,7 +119,7 @@ namespace Test.Seamless.Database.Spec {
                 var query = Assert.Single(this.Database.Queries,item=>item.Name=="ItemsAbove");
                 Assert.Equal([new("minimumId",typeof(int))],query.Parameters);
                 using var result = query.Execute(this.Database,2);
-                Assert.Equal([2,3],((IEnumerable<Records.Item>)result.Value!).Select(item=>item.Id).Order().ToArray());
+                Assert.Equal([2,3],((IEnumerable<Tables.Items>)result.Value!).Select(item=>item.Id).Order().ToArray());
             }
         }
 

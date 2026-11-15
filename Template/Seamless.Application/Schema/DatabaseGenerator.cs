@@ -1,6 +1,4 @@
 namespace Seamless.Application.Schema;
 
-// この名前空間のKeys/Recordsを、プロパティ宣言から補完する。
-internal static class DatabaseGenerator{
-    public const bool OptimizeFieldLayout=true;
-}
+// この名前空間の Tables から、キーの型(Keys)とコンストラクター・MemoryPack の読み書き・通信用の配置を補完する。
+internal static class DatabaseGenerator;

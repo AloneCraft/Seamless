@@ -22,7 +22,7 @@ public sealed class AuditUpgrade{
         using(var store=ManagementStore.InitializeLegacy(root,"admin","TestPassword-123"))using(var service=new Seamless.Management.Server.ManagementService(store)){
             var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);NativeWorkflow.Publish(service,user,NativeWorkflow.Database());
             Definition Query(string id,string body,bool writes=false)=>new(id,"Native",DefinitionKind.Query,"Model.Query","Run",new("1",[new("query.cs","using System.Linq;using Seamless.Management.Server;namespace Model;public static class Query{public static int Run(ManagementExecutionContext context){"+body+"}}")],[]),writes);
-            NativeWorkflow.Publish(service,user,Query("insert","context.GetDatabase<Db>().Rows.Add(new Records.Row(1,9));return 9;",true));NativeWorkflow.Publish(service,user,Query("sum","return context.GetDatabase<Db>().Rows.Sum(row=>row.Value);"));
+            NativeWorkflow.Publish(service,user,Query("insert","context.GetDatabase<Db>().Rows.Add(new Tables.Row(new(1),9));return 9;",true));NativeWorkflow.Publish(service,user,Query("sum","return context.GetDatabase<Db>().Rows.Sum(row=>row.Value);"));
             Assert.Equal(9,Assert.Single(service.Execute(user,new("insert",null,ManagementJson.Element(new{})),CancellationToken.None)).Value.GetInt32());
             draft=service.SaveDraft(user,new(NativeWorkflow.Database() with{Source=NativeWorkflow.Database().Source with{Revision="unapplied"}},1,1));service.ChangeUser(user,new("disabled","DisabledPassword-123",grants,true));
         }

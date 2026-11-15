@@ -17,7 +17,7 @@
     <None Remove="Work\**" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="MemoryPack" Version="1.21.4" />
+    <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="[2.2.8]" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
     <PackageReference Include="xunit.assert" Version="2.9.3" />
@@ -26,6 +26,8 @@
     <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
     <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
     <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
+    <!-- 取込済みの AdventureWorks2017(Databases/AdventureWorks2017)は、SQL Server の bit を Seamless.Database.SqlServer.Types.Bit で表す。 -->
+    <ProjectReference Include="../../Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
   </ItemGroup>
   <!-- 元packageはsupport DLLの取得専用。Coreは修正済みprojectを公開参照する。 -->
   <ItemGroup>

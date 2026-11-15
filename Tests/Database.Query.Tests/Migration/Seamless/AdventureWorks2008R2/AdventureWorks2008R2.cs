@@ -15,11 +15,11 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             })) {
         public AdventureWorks() : this(null) {
         }
-        public global::Seamless.Database.Table<Records.Customer> Customers => this.Table<Records.Customer>();
-        public global::Seamless.Database.Table<Records.SalesOrderHeader> SalesOrderHeaders => this.Table<Records.SalesOrderHeader>();
-        public global::Seamless.Database.Table<Records.Store> Stores => this.Table<Records.Store>();
-        public global::Seamless.Database.Table<Records.StateProvince> StateProvinces => this.Table<Records.StateProvince>();
-        public global::Seamless.Database.Table<Records.CountryRegion> CountryRegions => this.Table<Records.CountryRegion>();
+        public global::Seamless.Database.Table<Rows.Customer> Customers => this.Table<Rows.Customer>();
+        public global::Seamless.Database.Table<Rows.SalesOrderHeader> SalesOrderHeaders => this.Table<Rows.SalesOrderHeader>();
+        public global::Seamless.Database.Table<Rows.Store> Stores => this.Table<Rows.Store>();
+        public global::Seamless.Database.Table<Rows.StateProvince> StateProvinces => this.Table<Rows.StateProvince>();
+        public global::Seamless.Database.Table<Rows.CountryRegion> CountryRegions => this.Table<Rows.CountryRegion>();
 
         // dbo.ufnCustomerTotalDue 相当の計算。コンテナの普通のメソッドなので目録には載らない。
         public decimal CustomerTotalDue(int customerId) =>
@@ -29,49 +29,24 @@ namespace Test.Seamless.AdventureWorks2008R2 {
     }
 
     // スキーマレコード。partial struct の宣言から generator が MemoryPack 対応の完全なレコードを生成する。
-    namespace Records {
-        public partial struct Customer {
-            public partial int CustomerId { get; }
-            public partial int? PersonId { get; }
-            public partial int? StoreId { get; }
-            public partial int? TerritoryId { get; }
-            public partial string AccountNumber { get; }
-        }
-        public partial struct SalesOrderHeader {
-            public partial int SalesOrderId { get; }
-            public partial int CustomerId { get; }
-            public partial DateTime OrderDate { get; }
-            public partial byte Status { get; }
-            public partial decimal TotalDue { get; }
-        }
-        public partial struct Store {
-            public partial int BusinessEntityId { get; }
-            public partial string Name { get; }
-        }
-        public partial struct StateProvince {
-            public partial int StateProvinceId { get; }
-            public partial string StateProvinceCode { get; }
-            public partial string CountryRegionCode { get; }
-            public partial string Name { get; }
-        }
-        public partial struct CountryRegion {
-            public partial string CountryRegionCode { get; }
-            public partial string Name { get; }
-        }
-        public partial struct ActiveCustomer {
-            public partial int CustomerId { get; }
-            public partial int StoreId { get; }
-        }
-        public partial struct StateProvinceCountryRegion {
-            public partial int StateProvinceId { get; }
-            public partial string StateProvinceName { get; }
-            public partial string CountryRegionCode { get; }
-            public partial string CountryRegionName { get; }
-        }
-        public partial struct SalesOrderSummary {
-            public partial int SalesOrderId { get; }
-            public partial decimal TotalDue { get; }
-        }
+    namespace Rows {
+        // 行の型。旧方式(Keys と Records の二重書き)の生成をやめ、MemoryPack の印を付けた位置引数のレコードで書く(列の順と名前は以前と同じ)。
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct Customer(int CustomerId,int? PersonId,int? StoreId,int? TerritoryId,string AccountNumber);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct SalesOrderHeader(int SalesOrderId,int CustomerId,DateTime OrderDate,byte Status,decimal TotalDue);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct Store(int BusinessEntityId,string Name);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct StateProvince(int StateProvinceId,string StateProvinceCode,string CountryRegionCode,string Name);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct CountryRegion(string CountryRegionCode,string Name);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct ActiveCustomer(int CustomerId,int StoreId);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct StateProvinceCountryRegion(int StateProvinceId,string StateProvinceName,string CountryRegionCode,string CountryRegionName);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct SalesOrderSummary(int SalesOrderId,decimal TotalDue);
     }
 
     public sealed class AdventureWorksFixture:IDisposable {
@@ -87,21 +62,21 @@ namespace Test.Seamless.AdventureWorks2008R2 {
         internal static void Seed(AdventureWorks database) {
             // 初期データは1つの取引で登録する(取引の外からは表へ書けない)。
             using var tx = database.BeginTransaction();
-            tx.CountryRegions.Add(new Records.CountryRegion("JP","Japan"));
-            tx.CountryRegions.Add(new Records.CountryRegion("US","United States"));
-            tx.StateProvinces.Add(new Records.StateProvince(1,"CA","US","California"));
-            tx.StateProvinces.Add(new Records.StateProvince(2,"WA","US","Washington"));
-            tx.StateProvinces.Add(new Records.StateProvince(3,"13","JP","Tokyo"));
-            tx.Stores.Add(new Records.Store(10,"Bike World"));
-            tx.Stores.Add(new Records.Store(11,"Trail Cycles"));
-            tx.Customers.Add(new Records.Customer(1,100,10,1,"AW00000001"));
-            tx.Customers.Add(new Records.Customer(2,null,11,2,"AW00000002"));
-            tx.Customers.Add(new Records.Customer(3,101,null,3,"AW00000003"));
-            tx.Customers.Add(new Records.Customer(4,null,null,null,"AW00000004"));
-            tx.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1000,1,new DateTime(2008,6,1),5,125.50m));
-            tx.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1001,1,new DateTime(2008,6,15),5,300.00m));
-            tx.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1002,2,new DateTime(2008,7,1),5,42.75m));
-            tx.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1003,3,new DateTime(2008,7,2),1,999.99m));
+            tx.CountryRegions.Add(new Rows.CountryRegion("JP","Japan"));
+            tx.CountryRegions.Add(new Rows.CountryRegion("US","United States"));
+            tx.StateProvinces.Add(new Rows.StateProvince(1,"CA","US","California"));
+            tx.StateProvinces.Add(new Rows.StateProvince(2,"WA","US","Washington"));
+            tx.StateProvinces.Add(new Rows.StateProvince(3,"13","JP","Tokyo"));
+            tx.Stores.Add(new Rows.Store(10,"Bike World"));
+            tx.Stores.Add(new Rows.Store(11,"Trail Cycles"));
+            tx.Customers.Add(new Rows.Customer(1,100,10,1,"AW00000001"));
+            tx.Customers.Add(new Rows.Customer(2,null,11,2,"AW00000002"));
+            tx.Customers.Add(new Rows.Customer(3,101,null,3,"AW00000003"));
+            tx.Customers.Add(new Rows.Customer(4,null,null,null,"AW00000004"));
+            tx.SalesOrderHeaders.Add(new Rows.SalesOrderHeader(1000,1,new DateTime(2008,6,1),5,125.50m));
+            tx.SalesOrderHeaders.Add(new Rows.SalesOrderHeader(1001,1,new DateTime(2008,6,15),5,300.00m));
+            tx.SalesOrderHeaders.Add(new Rows.SalesOrderHeader(1002,2,new DateTime(2008,7,1),5,42.75m));
+            tx.SalesOrderHeaders.Add(new Rows.SalesOrderHeader(1003,3,new DateTime(2008,7,2),1,999.99m));
             tx.Commit();
         }
     }
@@ -147,7 +122,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             Assert.Equal("AdventureWorks",this.Database.DatabaseName);
             var objects = this.Database.DatabaseObjects;
             Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.Table,objects[new("Customers")].Kind);
-            Assert.Equal(typeof(Records.Customer),objects[new("Customers")].RecordType);
+            Assert.Equal(typeof(Rows.Customer),objects[new("Customers")].RecordType);
             Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.View,objects[new("ActiveCustomers")].Kind);
             Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.TableFunction,objects[new("OrdersByCustomer")].Kind);
             Assert.DoesNotContain(objects,declaration => declaration.Key.Name=="CustomerTotalDue");
@@ -183,8 +158,8 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             public IEnumerable<TRecord> ReadTable<TRecord>(global::Seamless.Database.System.Keys.DatabaseObject key) {
                 if(key.Name=="Customers") {
                     return (IEnumerable<TRecord>)(object)new[] {
-                        new Records.Customer(21,null,10,1,"AW00000021"),
-                        new Records.Customer(22,102,null,2,"AW00000022"),
+                        new Rows.Customer(21,null,10,1,"AW00000021"),
+                        new Rows.Customer(22,102,null,2,"AW00000022"),
                     };
                 }
                 return [];

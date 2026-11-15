@@ -25,7 +25,7 @@ public sealed class GatewayVersionedGenerationStoreTests{
         }
     }
     private sealed class SeedSource:IDatabaseImportSource{
-        public IEnumerable<TRow> ReadTable<TRow>(global::Seamless.Database.System.Keys.DatabaseObject key){var constructor=typeof(TRow).GetConstructors().Single(static item=>item.GetParameters().Length==2);for(var id=1;id<=256;id++){yield return(TRow)constructor.Invoke([id,id*10]);}}
+        public IEnumerable<TRow> ReadTable<TRow>(global::Seamless.Database.System.Keys.DatabaseObject key){var shape=GeneratedRecordShape.TryCreate(typeof(TRow))!;for(var id=1;id<=256;id++){yield return(TRow)shape.Create(name=>name=="Id"?id:id*10);}}
     }
     private sealed class Fixture:IAsyncDisposable{
         private readonly ExecutionScope resources;

@@ -109,11 +109,13 @@ if($SnapshotOnly){
 # NuGet fallbackはCを読めても、Native DTO fixtureはFの明示analyzerパスを使う。
 # 新規LogRootでも再現できるよう、既存packageをFへ複製する。Cへrestore/出力しない。
 if($seen.Contains([IO.Path]::GetFullPath((Join-Path $sourceRoot 'Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj')))){
-    $analyzerPackage=Join-Path $env:NUGET_PACKAGES 'memorypack.generator/1.21.4'
+    # MemoryPack は 1.* で常に最新を使うので、生成器も利用者の置き場にある一番新しい版を複製する。
+    $analyzerSource=Get-ChildItem -LiteralPath 'C:\Users\kazuh\.nuget\packages\memorypack.generator' -Directory|Where-Object{$_.Name -match '^\d+\.\d+\.\d+$'}|Sort-Object{[version]$_.Name} -Descending|Select-Object -First 1 -ExpandProperty FullName
+    if(-not $analyzerSource){throw 'The offline MemoryPack generator fixture dependency is missing.'}
+    $analyzerPackage=Join-Path $env:NUGET_PACKAGES ('memorypack.generator/'+(Split-Path $analyzerSource -Leaf))
     $analyzerFile=Join-Path $analyzerPackage 'analyzers/dotnet/cs/MemoryPack.Generator.dll'
     if(-not(Test-Path -LiteralPath $analyzerFile)){
         if(Test-Path -LiteralPath $analyzerPackage){throw 'The isolated MemoryPack generator package is incomplete; inspect the cache before reuse.'}
-        $analyzerSource='C:\Users\kazuh\.nuget\packages\memorypack.generator\1.21.4'
         $sourceFile=Join-Path $analyzerSource 'analyzers/dotnet/cs/MemoryPack.Generator.dll'
         if(-not(Test-Path -LiteralPath $sourceFile)){throw 'The offline MemoryPack generator fixture dependency is missing.'}
         [IO.Directory]::CreateDirectory((Split-Path $analyzerPackage))|Out-Null

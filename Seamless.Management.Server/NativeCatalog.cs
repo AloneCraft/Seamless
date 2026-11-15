@@ -88,6 +88,9 @@ internal static class NativeCatalog{
             }
         }finally{ancestors.Remove(type);}
     }
-    private static CatalogField[] Fields(Type type)=>type.GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.GetIndexParameters().Length==0).Select(property=>new CatalogField(property.Name,Display(property.PropertyType))).Concat(type.GetFields(BindingFlags.Public|BindingFlags.Instance).Select(field=>new CatalogField(field.Name,Display(field.FieldType)))).ToArray();
+    // Tables と [Key] で書いた行の生成された Key(IRecord<キーの型> の Key)は列ではない(キーの型の列は行の同じ名前の列として並ぶ)。
+    private static bool IsRecordKey(Type type,PropertyInfo property)=>property.Name=="Key"&&type.GetInterfaces().Any(contract=>
+        contract.IsGenericType&&contract.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.IRecord<>)&&contract.GenericTypeArguments[0]==property.PropertyType);
+    private static CatalogField[] Fields(Type type)=>type.GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.GetIndexParameters().Length==0&&!IsRecordKey(type,property)).Select(property=>new CatalogField(property.Name,Display(property.PropertyType))).Concat(type.GetFields(BindingFlags.Public|BindingFlags.Instance).Select(field=>new CatalogField(field.Name,Display(field.FieldType)))).ToArray();
     private static string Display(Type type)=>type.FullName??type.ToString();
 }

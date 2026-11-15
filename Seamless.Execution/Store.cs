@@ -50,7 +50,7 @@ public sealed class Store:IDisposable{
         Directory.CreateDirectory(directory);
         FileStream? lease=null;
         try{
-            lease=new(Path.Combine(directory,"owner.lock"),FileMode.CreateNew,FileAccess.ReadWrite,FileShare.None);
+            lease=new(Path.Combine(directory,"owner.lock"),FileMode.CreateNew,FileAccess.ReadWrite,FileShare.Delete);
             File.WriteAllText(Path.Combine(directory,"owner.json"),JsonSerializer.Serialize(new{Format=FormatName,Id=id,ProcessId=Environment.ProcessId,CreatedAt=DateTimeOffset.UtcNow}));
             return new(StoreKind.Temporary,directory,limits,lease,[],options,parentBudget);
         }catch{
@@ -350,16 +350,25 @@ public sealed class Store:IDisposable{
             }catch(Exception error){
                 (errors??=[]).Add(error);
             }
-            try{
-                this.lockStream?.Dispose();
-            }catch(Exception error){
-                (errors??=[]).Add(error);
-            }
-            if(this.Kind==StoreKind.Temporary&&this.directoryPath is not null){
+            if(this.Kind==StoreKind.Temporary&&this.directoryPath is not null&&this.lockStream is not null){
+                // 一時ストアはロックを持ったまま中身を消す(回収側に途中で取られないように)。
                 try{
-                    OwnedDirectory.Delete(this.directoryPath);
+                    OwnedDirectory.Delete(this.directoryPath,this.lockStream);
                 }catch(Exception error){
                     (errors??=[]).Add(error);
+                }
+            }else{
+                try{
+                    this.lockStream?.Dispose();
+                }catch(Exception error){
+                    (errors??=[]).Add(error);
+                }
+                if(this.Kind==StoreKind.Temporary&&this.directoryPath is not null){
+                    try{
+                        OwnedDirectory.Delete(this.directoryPath);
+                    }catch(Exception error){
+                        (errors??=[]).Add(error);
+                    }
                 }
             }
             if(errors is not null){

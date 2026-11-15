@@ -6,14 +6,16 @@ using MemoryPack;
 
 namespace Seamless.Database.Gateway.Hosting;
 
-// MemoryPack 1.21.4 has a process-wide strong Type cache and no public unregister API.
-// The adapter is deliberately restricted to that implementation and runs only after execution leases end.
+// MemoryPack 1.x has a process-wide strong Type cache and no public unregister API.
+// [版] MemoryPack は常に最新の 1.x を使う。版の番号ではなく、消す対象の内部の入れ物(型を鍵にした辞書)があるかを起動時に確かめ、
+// 形が変わっていれば回収できる型の Native クエリを始めずに止める。1.21.4 と 1.22.0 で確かめた。
+// The adapter runs only after execution leases end.
 internal static class CollectibleFormatterCache{
     private static bool enabled;
     private static class Adapter{internal static readonly FieldInfo[] Fields=Bind();}
     private static FieldInfo[] Bind(){
         var type=typeof(MemoryPackFormatterProvider);var version=type.Assembly.GetName().Version;
-        if(version is not{Major:1,Minor:21,Build:4}){throw new NotSupportedException("Collectible Native queries require the validated MemoryPack 1.21.4 cache ownership adapter.");}
+        if(version is not{Major:1}){throw new NotSupportedException("Collectible Native queries require a MemoryPack 1.x cache ownership adapter: "+version);}
         return new[]{"formatters","genericFormatterFactory","genericCollectionFormatterFactory"}.Select(name=>type.GetField(name,BindingFlags.Static|BindingFlags.NonPublic) is{} field&&typeof(IDictionary).IsAssignableFrom(field.FieldType)?field:throw new NotSupportedException("MemoryPack formatter cache layout changed: "+name)).ToArray();
     }
     internal static void Validate(){GC.KeepAlive(Adapter.Fields);Volatile.Write(ref enabled,true);}

@@ -244,8 +244,9 @@ public sealed class DatabaseContainerGeneratorTests {
             namespace Sample {
                 internal static class DatabaseGenerator;
             }
-            namespace Sample.Records {
+            namespace Sample.Tables {
                 public partial struct ImageRow {
+                    [global::Seamless.Database.Key] public partial int Id { get; }
                     public partial byte[]? Data { get; }
                 }
             }
@@ -253,12 +254,12 @@ public sealed class DatabaseContainerGeneratorTests {
         var compilation=GeneratorTestHelpers.CreateCompilation([("Database.cs",source)]);
         GeneratorDriver driver=GeneratorTestHelpers.CreateDatabaseDriver();
         driver=driver.RunGeneratorsAndUpdateCompilation(compilation,out var outputCompilation,out var diagnostics);
-        var result=driver.GetRunResult().Results.Single(static candidate=>
-            candidate.GeneratedSources.Any(static generated=>generated.HintName=="Seamless.Database.Schema.g.cs"));
-        var generated=Assert.Single(result.GeneratedSources).SourceText.ToString();
+        var generated=driver.GetRunResult().Results.SelectMany(static result=>result.GeneratedSources)
+            .Single(static source=>source.HintName=="Sample.Tables.ImageRow.Record.g.cs").SourceText.ToString();
 
-        Assert.Contains("writer.WriteArray(value._value0)",generated,StringComparison.Ordinal);
-        Assert.Contains("reader.ReadArray(ref value._value0)",generated,StringComparison.Ordinal);
+        // 配列の列は MemoryPack の配列の読み書きを使う(宣言した列の順に1列ずつ)。
+        Assert.Contains("writer.WriteArray(value.@Data)",generated,StringComparison.Ordinal);
+        Assert.Contains("reader.ReadArray(ref read",generated,StringComparison.Ordinal);
         Assert.DoesNotContain(diagnostics,static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error);
         Assert.DoesNotContain(outputCompilation.GetDiagnostics(),static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error);
     }

@@ -27,19 +27,21 @@
 
 ## 自己参照と循環参照
 
-ネイティブの関係は表のプロパティに宣言する。参照先は同じDB内の主キーで、スキーマ配下は`Sales.Customers`のようなC#上の表の経路を使う。複合キーでは対応する列をすべて指定する。
+ネイティブの関係は表のプロパティに宣言する。参照先は同じDB内の主キーで、スキーマ配下は`Sales.Customers`のようなC#上の表の経路を使う。複合キーでは対応する列をすべて指定する。行の型は`Tables`に宣言し、主キーの列に`[Key]`を付ける。キーの型`Keys.<名前>`はDBの生成器が作る。
 
 ```csharp
 [ForeignKey("FK_Node_Parent","Nodes",new[]{"ParentId"},new[]{"Id"})]
-public Table<Keys.Node,Records.Node> Nodes=>this.Table<Keys.Node,Records.Node>(row=>new(row.Id));
+public Table<Keys.Node,Tables.Node> Nodes=>this.Table<Keys.Node,Tables.Node>(row=>row.Key);
+
+namespace Tables{public partial struct Node{[Key] public partial int Id{get;}public partial int? ParentId{get;}}}
 ```
 
 外部キーは行ごとに確定しない。同じ取引に含まれる全変更の最終状態で検査する。例えば次の相互参照は、一つの取引にまとめれば登録できる。
 
 ```csharp
 using(var transaction=db.BeginTransaction()){
-    db.Nodes.Add(new Records.Node(1,2));
-    db.Nodes.Add(new Records.Node(2,1));
+    db.Nodes.Add(new Tables.Node(new(1),2));
+    db.Nodes.Add(new Tables.Node(new(2),1));
     transaction.Commit();
 }
 ```

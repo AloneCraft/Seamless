@@ -1,5 +1,6 @@
 using Sample.NetShop.Core;
 using Sample.NetShop.Core.Shop;
+using Seamless.Database;
 using 対象=Sample.NetShop.Core.Shop.商店DB;
 
 namespace Sample.NetShop.Tests.Shop;
@@ -93,7 +94,7 @@ public sealed class 商店DB{
         {
             //取引の中から呼ぶと、その取引の内容(まだ確定していない書き込みを含む)を読む
             using var 取引=商店.BeginTransaction();
-            取引.注文.Add(new(999_999,1,DateTime.Now,1_000));
+            取引.注文.Add(new(new(999_999),1,DateTime.Now,1_000));
             Assert.Equal(緑茶売上(),取引.売上合計()-1_000);
             long 緑茶売上()=>初期データ.商品一覧[0].単価*2+初期データ.商品一覧[4].単価;
         }
@@ -131,6 +132,55 @@ public sealed class 商店DB{
             Assert.Equal(1,商店.注文.LongCount);
             Assert.Equal(緑茶.在庫数-3,商店.商品[new(緑茶.商品ID)].在庫数);
         }
+    }
+
+    [Fact,Trait("Category","Unit")]public void リレーションシップ(){
+        using var フォルダ=new テスト用フォルダ();
+        using var 商店=最小で開く(フォルダ);
+        商店.初期データを登録する();
+        var 緑茶=初期データ.商品一覧[0];
+        {
+            //登録されていない顧客の注文は Commit で拒否され、何も残らない
+            using var 取引=商店.BeginTransaction();
+            取引.注文.Add(new(new(1),99,DateTime.Now,100));
+            Assert.Equal("注文の顧客",Assert.Throws<ForeignKeyViolationException>(()=>取引.Commit()).Constraint);
+        }
+        Assert.Equal(0,商店.注文.LongCount);
+        {
+            //注文の無い明細は拒否される
+            using var 取引=商店.BeginTransaction();
+            取引.注文明細.Add(new(new(1,1),緑茶.商品ID,1,緑茶.単価));
+            Assert.Equal("明細の注文",Assert.Throws<ForeignKeyViolationException>(()=>取引.Commit()).Constraint);
+        }
+        {
+            //登録されていない商品の明細は拒否される
+            using var 取引=商店.BeginTransaction();
+            取引.注文.Add(new(new(1),1,DateTime.Now,100));
+            取引.注文明細.Add(new(new(1,1),99,1,100));
+            Assert.Equal("明細の商品",Assert.Throws<ForeignKeyViolationException>(()=>取引.Commit()).Constraint);
+        }
+        Assert.Equal(0,商店.注文.LongCount);
+        Assert.Equal(0,商店.注文明細.LongCount);
+        {
+            //同じ取引の中なら、明細を先に書いて注文を後に書いてもよい(検査は Commit 時の最終状態)
+            var 結果=商店.注文確定(1,[new 注文行(緑茶.商品ID,1)],DateTime.Now).Result;
+            Assert.True(結果.成功か);
+            Assert.Equal(1,商店.注文明細.LongCount);
+        }
+        {
+            //注文から参照されている顧客は消せない
+            using var 取引=商店.BeginTransaction();
+            取引.顧客.Remove(new(1));
+            Assert.Equal("注文の顧客",Assert.Throws<ForeignKeyViolationException>(()=>取引.Commit()).Constraint);
+        }
+        Assert.True(商店.顧客.ContainsKey(new(1)));
+        {
+            //注文の無い顧客なら消せる
+            using var 取引=商店.BeginTransaction();
+            取引.顧客.Remove(new(9));
+            取引.Commit();
+        }
+        Assert.False(商店.顧客.ContainsKey(new(9)));
     }
 
     [Fact,Trait("Category","Unit")]public void 入荷(){

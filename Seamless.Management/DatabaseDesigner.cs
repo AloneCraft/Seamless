@@ -26,14 +26,13 @@ public static partial class DatabaseDesigner{
     private static string TypeName(ITypeSymbol type)=>type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(SymbolDisplayFormat.FullyQualifiedFormat.MiscellaneousOptions|SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier));
     private static TypeDeclarationSyntax Declaration(INamedTypeSymbol type)=>type.DeclaringSyntaxReferences.SingleOrDefault()?.GetSyntax() as TypeDeclarationSyntax??throw new ManagementException("Unsupported","複数の宣言や外部型はC#で編集してください: "+type.Name);
     public static TableDesign Read(Definition definition,string path){
-        var compilation=Compilation(definition);var property=Property(Container(compilation,definition),path);var types=RowTypes(property);var keys=types[0].GetMembers().OfType<IPropertySymbol>().Select(item=>item.Name).ToHashSet(StringComparer.Ordinal);
+        var compilation=Compilation(definition);var property=Property(Container(compilation,definition),path);var types=RowTypes(property);var keyNames=KeyColumns(types[1]);var keys=keyNames.ToHashSet(StringComparer.Ordinal);
         var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
         if(syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}},ArgumentList.Arguments.Count:1} call||call.ArgumentList.Arguments[0].Expression is not SimpleLambdaExpressionSyntax lambda){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
-        ArgumentListSyntax? keyArguments=null;if(lambda.Body is ImplicitObjectCreationExpressionSyntax implicitKey){keyArguments=implicitKey.ArgumentList;}else if(lambda.Body is ObjectCreationExpressionSyntax explicitKey){keyArguments=explicitKey.ArgumentList;}
-        var keyNames=types[0].GetMembers().OfType<IPropertySymbol>().Select(item=>item.Name).ToArray();
-        if(keyArguments is null||keyArguments.Arguments.Count!=keyNames.Length||!keyArguments.Arguments.Select((argument,index)=>argument.Expression is MemberAccessExpressionSyntax{Expression:IdentifierNameSyntax parameter} member&&parameter.Identifier.ValueText==lambda.Parameter.Identifier.ValueText&&member.Name.Identifier.ValueText==keyNames[index]).All(value=>value)){throw new ManagementException("Unsupported","計算を含むキーの定義はC#で編集してください。");}
+        if(keyNames.Length==0){throw new ManagementException("Unsupported","主キー([Key])の無い表はC#で編集してください。");}
+        if(!IsKeySelector(lambda,keyNames)){throw new ManagementException("Unsupported","計算を含むキーの定義はC#で編集してください。");}
         var existing=definition.Migration?.Tables.SingleOrDefault(table=>table.Target==path);
-        var columns=types[1].GetMembers().OfType<IPropertySymbol>().Where(item=>!item.IsStatic).Select(item=>new ColumnDesign(item.Name,TypeName(item.Type),keys.Contains(item.Name),item.Name,existing?.Columns.SingleOrDefault(column=>column.Target==item.Name)?.Expression)).ToArray();
+        var columns=Columns(types[1]).Select(item=>new ColumnDesign(item.Name,TypeName(item.Type),keys.Contains(item.Name),item.Name,existing?.Columns.SingleOrDefault(column=>column.Target==item.Name)?.Expression)).ToArray();
         var relations=property.GetAttributes().Where(attribute=>attribute.AttributeClass?.Name=="ForeignKeyAttribute").Select(attribute=>{var args=attribute.ConstructorArguments;return new ForeignKeyDesign((string)args[0].Value!,(string)args[1].Value!,args[2].Values.Select(value=>(string)value.Value!).ToArray(),args[3].Values.Select(value=>(string)value.Value!).ToArray());}).ToArray();
         var split=path.LastIndexOf('.');if(split<0){return new(path,"",columns,relations,path);}return new(path[(split+1)..],path[..split],columns,relations,path);
     }
@@ -88,21 +87,22 @@ public static partial class DatabaseDesigner{
         if(design.Schema.Length>0){owner=Owner(container,design.Schema);}
         IPropertySymbol? property=null;if(design.OriginalPath is not null){property=Property(container,design.OriginalPath);}if(owner.GetMembers(design.Name).Any(member=>!SymbolEqualityComparer.Default.Equals(member,property))){throw new ManagementException("Conflict","同名のオブジェクトがあります。");}
         string keyType,recordType;var shapeChanged=true;
-        if(property is not null){var types=RowTypes(property);keyType=TypeName(types[0]);recordType=TypeName(types[1]);var original=Read(definition,design.OriginalPath!);shapeChanged=!original.Columns.Select(column=>(column.Name,column.Type,column.PrimaryKey)).SequenceEqual(design.Columns.Select(column=>(column.Name,column.Type,column.PrimaryKey)));
+        if(property is not null){var types=RowTypes(property);keyType=KeyTypeSyntax(property);recordType=TypeName(types[1]);var original=Read(definition,design.OriginalPath!);shapeChanged=!original.Columns.Select(column=>(column.Name,column.Type,column.PrimaryKey)).SequenceEqual(design.Columns.Select(column=>(column.Name,column.Type,column.PrimaryKey)));
             if(shapeChanged){
-                if(Tables(definition).Where(path=>path!=design.OriginalPath).Select(path=>RowTypes(Property(container,path))).Any(other=>other.Any(type=>types.Any(own=>SymbolEqualityComparer.Default.Equals(type,own))))){throw new ManagementException("Unsupported","行型またはキー型を他の表と共有しています。影響を確認してC#で編集してください。");}
-                ReplaceFields(types[0],design.Columns.Where(column=>column.PrimaryKey).ToArray());ReplaceFields(types[1],design.Columns);
+                if(Tables(definition).Where(path=>path!=design.OriginalPath).Select(path=>RowTypes(Property(container,path))[1]).Any(other=>SymbolEqualityComparer.Default.Equals(other,types[1]))){throw new ManagementException("Unsupported","行型を他の表と共有しています。影響を確認してC#で編集してください。");}
+                ReplaceFields(types[1],design.Columns);
             }
         }
         else{
             var prefix=design.Schema.Replace('.','_');if(prefix.Length>0){prefix+="_";}prefix+=design.Name;
-            keyType="global::"+ns+".Keys."+prefix;recordType="global::"+ns+".Records."+prefix;
-            if(compilation.GetTypeByMetadataName(ns+".Keys."+prefix) is not null||compilation.GetTypeByMetadataName(ns+".Records."+prefix) is not null){throw new ManagementException("Conflict","行・キー型が既に存在します。C#で型を指定してください。");}
-            var text="namespace "+ns+".Keys{public partial struct "+prefix+"{"+Fields(design.Columns.Where(column=>column.PrimaryKey))+"}}\nnamespace "+ns+".Records{public partial struct "+prefix+"{"+Fields(design.Columns)+"}}\n";
+            keyType="global::"+ns+".Keys."+prefix;recordType="global::"+ns+".Tables."+prefix;
+            if(compilation.GetTypeByMetadataName(ns+".Keys."+prefix) is not null||compilation.GetTypeByMetadataName(ns+".Tables."+prefix) is not null){throw new ManagementException("Conflict","行・キー型が既に存在します。C#で型を指定してください。");}
+            // 行の型だけを Tables に書き、主キーの列に [Key] を付ける。キーの型 Keys.<名前> は DB の生成器が作る。
+            var text="namespace "+ns+".Tables{public partial struct "+prefix+"{"+Fields(design.Columns)+"}}\n";
             var fileName="Tables/"+prefix+".cs";if(files.Any(file=>file.Path==fileName)){throw new ManagementException("Conflict","表のソースファイルが既に存在します。");}files.Add(new(fileName,Format("using System;\n"+text)));
         }
         var attributes=string.Join("\n",design.ForeignKeys.Select(relation=>"[global::Seamless.Database.ForeignKey("+Literal(relation.Name)+","+Literal(relation.ReferencedTable)+",new string[]{"+string.Join(",",relation.Columns.Select(Literal))+"},new string[]{"+string.Join(",",relation.ReferencedColumns.Select(Literal))+"})]"));
-        var declaration=attributes+"\npublic global::Seamless.Database.Table<"+keyType+","+recordType+"> "+design.Name+"=>this.Table<"+keyType+","+recordType+">(row=>new("+string.Join(",",design.Columns.Where(column=>column.PrimaryKey).Select(column=>"row.@"+column.Name))+"));\n";
+        var declaration=attributes+"\npublic global::Seamless.Database.Table<"+keyType+","+recordType+"> "+design.Name+"=>this.Table<"+keyType+","+recordType+">(row=>row.Key);\n";
         if(property is null){var type=Declaration(owner);var edit=AppendMember(type,GeneratedText(declaration,type));edits.Add((type.SyntaxTree.FilePath,edit.Start,edit.Length,edit.Text));}
         else{var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
             if(shapeChanged&&syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}}}){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
@@ -129,11 +129,37 @@ public static partial class DatabaseDesigner{
         return definition with{Source=definition.Source with{Files=files.ToArray(),Revision=Guid.NewGuid().ToString("N")},Migration=migration with{Tables=mappings.ToArray(),NewTables=newTables.ToArray()}};
         void ReplaceFields(INamedTypeSymbol type,ColumnDesign[] columns){
             var syntax=Declaration(type);var properties=syntax.Members.OfType<PropertyDeclarationSyntax>().ToArray();if(properties.Any(item=>item.ExpressionBody is not null||item.Initializer is not null)){throw new ManagementException("Unsupported","カスタムプロパティを持つ型はC#で編集してください。");}
-            var members=syntax.Members.Where(member=>member is not PropertyDeclarationSyntax).ToList();foreach(var column in columns){var original=properties.SingleOrDefault(item=>item.Identifier.ValueText==column.OriginalName);if(original is null){members.Add(SyntaxFactory.ParseMemberDeclaration("public partial "+column.Type+" "+column.Name+"{get;}")!);}else{members.Add(original.WithType(SyntaxFactory.ParseTypeName(column.Type).WithTriviaFrom(original.Type)).WithIdentifier(SyntaxFactory.Identifier(column.Name).WithTriviaFrom(original.Identifier)));}}
+            var members=syntax.Members.Where(member=>member is not PropertyDeclarationSyntax).ToList();foreach(var column in columns){var original=properties.SingleOrDefault(item=>item.Identifier.ValueText==column.OriginalName);if(original is null){members.Add(SyntaxFactory.ParseMemberDeclaration(Field(column))!);}else{members.Add(WithKeyAttribute(original.WithType(SyntaxFactory.ParseTypeName(column.Type).WithTriviaFrom(original.Type)).WithIdentifier(SyntaxFactory.Identifier(column.Name).WithTriviaFrom(original.Identifier)),column.PrimaryKey));}}
             edits.Add((syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,syntax.WithMembers(SyntaxFactory.List(members)).WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString()));
         }
     }
-    private static string Fields(IEnumerable<ColumnDesign> columns)=>string.Join("\n",columns.Select(column=>"public partial "+column.Type+" "+column.Name+"{get;}"));
+    private static string Fields(IEnumerable<ColumnDesign> columns)=>string.Join("\n",columns.Select(Field));
+    private static string Field(ColumnDesign column)=>(column.PrimaryKey?"[global::Seamless.Database.Key] ":"")+"public partial "+column.Type+" "+column.Name+"{get;}";
+    // [主キー] 設計器は DB の生成器を通さずに読むので、キーの型(生成される Keys.<名前>)ではなく行の型の [Key] から主キーの列を読む。
+    private static bool IsKeyAttribute(AttributeSyntax attribute)=>attribute.Name.ToString().Split('.').Last() is "Key" or "KeyAttribute";
+    private static IPropertySymbol[] Columns(INamedTypeSymbol row)=>row.GetMembers().OfType<IPropertySymbol>().Where(item=>!item.IsStatic&&!item.IsIndexer&&item.DeclaredAccessibility==Accessibility.Public&&item.Name!="Key").ToArray();
+    private static string[] KeyColumns(INamedTypeSymbol row)=>Columns(row).Where(property=>property.DeclaringSyntaxReferences.Select(reference=>reference.GetSyntax()).OfType<PropertyDeclarationSyntax>().Any(declaration=>declaration.AttributeLists.SelectMany(list=>list.Attributes).Any(IsKeyAttribute))).Select(property=>property.Name).ToArray();
+    private static PropertyDeclarationSyntax WithKeyAttribute(PropertyDeclarationSyntax property,bool key){
+        var lists=property.AttributeLists.Select(list=>list.WithAttributes(SyntaxFactory.SeparatedList(list.Attributes.Where(attribute=>!IsKeyAttribute(attribute))))).Where(list=>list.Attributes.Count>0).ToList();
+        if(key){lists.Insert(0,SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Attribute(SyntaxFactory.ParseName("global::Seamless.Database.Key")))).WithTrailingTrivia(SyntaxFactory.Space));}
+        if(lists.Count==0&&property.AttributeLists.Count==0){return property;}
+        var trivia=property.GetLeadingTrivia();
+        return property.WithoutLeadingTrivia().WithAttributeLists(SyntaxFactory.List(lists)).WithLeadingTrivia(trivia);
+    }
+    // キーの選び方：row=>row.Key、または主キーの列を宣言の順に並べた row=>new(row.A,…)。
+    private static bool IsKeySelector(SimpleLambdaExpressionSyntax lambda,string[] keyNames){
+        var parameter=lambda.Parameter.Identifier.ValueText;
+        if(lambda.Body is MemberAccessExpressionSyntax{Expression:IdentifierNameSyntax receiver,Name.Identifier.ValueText:"Key"}&&receiver.Identifier.ValueText==parameter){return true;}
+        ArgumentListSyntax? arguments=null;if(lambda.Body is ImplicitObjectCreationExpressionSyntax implicitKey){arguments=implicitKey.ArgumentList;}else if(lambda.Body is ObjectCreationExpressionSyntax explicitKey){arguments=explicitKey.ArgumentList;}
+        return arguments is not null&&arguments.Arguments.Count==keyNames.Length&&arguments.Arguments.Select((argument,index)=>argument.Expression is MemberAccessExpressionSyntax{Expression:IdentifierNameSyntax owner} member&&owner.Identifier.ValueText==parameter&&member.Name.Identifier.ValueText==keyNames[index]).All(value=>value);
+    }
+    // 表のプロパティに書かれたキーの型(生成される型なので設計器からは解決できない)。
+    private static string KeyTypeSyntax(IPropertySymbol property){
+        var type=((PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax()).Type;
+        var generic=type switch{GenericNameSyntax name=>name,QualifiedNameSyntax{Right:GenericNameSyntax name}=>name,AliasQualifiedNameSyntax{Name:GenericNameSyntax name}=>name,_=>null};
+        if(generic is not{TypeArgumentList.Arguments.Count:2}){throw new ManagementException("Unsupported","この表はC#で編集してください。");}
+        return generic.TypeArgumentList.Arguments[0].ToString();
+    }
     private static string Format(string text)=>SyntaxFactory.ParseCompilationUnit(text).NormalizeWhitespace(eol:"\n").ToFullString()+"\n";
     public static Definition Remove(Definition definition,string path){
         var property=Property(Container(Compilation(definition),definition),path);var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();var source=new SourceEditor().Apply(definition.Source,new(definition.Source.Hash(),syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,""));

@@ -7,7 +7,7 @@ namespace Test.Seamless.Database.Spec;
 public static class SpecDatabaseQueries {
     extension(SpecDatabase.IReader q) {
         public global::Seamless.Collections.ISet<Views.ItemNames> ItemNames=>q.Items.Select(item=>new Views.ItemNames(item.Name));
-        public global::Seamless.Collections.ISet<Records.Item> ItemsAbove(int minimumId)=>q.Items.Where(item=>item.Id>=minimumId);
+        public global::Seamless.Collections.ISet<Tables.Items> ItemsAbove(int minimumId)=>q.Items.Where(item=>item.Id>=minimumId);
         public int ItemCount()=>q.Items.Count();
     }
 }

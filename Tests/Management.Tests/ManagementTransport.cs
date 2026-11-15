@@ -99,7 +99,7 @@ public sealed class ManagementTransport{
             namespace Model;
             public static class Updates{
                 public static IEnumerable<int> Run(ManagementExecutionContext context){
-                    context.GetDatabase<Db>().Rows.Add(new Records.Row(1,9));
+                    context.GetDatabase<Db>().Rows.Add(new Tables.Row(new(1),9));
                     yield return 9;
                     // A disconnected client leaves the server between rows. Bound the fixture even without cancellation.
                     var deadline=DateTime.UtcNow.AddSeconds(8);

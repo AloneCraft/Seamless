@@ -25,7 +25,7 @@ public sealed partial class DatabaseDesigner{
             namespace UserCode;
             public static class Probe{
                 // 行の投入は試験側の取引で行う(管理サーバーの中の利用者コードは取引を開けない)。
-                public static void Seed(ManagedDb database){database.Items.Add(new(1,10m));database.dbo0.Items.Add(new(1,20m));database.dbo1.Items.Add(new(1,30m));
+                public static void Seed(ManagedDb database){database.Items.Add(new(new(1),10m));database.dbo0.Items.Add(new(new(1),20m));database.dbo1.Items.Add(new(new(1),30m));
                 }
                 public static bool Run(ManagedDb database){
                     using var r=database.BeginRead();
@@ -96,7 +96,7 @@ public sealed partial class DatabaseDesigner{
         Assert.Equal("Renamed",Assert.Single(Seamless.Management.DatabaseDesigner.Read(next,"Bs").ForeignKeys).ReferencedTable);Assert.DoesNotContain(new RuntimeCompiler().Compile(next.Source).Result.Diagnostics,item=>item.Severity=="Error");
     }
     [Fact]public void SharedRecordTypesAreNotSilentlyChanged(){
-        var original=NativeWorkflow.Database();original=original with{Source=original.Source with{Files=original.Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<Keys.Row,Records.Row> Rows=>","public Table<Keys.Row,Records.Row> Other=>this.Table<Keys.Row,Records.Row>(row=>new(row.Id));public Table<Keys.Row,Records.Row> Rows=>")}).ToArray()}};
+        var original=NativeWorkflow.Database();original=original with{Source=original.Source with{Files=original.Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<Keys.Row,Tables.Row> Rows=>","public Table<Keys.Row,Tables.Row> Other=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Id));public Table<Keys.Row,Tables.Row> Rows=>")}).ToArray()}};
         var design=Seamless.Management.DatabaseDesigner.Read(original,"Rows");var error=Assert.Throws<ManagementException>(()=>Seamless.Management.DatabaseDesigner.Apply(original,design with{Columns=design.Columns.Append(new("Added","int",false)).ToArray()}));Assert.Equal("Unsupported",error.Code);
     }
 }

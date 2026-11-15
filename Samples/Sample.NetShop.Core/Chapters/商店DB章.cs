@@ -6,18 +6,21 @@ namespace Sample.NetShop.Core;
 /// <summary>3章: 宣言的DB。表・ビュー・関数を C# で宣言し、生成器が目録を作る。</summary>
 public sealed class 商店DB章:物語の章{
     public override string 題名=>"商店DBを開く";
-    public override string 使う機能=>"DatabaseContainer / Table / IReader への拡張メンバー(ビュー・関数) / BeginRead";
+    public override string 使う機能=>"DatabaseContainer / Table / ForeignKey / IReader への拡張メンバー(ビュー・関数) / BeginRead";
     public override string 説明=>
-        "商店のデータは宣言的DBに置きます。表は C# のプロパティで書き、ビューと関数は\n"+
-        "生成される入口(商店DB.IReader)への拡張メンバーとして書きます。\n"+
+        "商店のデータは宣言的DBに置きます。表は C# のプロパティで書き、表どうしの関係は [ForeignKey] で宣言します。\n"+
+        "ビューと関数は生成される入口(商店DB.IReader)への拡張メンバーとして書きます。\n"+
         "Seamless.Database.Generator が目録(DatabaseObjects)と保存用の読み書きを生成します。\n"+
         "DB はディスクに保存されるので、アプリを閉じても次の起動で続きから営業できます。";
     public override string コード=>
         """
-        public Table<Keys.商品,Records.商品>商品=>this.Table<Keys.商品,Records.商品>(行=>new(行.商品ID));
+        public Table<Keys.商品,Tables.商品>商品=>this.Table<Keys.商品,Tables.商品>(行=>行.Key);
+        [ForeignKey("明細の注文","注文",new[]{"注文ID"},new[]{"注文ID"})]   // 親の行が無ければ Commit で拒否
+        [ForeignKey("明細の商品","商品",new[]{"商品ID"},new[]{"商品ID"})]
+        public Table<Keys.注文明細,Tables.注文明細>注文明細=>this.Table<Keys.注文明細,Tables.注文明細>(行=>行.Key);
         extension(商店DB.IReader 読み){   // ビューはプロパティ、関数はメソッド
             public ISet<Views.在庫切れ商品>在庫切れ商品=>読み.商品.Where(行=>行.在庫数==0).Select(行=>new Views.在庫切れ商品(行.商品ID,行.名前,行.在庫数));
-            public ISet<Records.注文>顧客の注文履歴(int 顧客ID)=>読み.注文.Where(行=>行.顧客ID==顧客ID);
+            public ISet<Tables.注文>顧客の注文履歴(int 顧客ID)=>読み.注文.Where(行=>行.顧客ID==顧客ID);
             public long 売上合計()=>読み.注文.Sum(行=>行.合計金額);
         }
 
