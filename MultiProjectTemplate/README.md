@@ -19,7 +19,7 @@ dotnet build MultiProjectTemplate/MultiProjectTemplate.slnx -c Debug
 dotnet build MultiProjectTemplate/MultiProjectTemplate.slnx -c Release
 ```
 
-この小さなソリューションと、ルートの `Seamless.slnx` の `MultiProjectTemplate` フォルダーは、同じ3プロジェクトを参照する。
+この小さなソリューションと、ルートの全プロジェクトの台帳 `All.slnx` の `MultiProjectTemplate` フォルダーは、同じ3プロジェクトを参照する。普段開く `Seamless.slnx` には出ない (正式なテンプレートは `Template/Seamless.Application`)。
 
 ## パッケージの取得
 
@@ -29,7 +29,7 @@ dotnet build MultiProjectTemplate/MultiProjectTemplate.slnx -c Release
 
 ## Visual Studio
 
-`Seamless.slnx` を開き、`MultiProjectTemplate` フォルダー内のプロジェクトをビルドする。3プロジェクトだけを開く場合は、このディレクトリの `MultiProjectTemplate.slnx` を使用する。Server または Client をスタートアッププロジェクトにして実行する。
+`All.slnx` を開き、`MultiProjectTemplate` フォルダー内のプロジェクトをビルドする。3プロジェクトだけを開く場合は、このディレクトリの `MultiProjectTemplate.slnx` を使用する。Server または Client をスタートアッププロジェクトにして実行する。
 
 ## VS Code
 

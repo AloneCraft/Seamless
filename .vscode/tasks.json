@@ -49,6 +49,20 @@
             "group": "build"
         },
         {
+            "label": "build-all (ベンチマーク・サンプルも含む全プロジェクト)",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/All.slnx",
+                "-m:1",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "build"
+        },
+        {
             "label": "build-benchmark-scalable-ui-debug",
             "command": "dotnet",
             "type": "process",

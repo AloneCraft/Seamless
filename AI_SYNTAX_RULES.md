@@ -128,12 +128,12 @@ class A:IDisposable{
 
 ## Project And Solution Registration
 
-- 新しい `.csproj`/`.shproj` を作成または追加するときは、同じ変更の中で必ずソリューションファイル(`Seamless.slnx`)にも登録してください。登録を後回しにしないでください。
-- `.slnx` へは、既存の `<Folder>` 分類規約(例: テストプロジェクトは `/Tests/` フォルダ配下)に従って `<Project Path="..."/>` を追加してください。
-- プロジェクト追加後は、リポジトリ全体の `*.csproj`/`*.shproj` を列挙し、`Seamless.slnx` 内の `<Project Path>` と突合して差分ゼロであることを確認してください。
-- ルート直下の `Benchmark.UI.slnx` などの軽量ソリューションは `Update-FocusedSolutions.ps1` が `Seamless.slnx` から生成します。手で編集しないでください。`ProjectReference`・csproj 内の `<MSBuild Projects>`・`.projitems` の `Import` を変更したとき、または `Seamless.slnx` を変更したときは、スクリプトを再実行し、生成された `*.slnx` も同じ変更に含めてください。新しい exe 用の軽量ソリューションは、スクリプト先頭の `$Solutions` に起点を追加して作ってください。
+- 新しい `.csproj`/`.shproj` を作成または追加するときは、同じ変更の中で必ず全プロジェクトの台帳(`All.slnx`)にも登録してください。`tools/dev-env/Sync-DevEnvironment.ps1` (pre-commit フックが自動で実行) が未登録のものを足します。
+- 台帳のフォルダ分類: 製品は `/Main/`、製品の試験は `/Tests/`、正式なテンプレートは `/Template/`。ベンチマークの試験は `/Benchmark/Tests/`、サンプルの試験は `/Samples/` に置き、`/Tests/` へ混ぜないでください (`/Main/`・`/Tests/`・`/Template/` だけが `Seamless.slnx` に出ます)。
+- プロジェクト追加後は、リポジトリ全体の `*.csproj`/`*.shproj` を列挙し、`All.slnx` 内の `<Project Path>` と突合して差分ゼロであることを確認してください (`Sync-DevEnvironment.ps1 -Check` で確認できます)。
+- `Seamless.slnx` やルート直下の `Benchmark.TpcC.slnx` などの絞り込みソリューションは、`Sync-DevEnvironment.ps1` が `All.slnx` から生成します。手で編集しないでください。`ProjectReference`・csproj 内の `<MSBuild Projects>`・`.projitems` の `Import` を変更したとき、または `All.slnx` を変更したときは、スクリプトを再実行し、生成された `*.slnx` も同じ変更に含めてください。新しい絞り込みソリューションは、`tools/dev-env/focused-solutions.json` に起点を追加して作ってください。
 - 新規プロジェクトの `.csproj`/`.shproj` とその配下のソースファイルは、作業の完了条件として `git add` で必ずステージしてください。`git status` で未追跡(`??`)のまま放置しないでください。
-- Visual Studio でプロジェクトが読み込まれない、または Solution Explorer 上でフォルダの中身が空に見える場合、多くは (a) `Seamless.slnx` への未登録、(b) `.gitignore` パターンが新規フォルダ名へ意図せず一致、のいずれかが原因です。プロジェクト作成後はこの両方を確認してください。
+- Visual Studio でプロジェクトが読み込まれない、または Solution Explorer 上でフォルダの中身が空に見える場合、多くは (a) `All.slnx` への未登録 (`Seamless.slnx` を開いているなら、`/Main/`・`/Tests/`・`/Template/` 以外のものはもともと出ません)、(b) `.gitignore` パターンが新規フォルダ名へ意図せず一致、のいずれかが原因です。プロジェクト作成後はこの両方を確認してください。
 
 ## File Layout Rules
 

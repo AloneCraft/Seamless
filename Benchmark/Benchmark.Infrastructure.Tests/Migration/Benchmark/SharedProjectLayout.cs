@@ -4,7 +4,8 @@ public sealed class 共有プロジェクト配置 {
     [Fact]
     public void 仕様確認01() {
         var ルート = リポジトリルートを検索();
-        var ソリューションファイル = File.ReadAllText(Path.Combine(ルート,"Seamless.slnx"));
+        // ベンチマークの共有プロジェクトは全プロジェクトの台帳(All.slnx)に載る。Seamless.slnx は製品だけの絞り込み版なので見ない。
+        var ソリューションファイル = File.ReadAllText(Path.Combine(ルート,"All.slnx"));
         var パス一覧 = new[] {
             "Shared/UI.Core/UI.Core.shproj",
             "Shared/UI.Core/UI.Core.projitems",
