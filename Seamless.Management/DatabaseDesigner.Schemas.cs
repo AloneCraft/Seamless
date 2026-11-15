@@ -25,7 +25,7 @@ public static partial class DatabaseDesigner{
         }
     }
     public static Definition AddSchema(Definition definition,string name){
-        Identifier(name);
+        ObjectName(name);
         var owner=Container(Compilation(definition),definition);
         if(owner.GetMembers(name).Length>0||Schemas(definition).Contains(name,StringComparer.Ordinal)||Objects(definition).Any(item=>item.Schema.Length==0&&item.Name==name)){
             throw new ManagementException("Conflict","同じ名前のスキーマまたはオブジェクトがあります: "+name);

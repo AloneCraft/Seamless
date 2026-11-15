@@ -6,7 +6,7 @@ namespace Seamless.Management;
 
 public enum DatabaseQueryKind{View,ScalarFunction,TableFunction}
 public sealed record ParameterDesign(string Name,string Type);
-/// <summary>ビュー・関数の設計。<see cref="Body"/> は本体の文で、受け手(入口)は <c>q</c> で読む(例: <c>return q.Orders.Where(o=&gt;o.Active).Select(o=&gt;new Views.Active(o.Id));</c>)。</summary>
+/// <summary>ビュー・関数の設計。<see cref="Body"/> は本体の文で、受け手(入口)は <c>q</c> で読む(例: <c>return q.Database.Orders.Where(o=&gt;o.Active).Select(o=&gt;new Views.Active(o.Id));</c>)。本体は return 文1つ(式1つ)。</summary>
 public sealed record QueryDesign(string Name,string Schema,DatabaseQueryKind Kind,ColumnDesign[] Columns,ParameterDesign[] Parameters,string ReturnType,string Body,string? OriginalPath=null){
     public string Path=>string.Join(".",new[]{this.Schema,this.Name}.Where(value=>value.Length>0));
 }
@@ -89,8 +89,13 @@ public static partial class DatabaseDesigner{
         throw new ManagementException("Unsupported","処理本体の形式を解釈できません。C#で編集してください。");
     }
     public static Definition ApplyQuery(Definition definition,QueryDesign design){
-        Identifier(design.Name);if(design.Schema.Length>0){Identifier(design.Schema);}
+        ObjectName(design.Name);foreach(var part in design.Schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){ObjectName(part);}
         if(!Enum.IsDefined(design.Kind)||SyntaxFactory.ParseStatement("{\n"+design.Body+"\n}").ContainsDiagnostics){throw new ManagementException("Validation","処理本体のC#構文を確認してください。");}
+        // [本体] FLinq は本体が式1つ(return 文1つ)のビュー・関数だけを呼び出し側へ展開し、展開できなければコンパイルエラー(FLINQ007)にする。
+        // 入力の時点で同じ形を求める。新しく作るときの仮の本体(throw 文1つ)は書き換える前の形として認める。
+        if(((BlockSyntax)SyntaxFactory.ParseStatement("{\n"+design.Body+"\n}")).Statements is not [ReturnStatementSyntax{Expression:not null} or ThrowStatementSyntax]){
+            throw new ManagementException("Validation","ビュー・関数の本体は return 文1つ(式1つ)にしてください。FLinq が呼び出し側へ展開します。");
+        }
         if(design.Parameters.Select(parameter=>parameter.Name).Distinct(StringComparer.Ordinal).Count()!=design.Parameters.Length){throw new ManagementException("Validation","引数名が重複しています。");}
         foreach(var parameter in design.Parameters){Identifier(parameter.Name);if(parameter.Name==QueryReceiver||SyntaxFactory.ParseTypeName(parameter.Type).ContainsDiagnostics){throw new ManagementException("Validation","引数の名前または型を確認してください。");}}
         if(design.Kind==DatabaseQueryKind.View&&design.Parameters.Length>0){throw new ManagementException("Validation","ビューには引数を指定できません。");}
