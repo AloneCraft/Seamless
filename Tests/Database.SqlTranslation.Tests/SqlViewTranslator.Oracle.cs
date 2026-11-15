@@ -31,6 +31,15 @@ public sealed partial class SqlViewTranslator{
         [4,null,"tokyo",0.00m,new DateTime(2019,12,31),(byte)4],
         [5,"Dave","Kyoto",99999999.99m,new DateTime(2022,2,28),(byte)1],
     ]);
+    private static readonly TestTable documents=new("Doc",[
+        new("Id","int",false,SqlTypeDescriptor.Of("int")),
+        new("Body","xml",true,SqlTypeDescriptor.Of("xml")),
+    ],[
+        [1,"<r xmlns:n=\"urn:x\"><a>1</a><n:b>first</n:b><i>p</i><i>q</i><d>12.50</d></r>"],
+        [2,"<r xmlns:n=\"urn:x\"><a>2</a><n:b>second</n:b></r>"],
+        [3,"<r><i>z</i></r>"],
+        [4,null],
+    ]);
     private static readonly TestTable orders=new("Orders",[
         new("OrderId","int",false,SqlTypeDescriptor.Of("int")),
         new("CustomerId","int",true,SqlTypeDescriptor.Of("int")),
@@ -104,13 +113,21 @@ public sealed partial class SqlViewTranslator{
         "SELECT d.Id, d.Doubled FROM (SELECT Id, Rating * 2 AS Doubled FROM {Customer}) AS d (Id, Doubled) WHERE d.Doubled > 4",
         "SELECT pvt.CustomerId, pvt.[1], pvt.[2], pvt.[5] FROM (SELECT CustomerId, Qty, Amount FROM {Orders}) AS src PIVOT (SUM(Amount) FOR Qty IN ([1], [2], [5])) AS pvt",
         "SELECT pvt.* FROM (SELECT Note, Qty FROM {Orders}) AS src PIVOT (COUNT(Qty) FOR Note IN ([first], [rush], [none])) AS pvt",
+        // xml のメソッドと APPLY。
+        "SELECT Id, Body.value('(/r/a)[1]', 'int') AS A, Body.value('declare namespace n=\"urn:x\"; (/r/n:b)[1]', 'nvarchar(20)') AS B, Body.value('(/r/d)[1]', 'decimal(10,1)') AS D FROM {Doc}",
+        "SELECT d.Id, x.ref.value('.', 'nvarchar(10)') AS V FROM {Doc} d CROSS APPLY d.Body.nodes('/r/i') AS x(ref)",
+        "SELECT d.Id, x.ref.value('.', 'nvarchar(10)') AS V FROM {Doc} d OUTER APPLY d.Body.nodes('/r/i') AS x(ref)",
+        "WITH XMLNAMESPACES ('urn:x' AS n) SELECT Id, Body.value('(/r/n:b)[1]', 'nvarchar(20)') AS B FROM {Doc}",
+        "SELECT Id FROM {Doc} WHERE Body.exist('/r/i') = 1",
+        "SELECT Id, CAST(Body.query('/r/a') AS nvarchar(100)) AS Q FROM {Doc}",
+        "SELECT Id, Body.value('count(/r/i)', 'int') AS N FROM {Doc}",
     ];
     /// <summary>
     /// 同じデータを本物の SQL Server(一時表)と、訳してコンパイルした C# の両方で問い合わせ、結果の行の集合とエラー番号が一致することを確かめる。
     /// ビューは ISet を返すので、本物の結果も重複を除いて比べる。
     /// </summary>
     [SqlServerFact,Trait("Category","SqlServer")]public void MatchesSqlServer(){
-        var tables=new[]{customer,orders};
+        var tables=new[]{customer,orders,documents};
         var relations=tables.Select(table=>new CatalogRelation("dbo",table.Name,$"Database.dbo.{table.Name}",$"global::Oracle.Tables.dbo.{table.Name}",table.Columns.Select(column=>new CatalogColumn(column.Name,column.Name,column.Type,column.Nullable)).ToList())).ToList();
         var catalog=new TranslationCatalog("Oracle","global::Oracle.Container","Japanese_CI_AS",relations);
         var translator=new Seamless.Database.SqlTranslation.SqlViewTranslator(catalog);

@@ -42,8 +42,11 @@ internal static class SqlTypeRules{
         "date" or "datetime" or "datetime2" or "smalldatetime"=>"global::System.DateTime?",
         "datetimeoffset"=>"global::System.DateTimeOffset?",
         "time"=>"global::System.TimeOnly?",
+        "xmlnode"=>"global::Seamless.Database.SqlServer.Functions.SqlXmlNode?",
         _=>throw new TranslationUnsupportedException("SQLT010",$"型 {type.Name} は扱えない。",0,0)
     };
+    /// <summary>xml 型の nodes() が返す節(APPLY の列)。SQL には名前の無い型。</summary>
+    public static SqlTypeDescriptor XmlNode{get;}=new("xmlnode");
     /// <summary>生成された行の型のプロパティの C# の型(取込の生成器と同じ。date は DateOnly、time は TimeOnly)。</summary>
     public static string StorageType(SqlTypeDescriptor type,bool nullable){
         var name=type.Name switch{

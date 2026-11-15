@@ -143,10 +143,13 @@ internal sealed class CSharpEmitter{
                 return this.Query(derived.Query,(codes,row)=>TupleValue(derived.Types,derived.Identity,codes,row),context,0);
             case BoundJoinFrom join:{
                 var left=this.From(join.Left,context,scope);
-                var right=this.From(join.Right,context,scope);
                 var l=this.Variable("l");
                 var r=this.Variable("r");
                 var j=this.Variable("j");
+                if(join.Right is BoundNodesFrom nodes){
+                    return this.Apply(join,nodes,left,context,scope,l,r);
+                }
+                var right=this.From(join.Right,context,scope);
                 if(join.Kind==JoinKind.Left){
                     var tuple=$"({join.Left.ElementType},{join.Right.ElementType}?)";
                     if(this.HashLeftJoin(join,left,right,tuple,context,scope,l,r) is{} hashed){
@@ -199,6 +202,17 @@ internal sealed class CSharpEmitter{
             default:
                 throw new InvalidOperationException(from.GetType().Name);
         }
+    }
+    // CROSS APPLY・OUTER APPLY の nodes()。左の行ごとに、選んだ節を右の行にした組を作る。OUTER は節が無ければ右を null にする。
+    private string Apply(BoundJoinFrom join,BoundNodesFrom nodes,string left,Context context,BoundScope scope,string l,string r){
+        var source=this.Expression(nodes.Source,context.With(scope,new(l,join.Left.Prefix)));
+        var call=$"{F}.XmlFunctions.Nodes({source},{CSharpNames.String(nodes.Query)})";
+        var element=nodes.ElementType;
+        if(join.Kind==JoinKind.Left){
+            var tuple=$"({join.Left.ElementType},{element}?)";
+            return $"{left}.SelectMany({l}=>{Enumerable}.DefaultIfEmpty({Enumerable}.Select({call},{r}=>({tuple})({l},new {element}({r}))),({tuple})({l},null)))";
+        }
+        return $"{left}.SelectMany({l}=>{Enumerable}.Select({call},{r}=>({l},new {element}({r}))))";
     }
     /// <summary>
     /// 左外部結合を Set.LeftJoin(右側をキーで引く)で出す。ON の条件は、左右を = で結ぶもの(キー)と、右の表だけを見るもの(先に右を絞る)に分けられるときだけ使う。

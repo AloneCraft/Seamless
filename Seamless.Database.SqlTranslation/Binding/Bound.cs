@@ -35,6 +35,10 @@ internal sealed record BoundTableFrom(RowBinding Row):BoundFrom{
 internal sealed record BoundDerivedFrom(RowBinding Row,BoundQuery Query,IReadOnlyList<SqlTypeDescriptor> Types,bool Identity):BoundFrom{
     public override string ElementType=>CSharpEmitter.TupleType(this.Types,this.Identity);
 }
+/// <summary>CROSS APPLY・OUTER APPLY の右側の xml.nodes()。左の行ごとに、選んだ節の並びになる。行は ValueTuple&lt;SqlXmlNode?&gt;。</summary>
+internal sealed record BoundNodesFrom(RowBinding Row,BoundExpression Source,string Query):BoundFrom{
+    public override string ElementType=>$"global::System.ValueTuple<{SqlTypeRules.ClrType(SqlTypeRules.XmlNode)}>";
+}
 internal enum JoinKind{Inner,Left,Cross}
 internal sealed record BoundJoinFrom(BoundFrom Left,BoundFrom Right,JoinKind Kind):BoundFrom{
     public BoundExpression? Condition{get;set;}

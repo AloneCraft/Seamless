@@ -4,8 +4,10 @@ namespace Seamless.Database.SqlTranslation;
 /// 構文木(ScriptDom)を、目録の列と型へ解決した中間表現(Bound*)にする。
 /// 対応しない構文は <see cref="TranslationUnsupportedException"/> で、その位置と構文名を伝える。
 /// </summary>
-internal sealed partial class SqlBinder(TranslationCatalog catalog){
+internal sealed partial class SqlBinder(TranslationCatalog catalog,string xmlNamespaces=""){
     private readonly TranslationCatalog catalog=catalog;
+    /// <summary>WITH XMLNAMESPACES を XQuery の先頭の宣言にしたもの。xml のメソッドの XQuery の前に足す。</summary>
+    private readonly string xmlNamespaces=xmlNamespaces;
     public List<TranslationDiagnostic> Warnings{get;}=[];
     // ---- 問い合わせ ----
     public BoundQuery BindQuery(QueryExpression query,BoundScope? outer){
@@ -206,6 +208,9 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
                 case BoundDerivedFrom derived:
                     rows.Add(derived.Row);
                     break;
+                case BoundNodesFrom nodes:
+                    rows.Add(nodes.Row);
+                    break;
                 case BoundJoinFrom join:
                     Walk(join.Left);
                     Walk(join.Right);
@@ -216,7 +221,8 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
         return rows;
     }
     private static bool Place(BoundFrom from,BoundExpression conjunct,HashSet<RowBinding> rows){
-        if(from is not BoundJoinFrom join||join.Kind==JoinKind.Left){
+        // APPLY の右側(nodes)は左の行ごとに作るので、条件を移さない。
+        if(from is not BoundJoinFrom join||join.Kind==JoinKind.Left||join.Right is BoundNodesFrom){
             return false;
         }
         if(rows.IsSubsetOf(RowsUnder(join.Left))){
@@ -379,6 +385,9 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
                 return bound;
             }
             case UnqualifiedJoin unqualified:{
+                if(unqualified.UnqualifiedJoinType is UnqualifiedJoinType.CrossApply or UnqualifiedJoinType.OuterApply){
+                    return this.BindApply(unqualified,scope,joins);
+                }
                 if(unqualified.UnqualifiedJoinType!=UnqualifiedJoinType.CrossJoin){
                     throw Unsupported(unqualified,"SQLT053",unqualified.UnqualifiedJoinType.ToString());
                 }
@@ -414,6 +423,10 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
                 derived.Row.Path=prefix;
                 derived.Row.Nullable=nullable;
                 break;
+            case BoundNodesFrom nodes:
+                nodes.Row.Path=prefix;
+                nodes.Row.Nullable=nullable;
+                break;
             case BoundJoinFrom join:{
                 AssignPaths(join.Left,[..prefix,new("Item1",false)],nullable);
                 var rightNullable=join.Kind==JoinKind.Left;
@@ -432,6 +445,37 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
             throw new TranslationUnsupportedException("SQLT055",$"別名 {alias} が FROM に無い(本物ではエラー 4104)。",star.StartLine,star.StartColumn);
         }
         return rows;
+    }
+    // ---- APPLY ----
+    /// <summary>
+    /// CROSS APPLY・OUTER APPLY。右側は、左の列の xml に対する nodes() だけを扱う(サンプルDBのビューの使い方)。
+    /// OUTER APPLY は、節が1つも無い左の行を、右を NULL にして残す。
+    /// </summary>
+    private BoundFrom BindApply(UnqualifiedJoin apply,BoundScope scope,List<(BoundJoinFrom Join,BooleanExpression Condition)> joins){
+        var left=this.BindTableReference(apply.FirstTableReference,scope,joins);
+        if(apply.SecondTableReference is not SchemaObjectFunctionTableReference function
+            ||!function.SchemaObject.BaseIdentifier.Value.Equals("nodes",StringComparison.OrdinalIgnoreCase)
+            ||function.Parameters.Count!=1||function.Parameters[0] is not StringLiteral query||function.Columns.Count!=1){
+            throw Unsupported(apply.SecondTableReference,"SQLT059","xml の nodes() でない APPLY");
+        }
+        // 列の参照は、nodes の前の名前(別名.列 または 列)。
+        var parts=new MultiPartIdentifier();
+        foreach(var identifier in function.SchemaObject.Identifiers.Take(function.SchemaObject.Identifiers.Count-1)){
+            parts.Identifiers.Add(identifier);
+        }
+        var source=this.ResolveColumn(new ColumnReferenceExpression{MultiPartIdentifier=parts},scope);
+        if(source.Type.Name is not("xml" or "xmlnode")){
+            throw Unsupported(function,"SQLT059",$"{source.Type.Name} の nodes()");
+        }
+        var column=new CatalogColumn(function.Columns[0].Value,"Item1",SqlTypeRules.XmlNode,true);
+        var relation=new CatalogRelation("",function.Alias?.Value??"",$"",$"global::System.ValueTuple<{SqlTypeRules.ClrType(SqlTypeRules.XmlNode)}>",[column]){InternalValues=true};
+        var row=new RowBinding(scope,function.Alias?.Value??"",relation);
+        scope.Rows.Add(row);
+        var kind=JoinKind.Cross;
+        if(apply.UnqualifiedJoinType==UnqualifiedJoinType.OuterApply){
+            kind=JoinKind.Left;
+        }
+        return new BoundJoinFrom(left,new BoundNodesFrom(row,source,this.xmlNamespaces+query.Value),kind);
     }
     // ---- 派生表 ----
     /// <summary>問い合わせを、FROM の1つの表(行は値のタプル)にする。</summary>

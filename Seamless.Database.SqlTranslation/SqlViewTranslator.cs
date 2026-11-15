@@ -21,8 +21,8 @@ public sealed class SqlViewTranslator(TranslationCatalog catalog){
     public ViewTranslation Translate(string schema,string name,string definition){
         var diagnostics=new List<TranslationDiagnostic>();
         try{
-            var (query,columnNames)=Parse(definition);
-            var binder=new SqlBinder(this.catalog);
+            var (query,columnNames,xmlNamespaces)=Parse(definition);
+            var binder=new SqlBinder(this.catalog,xmlNamespaces);
             var bound=binder.BindQuery(query,null);
             bound=binder.Unify(bound);
             diagnostics.AddRange(binder.Warnings);
@@ -88,7 +88,7 @@ public sealed class SqlViewTranslator(TranslationCatalog catalog){
         builder.Append("}\n");
         return builder.ToString();
     }
-    private static (QueryExpression Query,IList<string>? Columns) Parse(string definition){
+    private static (QueryExpression Query,IList<string>? Columns,string XmlNamespaces) Parse(string definition){
         var parser=new TSql170Parser(true);
         var fragment=parser.Parse(new StringReader(definition),out var errors);
         if(errors.Count>0){
@@ -99,19 +99,39 @@ public sealed class SqlViewTranslator(TranslationCatalog catalog){
             throw new TranslationUnsupportedException("SQLT003","CREATE VIEW の文が1つではない。",1,1);
         }
         var statement=script.Batches[0].Statements[0];
+        SelectStatement select;
+        IList<string>? columns=null;
         if(statement is ViewStatementBody view){
-            if(view.SelectStatement.WithCtesAndXmlNamespaces is not null){
-                throw SqlBinder.Unsupported(view.SelectStatement,"SQLT004","WITH(共通テーブル式・XMLNAMESPACES。段階3)");
-            }
-            IList<string>? columns=null;
+            select=view.SelectStatement;
             if(view.Columns.Count>0){
                 columns=view.Columns.Select(static column=>column.Value).ToList();
             }
-            return (view.SelectStatement.QueryExpression,columns);
+        }else if(statement is SelectStatement plain){
+            select=plain;
+        }else{
+            throw SqlBinder.Unsupported(statement,"SQLT003",statement.GetType().Name);
         }
-        if(statement is SelectStatement select){
-            return (select.QueryExpression,null);
+        var namespaces="";
+        if(select.WithCtesAndXmlNamespaces is{} with){
+            if(with.CommonTableExpressions.Count>0||with.ChangeTrackingContext is not null){
+                throw SqlBinder.Unsupported(select,"SQLT004","WITH の共通テーブル式(段階3)");
+            }
+            // WITH XMLNAMESPACES は、xml のメソッドの XQuery の先頭の宣言にする。
+            if(with.XmlNamespaces is{} xml){
+                var builder=new System.Text.StringBuilder();
+                foreach(var element in xml.XmlNamespacesElements){
+                    switch(element){
+                        case XmlNamespacesAliasElement alias:
+                            builder.Append($"declare namespace {alias.Identifier.Value}=\"{alias.String.Value}\";");
+                            break;
+                        case XmlNamespacesDefaultElement @default:
+                            builder.Append($"declare default element namespace \"{@default.String.Value}\";");
+                            break;
+                    }
+                }
+                namespaces=builder.ToString();
+            }
         }
-        throw SqlBinder.Unsupported(statement,"SQLT003",statement.GetType().Name);
+        return (select.QueryExpression,columns,namespaces);
     }
 }

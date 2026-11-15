@@ -10,4 +10,8 @@
     <IsPackable>true</IsPackable>
     <Description>SQL Server の組み込み関数を、T-SQL から訳した C# が呼ぶ静的メソッドとして実装する。</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- XQuery(XML の value・nodes・query・exist)の評価に使う。2026-11-15 利用者の決定。 -->
+    <PackageReference Include="SaxonCS-HE" Version="13.1.0" />
+  </ItemGroup>
 </Project>

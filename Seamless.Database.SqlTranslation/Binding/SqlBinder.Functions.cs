@@ -9,6 +9,9 @@ internal sealed partial class SqlBinder{
     // ---- 関数 ----
     private BoundExpression BindFunction(FunctionCall call,BoundScope scope,bool aggregateAllowed){
         var name=call.FunctionName.Value.ToUpperInvariant();
+        if(call.CallTarget is MultiPartIdentifierCallTarget target&&name is "VALUE" or "QUERY" or "EXIST"&&this.XmlMethod(name,target,call,scope) is{} xml){
+            return xml;
+        }
         if(call.CallTarget is not null){
             throw Unsupported(call,"SQLT090",$"{name} の呼び出し先つきの呼び出し(XML のメソッド・ユーザー定義関数は段階3)");
         }
@@ -346,6 +349,50 @@ internal sealed partial class SqlBinder{
             builder.Append(fragment.ScriptTokenStream[index].Text);
         }
         return builder.ToString();
+    }
+    // ---- xml のメソッド ----
+    /// <summary>
+    /// 列.value(XQuery,型)・列.query(XQuery)・列.exist(XQuery)。呼び出し先が xml の列(または nodes() の節)でなければ null(ユーザー定義関数など)。
+    /// value() は XQuery の結果の文字列を、CONVERT と同じ変換で指定の型にする。
+    /// </summary>
+    private BoundExpression? XmlMethod(string name,MultiPartIdentifierCallTarget target,FunctionCall call,BoundScope scope){
+        BoundExpression source;
+        try{
+            source=this.ResolveColumn(new ColumnReferenceExpression{MultiPartIdentifier=target.MultiPartIdentifier},scope);
+        }catch(TranslationUnsupportedException){
+            return null;
+        }
+        if(source.Type.Name is not("xml" or "xmlnode")){
+            return null;
+        }
+        if(call.Parameters.Count==0||call.Parameters[0] is not StringLiteral query){
+            throw Unsupported(call,"SQLT111",$"リテラルでない {name.ToLowerInvariant()}() の XQuery");
+        }
+        var text=new BoundLiteral(CSharpNames.String(this.xmlNamespaces+query.Value),SqlTypeRules.NVarChar(-1,null));
+        BoundArgument[] arguments=[new(source,null,null),new(null,text.Code,null)];
+        switch(name){
+            case "VALUE":{
+                if(call.Parameters.Count!=2||call.Parameters[1] is not StringLiteral typeName){
+                    throw Unsupported(call,"SQLT111","value() の型");
+                }
+                var type=this.ParseDataType(typeName.Value,call);
+                var value=new BoundCall($"{FunctionsNamespace}.XmlFunctions.Value",arguments,SqlTypeRules.NVarChar(-1,this.catalog.DatabaseCollation));
+                return this.Convert(value,type,call,0,true);
+            }
+            case "QUERY":
+                return new BoundCall($"{FunctionsNamespace}.XmlFunctions.Query",arguments,new("xml",-1));
+            default:
+                return new BoundCall($"{FunctionsNamespace}.XmlFunctions.Exist",arguments,SqlTypeRules.Bit);
+        }
+    }
+    // value() の第2引数の型名(文字列)を、CAST の型として読む。
+    private SqlTypeDescriptor ParseDataType(string text,TSqlFragment at){
+        var fragment=new TSql170Parser(true).Parse(new StringReader($"SELECT CAST(NULL AS {text})"),out var errors);
+        if(errors.Count>0||fragment is not TSqlScript script||script.Batches[0].Statements[0] is not SelectStatement{QueryExpression:QuerySpecification specification}
+            ||specification.SelectElements[0] is not SelectScalarExpression{Expression:CastCall cast}){
+            throw Unsupported(at,"SQLT111",$"value() の型 {text}");
+        }
+        return this.DataType(cast.DataType);
     }
     // ---- 集約 ----
     private BoundExpression BindAggregate(string name,FunctionCall call,BoundScope scope){
