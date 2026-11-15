@@ -19,7 +19,8 @@ public static class NativeWireValidation{
         private readonly HashSet<Type> active=[];
         private int count;
         public Plan Build(Type type){
-            if(this.active.Count==0){var version=typeof(MemoryPackSerializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];if(version!="1.21.4"){throw new NotSupportedException("The native wire validation profile requires the verified MemoryPack 1.21.4 runtime.");}}
+            // [版] MemoryPack は常に最新の 1.x を使う。1.x の中では正しいデータの直列化の形は変わらない(1.22.0 でも同じと明記)ので、主版だけを確かめる。
+            if(this.active.Count==0&&typeof(MemoryPackSerializer).Assembly.GetName().Version is not{Major:1}){throw new NotSupportedException("The native wire validation profile requires a MemoryPack 1.x runtime.");}
             if(++this.count>1024||this.active.Count>=32||!this.active.Add(type)){throw Unsupported(type);}
             try{
                 if(type.IsPointer||type.IsFunctionPointer||type.IsByRefLike||type==typeof(IntPtr)||type==typeof(UIntPtr)||type==typeof(object)||type.IsInterface||type.IsAbstract||type.ContainsGenericParameters||typeof(Delegate).IsAssignableFrom(type)){throw Unsupported(type);}

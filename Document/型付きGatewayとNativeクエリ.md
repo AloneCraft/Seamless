@@ -60,7 +60,7 @@ Native の `INativeQueryContext.GetDatabase(name)` は宣言済みの依存 DB �
 
 共通チェックポイントが全参加 DB を保存し WAL prefix を回収した後、全 DB の使用権を持つ時点で回収候補を確定する。使用権の解放後にその集合だけを削除し、後から作った候補を巻き込まない。現在と直前の公開世代を保持し、参照が残る DLL は診断付きで保留する。`LastGenerationCollection` で回収・保留の結果を取得できる。
 
-MemoryPack 1.21.4 は formatter provider の共有辞書に型を強参照し、公開の解除 API を持たない。[利用中バージョンの実装](https://raw.githubusercontent.com/Cysharp/MemoryPack/1.21.4/src/MemoryPack.Core/MemoryPackFormatterProvider.cs) に合わせた所有権 adapter が、実行 lease の終了後に、その ALC の型を含む登録だけを解放する。共通契約の formatter は保持する。検証済みバージョンと辞書構造が一致しない場合は、Native の読み込み前に拒否する。
+MemoryPack 1.x は formatter provider の共有辞書に型を強参照し、公開の解除 API を持たない。[実装](https://raw.githubusercontent.com/Cysharp/MemoryPack/1.22.0/src/MemoryPack.Core/MemoryPackFormatterProvider.cs) の共有辞書に合わせた所有権 adapter が、実行 lease の終了後に、その ALC の型を含む登録だけを解放する。共通契約の formatter は保持する。MemoryPack は常に最新の 1.x を使う（`1.*`）。主版が 1 でないか、共有辞書（`formatters`・`genericFormatterFactory`・`genericCollectionFormatterFactory`）の形が一致しない場合は、Native の読み込み前に拒否する。1.21.4 と 1.22.0 で確かめた。
 
 ## 検証の区別
 

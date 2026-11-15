@@ -22,12 +22,19 @@ public sealed class GeneratedAssemblyBuilderTests{
         Assert.False(reference.IsAlive,"A disposed generation must not remain in a global formatter/type cache.");
     }
 
+    // MemoryPack の生成器は、この試験が読み込んだ MemoryPack と同じ版をパッケージの置き場(NUGET_PACKAGES か利用者の既定)から使う。
+    private static string MemoryPackGenerator(){
+        var version=global::System.Reflection.CustomAttributeExtensions.GetCustomAttribute<global::System.Reflection.AssemblyInformationalVersionAttribute>(typeof(global::MemoryPack.MemoryPackSerializer).Assembly)?.InformationalVersion.Split('+')[0]??throw new InvalidOperationException("The MemoryPack version is unknown.");
+        var packages=Environment.GetEnvironmentVariable("NUGET_PACKAGES")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),".nuget","packages");
+        var path=Path.Combine(packages,"memorypack.generator",version,"analyzers","dotnet","cs","MemoryPack.Generator.dll");
+        return File.Exists(path)?path:throw new InvalidOperationException("The MemoryPack generator of the loaded version is missing: "+path);
+    }
     internal static GeneratedAssemblyBuilder Compiler(string data,string cache,bool nativeSerialization=false,bool nativeFLinq=false){
         var configuration=new DirectoryInfo(AppContext.BaseDirectory).Name;
         var generator=Environment.GetEnvironmentVariable("SEAMLESS_TEST_GENERATOR_ASSEMBLY")??Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","Seamless.Database.Generator",configuration,"Seamless.Database.Generator.dll"));
         var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(path=>{var name=Path.GetFileName(path);return name.StartsWith("Seamless.",StringComparison.Ordinal)&&!name.Contains("Tests",StringComparison.Ordinal)&&!name.Contains("Generator",StringComparison.Ordinal)||name.StartsWith("MemoryPack",StringComparison.Ordinal);}).ToArray();
         var analyzers=new List<string>();
-        if(nativeSerialization){analyzers.Add(Environment.GetEnvironmentVariable("SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY")??Path.Combine(Environment.GetEnvironmentVariable("NUGET_PACKAGES")??throw new InvalidOperationException("Missing isolated package cache."),"memorypack.generator","1.21.4","analyzers","dotnet","cs","MemoryPack.Generator.dll"));}
+        if(nativeSerialization){analyzers.Add(Environment.GetEnvironmentVariable("SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY")??MemoryPackGenerator());}
         if(nativeFLinq){analyzers.Add(Environment.GetEnvironmentVariable("SEAMLESS_TEST_FLINQ_GENERATOR_ASSEMBLY")??generator.Replace("Seamless.Database.Generator","Seamless.FLinq.Generator",StringComparison.Ordinal).Replace("net10.0","netstandard2.0",StringComparison.Ordinal));}
         return new(new(Path.Combine(data,"generated"),Path.Combine(cache,"generated"),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"dotnet","dotnet.exe"),generator,references){NativeAnalyzerPaths=analyzers});
     }
