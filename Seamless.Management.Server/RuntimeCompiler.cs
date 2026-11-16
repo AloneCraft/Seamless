@@ -97,48 +97,10 @@ public sealed class RuntimeCompiler{
         if(!emit.Success||diagnostics.Any(item=>item.Severity=="Error")){return new([],new(hash,"",diagnostics,[]));}
         var bytes=pe.ToArray();var artifactHash=Convert.ToHexString(SHA256.HashData(bytes));QueryAuditMetadata? audit=null;if(auditEntry is not null){audit=QueryAuditMetadataBuilder.Create(auditEntry,schemaCompilation,bytes,hash,artifactHash);}pe.Position=0;return new(bytes,new(hash,artifactHash,diagnostics,ExecutionPlanDocument.Read(pe))){AuditMetadata=audit};
     }
-    internal static DiagnosticInfo[] ValidatePolicy(CSharpCompilation compilation,SyntaxTree[] trees){
-        var errors=new List<DiagnosticInfo>();
-        foreach(var tree in trees){var model=compilation.GetSemanticModel(tree);
-            foreach(var node in tree.GetRoot().DescendantNodes()){
-                string? reason=null;
-                if(node is TypeSyntax syntax&&model.GetTypeInfo(syntax).Type is INamedTypeSymbol referenced&&!AllowedSystemType(referenced)){reason="DB処理・計算の対応範囲外の型です: "+referenced.ToDisplayString();}
-                if(node is WithExpressionSyntax withExpression&&model.GetTypeInfo(withExpression).Type?.Name=="DatabaseContainerOptions"){reason="DBの実行設定はサーバーから渡された値をそのまま使用してください。";}
-                if(node is PrimaryConstructorBaseTypeSyntax primaryBase&&model.GetTypeInfo(primaryBase.Type).Type is INamedTypeSymbol primaryType&&IsDatabaseType(primaryType)&&!PassesOptions(primaryBase.ArgumentList.Arguments,model)){reason="DBの基底コンストラクターにはサーバーから渡されたoptionsだけを渡してください。";}
-                if(node is ConstructorDeclarationSyntax constructor&&model.GetDeclaredSymbol(constructor)?.ContainingType is{} constructorType&&IsDatabaseType(constructorType)&&(constructor.Initializer is null||!PassesOptions(constructor.Initializer.ArgumentList.Arguments,model))){reason="DBコンストラクターはoptionsを基底へ直接引き渡してください。";}
-                if(node is ClassDeclarationSyntax declaration&&model.GetDeclaredSymbol(declaration) is{} declaredType&&IsDatabaseType(declaredType)){
-                    if(declaration.ParameterList is not null&&declaration.BaseList?.Types.OfType<PrimaryConstructorBaseTypeSyntax>().Any()!=true||declaration.ParameterList is null&&declaredType.InstanceConstructors.All(item=>item.IsImplicitlyDeclared)){reason="DBにはoptionsを直接引き渡す明示コンストラクターが必要です。";}
-                }
-                if(node is UnsafeStatementSyntax or PointerTypeSyntax or FunctionPointerTypeSyntax or StackAllocArrayCreationExpressionSyntax or ImplicitStackAllocArrayCreationExpressionSyntax or TypeOfExpressionSyntax){reason="unsafe/ポインター/stackalloc/typeofは対応範囲外です。";}
-                if(node is MethodDeclarationSyntax method&&(method.Modifiers.Any(SyntaxKind.ExternKeyword)||method.Modifiers.Any(SyntaxKind.AsyncKeyword)||method.Modifiers.Any(SyntaxKind.UnsafeKeyword))){reason="extern・async・unsafeは対応範囲外です。";}
-                if(node is IdentifierNameSyntax identifier&&identifier.Identifier.ValueText=="dynamic"){reason="dynamicは対応範囲外です。";}
-                if(node is InvocationExpressionSyntax or ObjectCreationExpressionSyntax or MemberAccessExpressionSyntax or AttributeSyntax){
-                    var symbol=model.GetSymbolInfo(node).Symbol;var type=symbol?.ContainingType;var ns=type?.ContainingNamespace.ToDisplayString()??"";
-                    if(type is not null&&!AllowedSystemType(type)){reason="DB処理・計算の対応範囲外のAPIです: "+symbol?.ToDisplayString();}
-                    if(ns.StartsWith("Seamless.Management",StringComparison.Ordinal)&&type?.ToDisplayString()!="Seamless.Management.Server.ManagementExecutionContext"){reason="管理用APIは問い合わせコードから利用できません。";}
-                    if(ns.StartsWith("Seamless.Execution",StringComparison.Ordinal)||type?.ToDisplayString()=="Seamless.Database.DatabaseContainerOptions"&&node is not IdentifierNameSyntax){reason="保存先・実行環境は管理サーバーが設定します。";}
-                    if(ns.StartsWith("Seamless.Transactions",StringComparison.Ordinal)||ns.StartsWith("Seamless.Collections.Tsavorite",StringComparison.Ordinal)||symbol?.ContainingType?.ToDisplayString()=="Seamless.Database.DatabaseContainer"&&symbol.Name is "Dispose" or "BeginTransaction" or "BeginReadSession" or "BeginRelationImport" or "BeginUnpublishedSnapshot" or "Options"||symbol?.Name.Contains("Gateway",StringComparison.Ordinal)==true&&ns.StartsWith("Seamless.Database",StringComparison.Ordinal)){reason="取引・永続化・DBの寿命は管理サーバーが制御します。";}
-                    if(node is ObjectCreationExpressionSyntax&&type is not null){for(var parent=type;parent is not null;parent=parent.BaseType){if(parent.ToDisplayString()=="Seamless.Database.DatabaseContainer"){reason="DBはManagementExecutionContextから取得してください。";break;}}}
-                    if(ns.StartsWith("System.IO",StringComparison.Ordinal)||ns.StartsWith("System.Net",StringComparison.Ordinal)||ns.StartsWith("System.Reflection",StringComparison.Ordinal)||ns.StartsWith("System.Runtime.InteropServices",StringComparison.Ordinal)||ns.StartsWith("System.Runtime.Loader",StringComparison.Ordinal)||ns.StartsWith("System.Threading",StringComparison.Ordinal)&&type?.ToDisplayString()!="System.Threading.CancellationToken"||ns.StartsWith("Microsoft",StringComparison.Ordinal)
-                        ||ns.StartsWith("System.Linq.Expressions",StringComparison.Ordinal)||type?.ToDisplayString() is "System.AppDomain" or "System.Environment" or "System.GC" or "System.Console" or "System.Diagnostics.Process" or "System.Type" or "System.Activator" or "System.Delegate"||symbol?.Name=="GetType"){reason="DB処理・計算から利用できないAPIです: "+symbol?.ToDisplayString();}
-                }
-                if(reason is not null){errors.Add(new("ManagementCodePolicy",reason,tree.FilePath,node.SpanStart,node.Span.Length));}
-            }
-        }
-        return errors.ToArray();
-    }
-    private static bool PassesOptions(SeparatedSyntaxList<ArgumentSyntax> arguments,SemanticModel model)=>arguments.Count==1&&arguments[0].Expression is IdentifierNameSyntax&&model.GetSymbolInfo(arguments[0].Expression).Symbol is IParameterSymbol parameter&&parameter.Type.Name=="DatabaseContainerOptions"&&parameter.Type.ContainingNamespace.ToDisplayString()=="Seamless.Database";
-    private static bool IsDatabaseType(INamedTypeSymbol type){for(var parent=type.BaseType;parent is not null;parent=parent.BaseType){if(parent.ToDisplayString()=="Seamless.Database.DatabaseContainer"){return true;}}return type.ToDisplayString()=="Seamless.Database.DatabaseContainer";}
-    private static bool AllowedSystemType(INamedTypeSymbol type){
-        var ns=type.ContainingNamespace.ToDisplayString();if(ns=="System"){return type.Name is not "AppDomain" and not "AppContext" and not "Environment" and not "GC" and not "Console" and not "Type" and not "Activator" and not "Delegate" and not "RuntimeMethodHandle" and not "RuntimeTypeHandle";}
-        if(ns.StartsWith("Tsavorite",StringComparison.Ordinal)||ns.StartsWith("Seamless.Database.Client",StringComparison.Ordinal)||ns.StartsWith("Seamless.Transport",StringComparison.Ordinal)){return false;}if(!ns.StartsWith("System.",StringComparison.Ordinal)){return true;}
-        if(ns=="System.Collections.Generic"&&type.Name is "IAsyncEnumerable" or "IAsyncEnumerator"){return false;}
-        if(ns=="System.Linq"||ns.StartsWith("System.Collections",StringComparison.Ordinal)||ns.StartsWith("System.Numerics",StringComparison.Ordinal)||ns.StartsWith("System.Globalization",StringComparison.Ordinal)||ns.StartsWith("System.Text",StringComparison.Ordinal)||ns.StartsWith("System.Buffers",StringComparison.Ordinal)){return true;}
-        if(ns=="System.Threading"&&type.Name=="CancellationToken"){return true;}
-        if(ns=="System.Diagnostics"&&type.Name=="Stopwatch"){return true;}
-        if(ns=="System.Runtime.CompilerServices"&&type.Name is "MethodImplAttribute" or "MethodImplOptions" or "CallerMemberNameAttribute" or "CallerArgumentExpressionAttribute"){return true;}
-        return false;
-    }
+    // 使用制限の規則は DB 生成器の解析器(SDK のビルドでも働く)と同じものを使う。
+    internal static DiagnosticInfo[] ValidatePolicy(CSharpCompilation compilation,SyntaxTree[] trees)=>
+        trees.SelectMany(tree=>global::Seamless.Database.Generator.ManagedDatabaseCodePolicyAnalyzer.Check(compilation.GetSemanticModel(tree),CancellationToken.None)
+            .Select(item=>new DiagnosticInfo("ManagementCodePolicy",item.Reason,tree.FilePath,item.Node.SpanStart,item.Node.Span.Length))).ToArray();
 }
 
 /// <summary>検証時は検証DBだけを束縛する。任意名のDB取得は公開しない。</summary>

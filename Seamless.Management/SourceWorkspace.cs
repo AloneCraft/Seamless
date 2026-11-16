@@ -48,7 +48,9 @@ public sealed partial class SourceWorkspace{
         var references=new XElement("ItemGroup");
         references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,"Seamless.Database","Seamless.Database.csproj"))));
         foreach(var generator in new[]{"Seamless.Database.Generator","Seamless.FLinq.Generator"}){references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,generator,generator+".csproj")),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));}
-        var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),new XElement("PropertyGroup",new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),new XElement("EnableDefaultCompileItems","false"),new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),new XElement("DefineConstants",string.Join(";",current.Definition.Source.Defines??[]))),references);
+        // Manager が管理する DB の印を、DB 生成器の解析器(使用制限)と生成器へ渡す。
+        references.Add(new XElement("CompilerVisibleProperty",new XAttribute("Include","SeamlessManagedDatabase")));
+        var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),new XElement("PropertyGroup",new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),new XElement("SeamlessManagedDatabase","true"),new XElement("EnableDefaultCompileItems","false"),new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),new XElement("DefineConstants",string.Join(";",current.Definition.Source.Defines??[]))),references);
         project.Add(new XElement("ItemGroup",new XAttribute("Label","SeamlessSources"),current.Definition.Source.Files.Select(file=>new XElement("Compile",new XAttribute("Include",file.Path)))));
         File.WriteAllText(Path.Combine(directory,"Schema.csproj"),project.ToString());
         var sdkPolicy=Path.Combine(repository,"global.json");
@@ -115,12 +117,14 @@ public sealed partial class SourceWorkspace{
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.Client"),new XAttribute("Version",packageVersion)));
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.Generator"),new XAttribute("Version",packageVersion),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.FLinq.Generator"),new XAttribute("Version",packageVersion),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));
+        // Manager が管理する DB の印を、DB 生成器の解析器(使用制限)と生成器へ渡す。
+        references.Add(new XElement("CompilerVisibleProperty",new XAttribute("Include","SeamlessManagedDatabase")));
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",
                 new XElement("TargetFramework","net10.0"),
                 new XElement("LangVersion","14"),
                 new XElement("Nullable","enable"),
-                new XElement("AllowUnsafeBlocks","true"),
+                new XElement("AllowUnsafeBlocks","true"),new XElement("SeamlessManagedDatabase","true"),
                 new XElement("EnableDefaultCompileItems","true"),
                 new XElement("CopyLocalLockFileAssemblies","true"),
                 new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),
