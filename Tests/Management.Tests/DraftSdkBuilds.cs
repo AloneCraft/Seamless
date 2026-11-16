@@ -22,6 +22,10 @@ public sealed class DraftSdkBuilds{
         Assert.Equal(64,published.ArtifactHash.Length);
         Assert.True(Directory.Exists(Path.Combine(root,"source-builds",published.ArtifactHash)),"SDK のビルドの成果物が保管されていません。");
         Assert.True(Directory.Exists(Path.Combine(root,"sdk-drafts")));
+        // 生成コードの表示は、同じソースの SDK のビルドが書き出した生成ファイルを読む(ビルドを使い回す)。
+        var generated=service.SdkBuilder!.GenerateSources(definition.Source);
+        Assert.Contains(generated,file=>file.Kind=="User");
+        Assert.Contains(generated,file=>file.Kind=="Database"&&file.Text.Contains("Rows",StringComparison.Ordinal));
         await service.CommitRowsAsync(user,new(definition.Database,published.Version,Guid.NewGuid(),[new("Rows",TableRowChangeKind.Insert,Values:ManagementJson.Element(new{Id=1,Value=7}))]));
         Assert.Equal(7,Assert.Single((await service.ReadRowsAsync(user,new(definition.Database,"Rows"))).Rows).Values.GetProperty("value").GetInt32());
 

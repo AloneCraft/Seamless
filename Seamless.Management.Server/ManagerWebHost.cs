@@ -23,13 +23,15 @@ public sealed class ManagerWebHost:IAsyncDisposable{
     public int ProcessId=>Environment.ProcessId;
     private ManagerWebHost(WebApplication application,IManagerBrowserSessions sessions,Uri origin){this.application=application;this.browserSessions=sessions;this.Origin=origin;}
 
-    public static async Task<ManagerWebHost> StartAsync(IManagementOperations operations,int port=0,int sessionCapacity=16,CancellationToken cancellationToken=default){
+    public static async Task<ManagerWebHost> StartAsync(IManagementOperations operations,int port=0,int sessionCapacity=16,CancellationToken cancellationToken=default)=>
+        await StartAsync(operations,null,port,sessionCapacity,cancellationToken).ConfigureAwait(false);
+    internal static async Task<ManagerWebHost> StartAsync(IManagementOperations operations,Func<DraftSdkBuilder?>? sourceBuilds,int port=0,int sessionCapacity=16,CancellationToken cancellationToken=default){
         ArgumentNullException.ThrowIfNull(operations);
         if(port is <0 or >65535){throw new ArgumentOutOfRangeException(nameof(port));}
         var info=await operations.InfoAsync(cancellationToken).ConfigureAwait(false);
         if(!info.Capabilities.Contains("OwnerSourceProjectsV1",StringComparer.Ordinal)){throw new ManagementException("Permission","OS所有者のホストからローカルManagerを起動してください。");}
         var sessions=new LocalBrowserSessions(info.InstanceId,capacity:sessionCapacity);
-        return await StartCoreAsync(sessions,IPAddress.Loopback,port,null,null,provider=>new BrowserManagementOperations(sessions,operations,SessionId(provider)),cancellationToken).ConfigureAwait(false);
+        return await StartCoreAsync(sessions,IPAddress.Loopback,port,null,null,provider=>new BrowserManagementOperations(sessions,operations,SessionId(provider)),sourceBuilds,cancellationToken).ConfigureAwait(false);
     }
     public static async Task<ManagerWebHost> StartExternalAsync(ManagementService service,ConcurrentManagementOperations execution,X509Certificate2 certificate,IPAddress address,int port,Uri? publicOrigin=null,int sessionCapacity=64,CancellationToken cancellationToken=default){
         ArgumentNullException.ThrowIfNull(service);ArgumentNullException.ThrowIfNull(execution);ArgumentNullException.ThrowIfNull(certificate);ArgumentNullException.ThrowIfNull(address);
@@ -41,13 +43,13 @@ public sealed class ManagerWebHost:IAsyncDisposable{
         }
         if((await execution.InfoAsync(cancellationToken).ConfigureAwait(false)).InstanceId!=service.Info.InstanceId){throw new ArgumentException("同じ管理領域の実行ホストが必要です。",nameof(execution));}
         var sessions=new UserBrowserSessions(service,sessionCapacity);
-        return await StartCoreAsync(sessions,address,port,certificate,publicOrigin,provider=>new AuthenticatedManagementOperations(execution,sessions,SessionId(provider)),cancellationToken).ConfigureAwait(false);
+        return await StartCoreAsync(sessions,address,port,certificate,publicOrigin,provider=>new AuthenticatedManagementOperations(execution,sessions,SessionId(provider)),()=>service.SdkBuilder,cancellationToken).ConfigureAwait(false);
     }
     private static Func<Task<string?>> SessionId(IServiceProvider provider)=>async()=>{
         var state=await provider.GetRequiredService<AuthenticationStateProvider>().GetAuthenticationStateAsync();
         return state.User.FindFirst("browserSession")?.Value;
     };
-    private static async Task<ManagerWebHost> StartCoreAsync(IManagerBrowserSessions sessions,IPAddress address,int port,X509Certificate2? certificate,Uri? publicOrigin,Func<IServiceProvider,IManagementOperations> resolveOperations,CancellationToken cancellationToken){
+    private static async Task<ManagerWebHost> StartCoreAsync(IManagerBrowserSessions sessions,IPAddress address,int port,X509Certificate2? certificate,Uri? publicOrigin,Func<IServiceProvider,IManagementOperations> resolveOperations,Func<DraftSdkBuilder?>? sourceBuilds,CancellationToken cancellationToken){
         WebApplication? application=null;
         try{
             var assembly=typeof(ManagerWebHost).Assembly;
@@ -58,7 +60,7 @@ public sealed class ManagerWebHost:IAsyncDisposable{
             builder.Services.AddSingleton(sessions);
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<IManagementOperations>(resolveOperations);
-            builder.Services.AddSingleton<global::Seamless.Management.Components.I生成ソース取得,生成ソース取得サービス>();
+            builder.Services.AddSingleton<global::Seamless.Management.Components.I生成ソース取得>(new 生成ソース取得サービス(sourceBuilds));
             builder.Services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
             builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options=>{
                 options.Cookie.Name="Seamless.Manager."+Guid.NewGuid().ToString("N");

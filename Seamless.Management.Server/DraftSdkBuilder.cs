@@ -21,33 +21,61 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
         if(definition.Kind!=DefinitionKind.Database){throw new InvalidOperationException("SDK のビルドは DB 定義だけに使います。");}
         SourceEditor.Validate(definition.Source);
         lock(this.gate){
-            var directory=Path.Combine(root,definition.Hash()[..32]);
-            var name="Seamless.Managed_"+definition.Source.Hash()[..24];
-            var project=Path.Combine(directory,name+".csproj");
-            var assembly=Path.Combine(directory,"bin",name+".dll");
-            Directory.CreateDirectory(directory);SourceWorkspace.CheckLinks(directory);
-            var files=new List<SourceProjectFile>();
-            foreach(var file in definition.Source.Files){
-                var path=Path.GetFullPath(Path.Combine(directory,file.Path));
-                if(!path.StartsWith(Path.GetFullPath(directory)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)){throw new ManagementException("InvalidRequest","ソースの場所が作業用のフォルダーを外れています: "+file.Path);}
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                WriteIfChanged(path,file.Text);
-                files.Add(new(file.Path,path));
+            var draft=this.Prepare(definition.Source);
+            if(!File.Exists(draft.Assembly)){
+                var failure=Run(draft.Project,cancellationToken);
+                if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,draft.Directory,definition.Source),[]));}
             }
-            WriteIfChanged(project,Project(definition,name));
-            if(!File.Exists(assembly)){
-                var failure=Run(project,cancellationToken);
-                if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,directory,definition),[]));}
-            }
-            var context=new SourceBuildInspectionContext("server-draft",new(definition,0,0),new(project,files.ToArray()));
+            var context=new SourceBuildInspectionContext("server-draft",new(definition,0,0),new(draft.Project,draft.Files));
             SourceProjectBuild? inspected=null;
-            SourceBuildArtifactInspector.Inspect(context,assembly,cancellationToken,(build,captured)=>{artifacts.Store(build,captured,cancellationToken);inspected=build;});
+            SourceBuildArtifactInspector.Inspect(context,draft.Assembly,cancellationToken,(build,captured)=>{artifacts.Store(build,captured,cancellationToken);inspected=build;});
             return NativeRuntime.FromImported(artifacts.Read(inspected!,cancellationToken));
         }
     }
 
+    /// <summary>
+    /// 生成コードの表示：SDK のビルドが書き出した生成ファイル(DB 生成器・FLinq 生成器)と利用者のファイルを返す(11/15 の決定：表示とビルドの結果を一致させる)。
+    /// 同じソースのビルドがあれば使い回す。ビルドが誤りで終わっても、生成器が書き出したファイルは返す。
+    /// </summary>
+    internal GeneratedSourceFile[] GenerateSources(SourceSnapshot source,CancellationToken cancellationToken=default){
+        SourceEditor.Validate(source);
+        lock(this.gate){
+            var draft=this.Prepare(source);
+            var generated=Path.Combine(draft.Directory,"generated");
+            if(!File.Exists(draft.Assembly)||!Directory.Exists(generated)){_=Run(draft.Project,cancellationToken);}
+            var files=source.Files.Select(static file=>new GeneratedSourceFile("User",file.Path,file.Text)).ToList();
+            if(!Directory.Exists(generated)){return files.ToArray();}
+            foreach(var path in Directory.EnumerateFiles(generated,"*.cs",SearchOption.AllDirectories).Order(StringComparer.Ordinal)){
+                var parts=Path.GetRelativePath(generated,path).Split(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+                var kind=parts[0] switch{"Seamless.Database.Generator"=>"Database","Seamless.FLinq.Generator"=>"FLinq",_=>null};
+                if(kind is null){continue;}
+                files.Add(new(kind,Path.GetFileName(path),File.ReadAllText(path,Encoding.UTF8)));
+            }
+            return files.ToArray();
+        }
+    }
+
+    private sealed record DraftDirectory(string Directory,string Project,string Assembly,SourceProjectFile[] Files);
+    // 作業用のフォルダー(ソースのハッシュごと)へソースとプロジェクトを書く。同じソースなら同じフォルダー・同じビルドを使い回す。
+    private DraftDirectory Prepare(SourceSnapshot source){
+        var directory=Path.Combine(root,source.Hash()[..32]);
+        var name="Seamless.Managed_"+source.Hash()[..24];
+        var project=Path.Combine(directory,name+".csproj");
+        Directory.CreateDirectory(directory);SourceWorkspace.CheckLinks(directory);
+        var files=new List<SourceProjectFile>();
+        foreach(var file in source.Files){
+            var path=Path.GetFullPath(Path.Combine(directory,file.Path));
+            if(!path.StartsWith(Path.GetFullPath(directory)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)){throw new ManagementException("InvalidRequest","ソースの場所が作業用のフォルダーを外れています: "+file.Path);}
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            WriteIfChanged(path,file.Text);
+            files.Add(new(file.Path,path));
+        }
+        WriteIfChanged(project,Project(source,name));
+        return new(directory,project,Path.Combine(directory,"bin",name+".dll"),files.ToArray());
+    }
+
     // 内蔵のコンパイルと同じ参照(Seamless.Database と Seamless.Linq と、それらが参照する部品)をサーバーの部品から直接参照し、出力へ写す(共有の部品のバイトがサーバーと一致する)。
-    private static string Project(Definition definition,string name){
+    private static string Project(SourceSnapshot source,string name){
         var references=new ItemsFor().Closure([typeof(DatabaseContainer).Assembly,typeof(global::Seamless.Linq.Enumerable).Assembly]);
         var analyzers=AnalyzerAssemblies.Select(item=>Path.Combine(AppContext.BaseDirectory,item+".dll")).Where(File.Exists).ToArray();
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
@@ -57,15 +85,16 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
                 new XElement("EnableDefaultCompileItems","false"),new XElement("DebugType","portable"),new XElement("Deterministic","true"),
                 new XElement("EnableNETAnalyzers","false"),new XElement("NuGetAudit","false"),new XElement("GenerateDocumentationFile","false"),
                 new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),new XElement("SeamlessManagedDatabase","true"),
-                new XElement("DefineConstants",string.Join(";",definition.Source.Defines??[]))),
+                new XElement("EmitCompilerGeneratedFiles","true"),new XElement("CompilerGeneratedFilesOutputPath","generated"),
+                new XElement("DefineConstants",string.Join(";",source.Defines??[]))),
             new XElement("ItemGroup",
-                definition.Source.Files.Select(file=>new XElement("Compile",new XAttribute("Include",file.Path))),
+                source.Files.Select(file=>new XElement("Compile",new XAttribute("Include",file.Path))),
                 references.Select(path=>new XElement("Reference",new XAttribute("Include",Path.GetFileNameWithoutExtension(path)),new XElement("HintPath",path),new XElement("Private","true"))),
                 analyzers.Select(path=>new XElement("Analyzer",new XAttribute("Include",path))),
                 new XElement("CompilerVisibleProperty",new XAttribute("Include","SeamlessManagedDatabase"))),
             // SDK が自動で足す条件定義(TRACE・RELEASE・NET など)を外し、下書きの条件定義だけにする(内蔵のコンパイルと同じ。検査は PDB の定義と下書きの一致を求める)。
             new XElement("Target",new XAttribute("Name","SeamlessDraftDefines"),new XAttribute("BeforeTargets","CoreCompile"),
-                new XElement("PropertyGroup",new XElement("DefineConstants",string.Join(";",definition.Source.Defines??[])))));
+                new XElement("PropertyGroup",new XElement("DefineConstants",string.Join(";",source.Defines??[])))));
         return project.ToString();
     }
 
@@ -110,13 +139,13 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     private static partial Regex DiagnosticLine();
 
     // MSBuild の出力の「ファイル(行,列): error 番号: 文」を、ソースの位置付きの診断に直す。読めなければ出力の終わりを1件の診断にする。
-    private static DiagnosticInfo[] Diagnostics(string log,string directory,Definition definition){
+    private static DiagnosticInfo[] Diagnostics(string log,string directory,SourceSnapshot source){
         var result=new List<DiagnosticInfo>();var seen=new HashSet<string>(StringComparer.Ordinal);
         foreach(var line in log.Split('\n')){
             var match=DiagnosticLine().Match(line);if(!match.Success||!seen.Add(line.Trim())){continue;}
             var full=Path.GetFullPath(match.Groups["path"].Value);
             var relative=Path.GetRelativePath(directory,full).Replace('\\','/');
-            var file=definition.Source.Files.FirstOrDefault(item=>item.Path.Replace('\\','/')==relative);
+            var file=source.Files.FirstOrDefault(item=>item.Path.Replace('\\','/')==relative);
             var start=0;
             if(file is not null){start=Offset(file.Text,int.Parse(match.Groups["line"].Value,System.Globalization.CultureInfo.InvariantCulture),int.Parse(match.Groups["column"].Value,System.Globalization.CultureInfo.InvariantCulture));}
             var severity=match.Groups["severity"].Value=="error"?"Error":"Warning";
