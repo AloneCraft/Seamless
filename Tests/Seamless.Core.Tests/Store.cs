@@ -255,6 +255,38 @@ public sealed class Store{
             }
         }finally{Directory.Delete(root,true);}
     }
+    // 使う表だけを開く(設計 20261116-使う表だけを開く.md の手順2)：開いていない子資源の状態は、保存しても前の保存から引き継ぐ。
+    [Fact]public void Save_KeepsUnopenedComponents(){
+        var root=NewRoot();
+        try{
+            var directory=Path.Combine(root,"app");
+            using(var store=StoreType.Open(directory)){
+                store.Register(new RecordingComponent("a"){State="a1"});
+                store.Register(new RecordingComponent("b"){State="b1"});
+                store.Register(new RecordingComponent("dropped"){State="d1"});
+                store.Save();
+            }
+            using(var store=StoreType.Open(directory)){
+                // 開き直して a だけを開く。b は「まだ開いていない」と知らせ、dropped は知らせない(消した表にあたる)。
+                store.KeepUnopened(["b"]);
+                var a=store.Register(new RecordingComponent("a"){State="a2"});
+                Assert.Equal(["a1"],a.Loaded);
+                // 保存を2回(前の保存を消す保存を含めて)しても、b は前の状態のまま引き継がれ、dropped は外れる。
+                store.Save();
+                a.InvalidatesOlderSaves=true;
+                store.Save();
+                Assert.True(store.TryGetSavedState("b",out var kept));
+                Assert.Equal("b1",kept);
+                Assert.False(store.TryGetSavedState("dropped",out _));
+                Assert.Throws<ArgumentException>(()=>store.KeepUnopened(["bad/name"]));
+            }
+            using(var store=StoreType.Open(directory)){
+                // 後で b を開くと、引き継いだ状態が読み込まれる。
+                var b=store.Register(new RecordingComponent("b"){State="b2"});
+                Assert.Equal(["b1"],b.Loaded);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
     [Fact]public void Save_DropsOlderSaves(){
         var root=NewRoot();
         try{

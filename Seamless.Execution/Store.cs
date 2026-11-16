@@ -15,6 +15,8 @@ public sealed class Store:IDisposable{
     private const string DataDirectoryName="data";
     private readonly object gate=new();
     private readonly List<IStoreComponent> components=[];
+    // まだ開いていない(登録していない)子資源の名前。保存のとき、前の保存の状態をそのまま引き継ぐ(使う表だけを開くため、2026-11-16)。
+    private readonly HashSet<string> unopened=new(StringComparer.Ordinal);
     private readonly List<Checkpoint> checkpoints;
     private readonly FileStream? lockStream;
     private FileStream? manifestReadLease;
@@ -200,6 +202,18 @@ public sealed class Store:IDisposable{
         }
     }
     /// <summary>
+    /// まだ開いていない子資源の名前を知らせる。登録していない間の保存では、その名前の前の保存の状態をそのまま新しい保存へ引き継ぐ
+    /// (データのファイルには触らない)。知らせていない名前は、今までどおり登録していなければ保存から外れる(消した表など)。
+    /// 設計：Document/refactoring-designs/20261116-使う表だけを開く.md の手順2。
+    /// </summary>
+    public void KeepUnopened(IEnumerable<string> names){
+        ArgumentNullException.ThrowIfNull(names);
+        lock(this.gate){
+            ObjectDisposedException.ThrowIf(this.disposed,this);
+            foreach(var name in names){ValidateName(name);this.unopened.Add(name);}
+        }
+    }
+    /// <summary>
     /// 現在の保存番号にある、その名前の子資源の状態を返す。
     /// エンジンが登録前に構成(索引の大きさなど)を決めるために使う。登録時の <see cref="IStoreComponent.Load"/> には同じ状態が渡される。
     /// </summary>
@@ -230,6 +244,12 @@ public sealed class Store:IDisposable{
                     componentSnapshot?.SetTag("store.component.ordinal",ordinal);
                     ordinal++;
                     states.Add(component.Name,component.Save());
+                }
+                // 開いていない子資源は、前の保存の状態を引き継ぐ(開かずに保存しても、その子資源のデータを失わない)。
+                if(this.current is not null){
+                    foreach(var name in this.unopened){
+                        if(!states.ContainsKey(name)&&this.current.Components.TryGetValue(name,out var kept)){states.Add(name,kept);}
+                    }
                 }
             }
             // 一時ストアは破棄で全削除され、開き直せないので、ディスクへの確実な書き出しは永続ストアだけで行う。
