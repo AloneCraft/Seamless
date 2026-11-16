@@ -193,8 +193,30 @@ flowchart TD
 - `Test.Tsavorite.Collections`: 572件すべて通過。
 - `Enumerator.HashSet_AfterFlushAndEvict_Managed_PublicEnumerationAndCopyToEnumerateAll` は、修正前から1件で約9分半かかる(修正前 9分19秒、修正後 9分42秒)。参照を含む値の HashSet をディスクへ追い出してから全件読む試験で、同じ確認読みの重さが原因とみている(未確認)。
 
+### 表が多いDBは Manager の設定で書けない(2026-11-16 計測)
+
+`MigrationTimingProbe` の `tables<表の数>` で、Manager と同じ設定(`NativeRuntime.cs` の `DatabaseInstance.Open`:`CanonicalV1`・索引1024・メモリ16MB・セグメント16MB)のDBに、表ごとに1,000件を書いた。
+
+| 表の数 | 結果 |
+|---:|---|
+| 8 | 書けた |
+| 16 | 書けた |
+| 17 | 開けるが、最初の表の1件目で `ResourceLimitException`(要求約1MB、上限256MB) |
+| 18 | 同上 |
+| 20 | 開く時点で `ResourceLimitException`(表1つあたり約14.8MBの予約、上限256MB) |
+
+- 上限256MBは、共通ストアの既定の上限(`StoreOptions`/`StoreLimits.MemoryBytes`)。DBが共通ストアを開くとき(`Seamless.Database\DatabaseTransactions.cs` の `ExecutionStore.Open`)に上限を渡していないので、`ManagedMemoryLimitBytes` を上げても効かない。
+- 表を開くたびに、空でも約14.8MBを予約する(中身は未調査。メモリ16MBのうちの先取り分とみている)。
+- Manager は全DBをこの設定で開くので、表が17個以上あるDBは Manager で書けないとみている。Manager の画面を通した確認はしていない。
+- 直し方は、ストアの上限をDBの設定から渡す、表ごとの先取りを減らす、表の数に応じてメモリを割り振る、などが考えられる。どれにするかは、Manager がDB1つにどれだけメモリを使ってよいかの判断が要る。
+
+### 別の経路で遅い既存の試験
+
+`Shared\Tsavorite.Collections\Enumerator.cs` の `HashSet_AfterFlushAndEvict_Managed_PublicEnumerationAndCopyToEnumerateAll` は、文字列2,048件をディスクへ追い出してから3回全件読むだけで約9分半かかる(1件あたり約90ミリ秒)。確認読みの修正の前後で時間が変わらなかったので、`Scans\Lookup.cs` とは別の経路が遅い。参照を含む値をオブジェクト用のログから1件ずつ読む経路を疑っている(未確認)。値が int の同じ試験は1秒未満。
+
 ### 次に検討すること
 
 1. 確認読みでディスクを読まない方法。行より新しい版だけを探せば足りる(新しい版はたいていメモリ上)。Tsavorite 本体に「探す下限のアドレス」を足すか、索引を直接引く。
 2. スキーマが同じなら、保存フォルダーをファイルとして複製する(40万件で1秒未満)。
 3. 並列化(表ごと・ディスクごと)は、別のチャットで検討した案がある。書き込みの鍵を表ごとに分けることと、ディスクごとの窓口が前提になる。保存の形に関わるので、設計書に書いてから決める。
+4. 表が17個以上のDBを Manager で書けるようにする(上の「表が多いDBは Manager の設定で書けない」)。DB1つに使ってよいメモリの判断が要る。
