@@ -621,6 +621,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var effectiveUseEnumerableInterface = useEnumerableInterface||concreteEnumeratorTypeName is null;
 
         var _srcExpr = RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector);
+        ResolveDatabaseTableSource(expression,semanticModel,ref expressionType,ref _srcExpr);
         var _num = uniqueNumber++;
         fragment=CreateSourceRoot(
             expressionType,
@@ -1189,16 +1190,27 @@ public sealed partial class FLinqIncrementalGenerator {
         return null;
     }
 
+    // [関係代入] 表のプロパティは「=> this.Table<K,R>(…)」の形と、「{ get => this.Table<K,R>(…); set => … }」の形がある。
+    private static InvocationExpressionSyntax? TableGetterInvocation(SyntaxNode? syntax)=>syntax switch{
+        PropertyDeclarationSyntax{ExpressionBody.Expression:InvocationExpressionSyntax body}=>body,
+        PropertyDeclarationSyntax{AccessorList:{ } accessors}=>accessors.Accessors.FirstOrDefault(static accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody?.Expression as InvocationExpressionSyntax,
+        _=>null,
+    };
+    private static PropertyDeclarationSyntax? TableGetterProperty(InvocationExpressionSyntax declaration)=>declaration.Parent switch{
+        ArrowExpressionClauseSyntax{Parent:PropertyDeclarationSyntax property}=>property,
+        ArrowExpressionClauseSyntax{Parent:AccessorDeclarationSyntax{RawKind:(int)SyntaxKind.GetAccessorDeclaration,Parent.Parent:PropertyDeclarationSyntax property}}=>property,
+        _=>null,
+    };
+
     private static (ISymbol Member,string Method)? FindDeclaredJoinKey(ExpressionSyntax expression,SemanticModel model){
         if(expression is MemberAccessExpressionSyntax {Name.Identifier.ValueText:"Rows"} rows){expression=rows.Expression;}
+        while(expression is ParenthesizedExpressionSyntax or CastExpressionSyntax){expression=expression is ParenthesizedExpressionSyntax parenthesized?parenthesized.Expression:((CastExpressionSyntax)expression).Expression;}
         if(model.GetSymbolInfo(expression).Symbol is not IPropertySymbol transactionTable
             ||transactionTable.ContainingType is not {Name:"TypedTransaction",ContainingType:{} owner}){
             return null;
         }
         foreach(var candidate in owner.GetMembers(transactionTable.Name).OfType<IPropertySymbol>()){
-            if(candidate.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not PropertyDeclarationSyntax{
-                ExpressionBody.Expression:InvocationExpressionSyntax declaration
-            }||declaration.ArgumentList.Arguments.Count==0){continue;}
+            if(TableGetterInvocation(candidate.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()) is not { } declaration||declaration.ArgumentList.Arguments.Count==0){continue;}
             var declarationModel=model.Compilation.GetSemanticModel(declaration.SyntaxTree);
             if(declarationModel.GetSymbolInfo(declaration).Symbol is not IMethodSymbol {Name:"Table"} tableMethod
                 ||tableMethod.ContainingType.ToDisplayString()!="Seamless.Database.DatabaseContainer"){continue;}
@@ -1220,7 +1232,7 @@ public sealed partial class FLinqIncrementalGenerator {
         if(declaration.SyntaxTree.Options is not CSharpParseOptions parseOptions
             ||!parseOptions.Features.Any(static feature=>feature.Key is "InterceptorsNamespaces" or "InterceptorsPreviewNamespaces"
                 &&feature.Value.Split(';').Contains("Intercept",StringComparer.Ordinal))
-            ||declaration.Parent is not ArrowExpressionClauseSyntax{Parent:PropertyDeclarationSyntax property}
+            ||TableGetterProperty(declaration) is not { } property
             ||model.GetDeclaredSymbol(property,cancellationToken) is not IPropertySymbol tableProperty
             ||tableProperty.ContainingType.IsGenericType
             ||model.GetSymbolInfo(declaration,cancellationToken).Symbol is not IMethodSymbol{ Name:"Table",TypeArguments.Length:2 } table
@@ -1258,10 +1270,10 @@ public sealed partial class FLinqIncrementalGenerator {
             internal static class {{proof.Name}}{
                 internal static {{key}} Key({{row}} row)=>row.@{{proof.Member.Name}};
                 [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method,Name="Table")]
-                private static extern global::Seamless.Database.Table<TKey,TRecord> OpenTable<TKey,TRecord>(global::Seamless.Database.DatabaseContainer receiver,global::System.Func<TRecord,TKey> keySelector,string name)
+                private static extern global::Seamless.Database.StoredTable<TKey,TRecord> OpenTable<TKey,TRecord>(global::Seamless.Database.DatabaseContainer receiver,global::System.Func<TRecord,TKey> keySelector,string name)
                     where TKey:struct where TRecord:struct;
                 {{attribute}}
-                public static global::Seamless.Database.Table<{{key}},{{row}}> Open(this global::Seamless.Database.DatabaseContainer receiver,global::System.Func<{{row}},{{key}}> keySelector,string name){
+                public static global::Seamless.Database.StoredTable<{{key}},{{row}}> Open(this global::Seamless.Database.DatabaseContainer receiver,global::System.Func<{{row}},{{key}}> keySelector,string name){
                     // 表が新規作成された場合だけ、この関数が表実体のキー関数になる。
                     return OpenTable<{{key}},{{row}}>(receiver,Key,name);
                 }
@@ -2571,6 +2583,7 @@ public sealed partial class FLinqIncrementalGenerator {
             ??$"global::System.Collections.Generic.IEnumerator<{elementTypeName}>";
         var effectiveUseEnumerableInterface = useEnumerableInterface||concreteEnumeratorTypeName is null;
         var sourceExpression = RenderExpressionForRootInlining(expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
+        ResolveDatabaseTableSource(expression,semanticModel,ref expressionType,ref sourceExpression);
         var number = uniqueNumber++;
         fragment=CreateSourceRoot(
             expressionType,

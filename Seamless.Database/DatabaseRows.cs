@@ -26,7 +26,7 @@ public sealed class DatabaseRows<TKey,TRecord>:IEnumerable<TRecord> where TKey:s
         if(this.versioned is{} rows){var count=new CountStrategy();rows.IterateParallel(ref count);return count.Value;}
         // 従来方式だけは、読取保護下で自己overlayを反映する既存の論理件数を利用できる。
         return this.database.WithReadGate(()=>{
-            if(this.source is Table<TKey,TRecord> table){return table.LongCount;}
+            if(this.source is StoredTable<TKey,TRecord> table){return table.LongCount;}
             if(this.source is MaterializedView<TKey,TRecord> view){return view.LongCount;}
             long count=0;foreach(var row in this.source){count=checked(count+1);}return count;
         });

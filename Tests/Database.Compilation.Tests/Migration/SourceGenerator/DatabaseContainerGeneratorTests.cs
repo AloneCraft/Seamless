@@ -170,7 +170,7 @@ public sealed class DatabaseContainerGeneratorTests {
             Assert.Equal(transaction,Property(transaction,"Database").Type,SymbolEqualityComparer.Default);
             var person=(INamedTypeSymbol)Property(transaction,"Person").Type;
             Assert.Equal(transaction,Property(person,"Database").Type,SymbolEqualityComparer.Default);
-            Assert.Equal("TransactionCollection",((INamedTypeSymbol)Property((INamedTypeSymbol)Property(transaction,"Employee").Type,"Job").Type).Name);
+            Assert.Equal("Table",((INamedTypeSymbol)Property((INamedTypeSymbol)Property(transaction,"Employee").Type,"Job").Type).Name);
         }
     }
 

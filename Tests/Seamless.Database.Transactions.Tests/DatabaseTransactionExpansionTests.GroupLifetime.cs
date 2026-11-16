@@ -15,7 +15,7 @@ public sealed partial class DatabaseTransactionExpansionTests{
             [LinqIntercept(true)]
             public sealed class Reader{
                 public int[] WrongPosition(int[] rows)=>rows.Where(static row=>row>0).Parallel(2).ToArray();
-                public int[] Duplicate(Tx tx)=>tx.Accounts.Rows.Join(tx.Accounts.Rows,
+                public int[] Duplicate(Tx tx)=>tx.Accounts.Join(tx.Accounts,
                     static left=>left.Id,static right=>right.Id,static (left,right)=>left.Id).Parallel(2).Parallel(1).ToArray();
                 public int[] UnsupportedInput(int[] rows)=>rows.GroupBy(static row=>row)
                     .Parallel(2).Select(static group=>group.Key).ToArray();
@@ -47,16 +47,16 @@ public sealed partial class DatabaseTransactionExpansionTests{
             [LinqIntercept(true,ConvergenceMode=LinqConvergenceMode.GlobalFixedPoint,EmitOptimizationTrace=true)]
             public sealed class Reader{
                 private static int Mark(int slots,List<int> trace){trace.Add(slots);return slots;}
-                public int[] Sequential(Tx tx)=>tx.Accounts.Rows.Join(tx.Accounts.Rows,
+                public int[] Sequential(Tx tx)=>tx.Accounts.Join(tx.Accounts,
                     static x=>x.Id,static y=>y.Id,static (x,y)=>x.Id+y.Id).Parallel(1 << 0).ToArray();
-                public int[] Dynamic(Tx tx,int slots,List<int> trace)=>tx.Accounts.Rows.Join(tx.Accounts.Rows,
+                public int[] Dynamic(Tx tx,int slots,List<int> trace)=>tx.Accounts.Join(tx.Accounts,
                     static x=>x.Id,static y=>y.Id,static (x,y)=>x.Id+y.Id).Parallel(Mark(slots,trace))
                     .Where(static value=>value>0).Where(static value=>value%2==0).OrderBy(static value=>value).ToArray();
                 public IGrouping<int,Seamless.Database.Transactions.Tests.Account>[] Groups(Tx tx,int slots)=>
-                    tx.Accounts.Rows.GroupBy(static row=>row.Id).Parallel(slots).ToArray();
-                public int[] AggregateGroups(Tx tx,int slots)=>tx.Accounts.Rows.GroupBy(static row=>row.Id)
+                    tx.Accounts.GroupBy(static row=>row.Id).Parallel(slots).ToArray();
+                public int[] AggregateGroups(Tx tx,int slots)=>tx.Accounts.GroupBy(static row=>row.Id)
                     .Parallel(slots).Select(static group=>group.Key*100+group.Count()).ToArray();
-                public int[] Default(Tx tx)=>tx.Accounts.Rows.Join(tx.Accounts.Rows,
+                public int[] Default(Tx tx)=>tx.Accounts.Join(tx.Accounts,
                     static x=>x.Id,static y=>y.Id,static (x,y)=>x.Id+y.Id).ToArray();
             }
             public static class Router{
@@ -105,7 +105,7 @@ public sealed partial class DatabaseTransactionExpansionTests{
                 Assert.Equal(new[]{2,2,2,4,4,4},rows.Order().ToArray());
                 Assert.Equal(new[]{slots},trace);
                 Assert.Equal(2,router.GetMethod("GroupCount")!.Invoke(null,[tx,slots]));
-                var expected=global::System.Linq.Enumerable.GroupBy(tx.Accounts.Rows,static row=>row.Id)
+                var expected=global::System.Linq.Enumerable.GroupBy(tx.Accounts,static row=>row.Id)
                     .Select(static group=>group.Key*100+group.Count()).ToArray();
                 Assert.Equal(expected,Assert.IsType<int[]>(router.GetMethod("Aggregate")!.Invoke(null,[tx,slots])));
             }
@@ -138,32 +138,32 @@ public sealed partial class DatabaseTransactionExpansionTests{
             [LinqIntercept(true)]
             public sealed class Reader{
                 private static int Mark(List<int> trace,int value){trace.Add(value);return value;}
-                public Joined[] Owned(Tx tx)=>tx.Accounts.Rows.Where(static row=>row.Id<4).GroupJoin(
-                    tx.Accounts.Rows,static row=>row.Id==3?99:row.Id/2,static row=>row.Id%4,
+                public Joined[] Owned(Tx tx)=>tx.Accounts.Where(static row=>row.Id<4).GroupJoin(
+                    tx.Accounts,static row=>row.Id==3?99:row.Id/2,static row=>row.Id%4,
                     static (row,group)=>new Joined(row.Id,group)).OrderBy(static row=>row.Id).ToArray();
-                public int[] Counts(Tx tx)=>tx.Accounts.Rows.Where(static row=>row.Id<4).GroupJoin(
-                    tx.Accounts.Rows,static row=>row.Id==3?99:row.Id/2,static row=>row.Id%4,
+                public int[] Counts(Tx tx)=>tx.Accounts.Where(static row=>row.Id<4).GroupJoin(
+                    tx.Accounts,static row=>row.Id==3?99:row.Id/2,static row=>row.Id%4,
                     static (row,group)=>group.Count()).ToArray();
-                public int[] SignedCounts(Tx tx,int limit,List<int> trace)=>tx.Accounts.Rows.Where(row=>row.Id<limit).GroupJoin(
-                    tx.Accounts.Rows,row=>Mark(trace,100+row.Id)-102,row=>Mark(trace,row.Id-32)%4,
+                public int[] SignedCounts(Tx tx,int limit,List<int> trace)=>tx.Accounts.Where(row=>row.Id<limit).GroupJoin(
+                    tx.Accounts,row=>Mark(trace,100+row.Id)-102,row=>Mark(trace,row.Id-32)%4,
                     (row,group)=>Mark(trace,1000+row.Id*100+group.Count())).ToArray();
-                public int[] PredicateCounts(Tx tx)=>tx.Accounts.Rows.Where(static row=>row.Id<4).GroupJoin(
-                    tx.Accounts.Rows,static row=>row.Id,static row=>row.Id%4,
+                public int[] PredicateCounts(Tx tx)=>tx.Accounts.Where(static row=>row.Id<4).GroupJoin(
+                    tx.Accounts,static row=>row.Id,static row=>row.Id%4,
                     static (row,group)=>group.Count(static match=>match.Id<32)).ToArray();
-                public long[] SignedLongCounts(Tx tx,int limit,List<int> trace)=>tx.Accounts.Rows.Where(row=>row.Id<limit).GroupJoin(
-                    tx.Accounts.Rows,row=>Mark(trace,100+row.Id)-102,row=>Mark(trace,row.Id-32)%4,
+                public long[] SignedLongCounts(Tx tx,int limit,List<int> trace)=>tx.Accounts.Where(row=>row.Id<limit).GroupJoin(
+                    tx.Accounts,row=>Mark(trace,100+row.Id)-102,row=>Mark(trace,row.Id-32)%4,
                     static (row,group)=>group.LongCount()).ToArray();
-                public long[] StaticLongCounts(Tx tx,int limit,List<int> trace)=>tx.Accounts.Rows.Where(row=>row.Id<limit).GroupJoin(
-                    tx.Accounts.Rows,row=>Mark(trace,100+row.Id)-102,row=>Mark(trace,row.Id-32)%4,
+                public long[] StaticLongCounts(Tx tx,int limit,List<int> trace)=>tx.Accounts.Where(row=>row.Id<limit).GroupJoin(
+                    tx.Accounts,row=>Mark(trace,100+row.Id)-102,row=>Mark(trace,row.Id-32)%4,
                     static (row,group)=>(Enumerable.LongCount(source:(group)))).ToArray();
-                public long[] PredicateLongCounts(Tx tx)=>tx.Accounts.Rows.Where(static row=>row.Id<4).GroupJoin(
-                    tx.Accounts.Rows,static row=>row.Id,static row=>row.Id%4,
+                public long[] PredicateLongCounts(Tx tx)=>tx.Accounts.Where(static row=>row.Id<4).GroupJoin(
+                    tx.Accounts,static row=>row.Id,static row=>row.Id%4,
                     static (row,group)=>group.LongCount(static match=>match.Id<32)).ToArray();
-                public int[] Empty(Tx tx)=>tx.Accounts.Rows.Where(static row=>row.Id<4).GroupJoin(
-                    tx.Accounts.Rows.Where(static row=>row.Id<0),static row=>row.Id/2,static row=>row.Id%4,
+                public int[] Empty(Tx tx)=>tx.Accounts.Where(static row=>row.Id<4).GroupJoin(
+                    tx.Accounts.Where(static row=>row.Id<0),static row=>row.Id/2,static row=>row.Id%4,
                     static (row,group)=>row.Id*10+group.Count()).OrderBy(static value=>value).ToArray();
-                public int[] NullableKey(Tx tx)=>tx.Accounts.Rows.Where(static row=>row.Id<4).GroupJoin(
-                    tx.Accounts.Rows,static row=>row.Id==0?(int?)null:row.Id/2,
+                public int[] NullableKey(Tx tx)=>tx.Accounts.Where(static row=>row.Id<4).GroupJoin(
+                    tx.Accounts,static row=>row.Id==0?(int?)null:row.Id/2,
                     static row=>row.Id==0?(int?)null:row.Id%4,
                     static (row,group)=>row.Id*100+group.Count(),new NullZeroComparer()).OrderBy(static value=>value).ToArray();
             }
@@ -219,7 +219,7 @@ public sealed partial class DatabaseTransactionExpansionTests{
                 Assert.Equal(new[]{15,115,216,316},(int[])router.GetMethod("NullableKey")!.Invoke(null,[tx])!);
                 Assert.Equal(new[]{8,8,8,8},(int[])router.GetMethod("PredicateCounts")!.Invoke(null,[tx])!);
                 Assert.Equal(new long[]{8,8,8,8},(long[])router.GetMethod("PredicateLongCounts")!.Invoke(null,[tx])!);
-                var sourceRows=tx.Accounts.Rows.ToArray();
+                var sourceRows=tx.Accounts.ToArray();
                 foreach(var limit in new[]{0,8}){
                     var expectedTrace=new List<int>();var actualTrace=new List<int>();
                     int Mark(int value){expectedTrace.Add(value);return value;}
@@ -256,33 +256,33 @@ public sealed partial class DatabaseTransactionExpansionTests{
         const string methods="""
             private static int Note(List<int> trace,int key){trace.Add(key);return key;}
             private static Box Capture(List<int> trace,int key,IEnumerable<Account> rows){trace.Add(100+key);return new Box(key,rows);}
-            public IGrouping<int,Account>[] Array(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Skip(1).Take(take).ToArray();
-            public List<IGrouping<int,Account>> List(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Take(take).ToList();
-            public IGrouping<int,Account> First(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Take(take).First();
-            public IGrouping<int,Account> Last(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Skip(1).Take(take).Last();
-            public IGrouping<int,Account> LastWhere(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Where(group=>Note(trace,10+group.Key)>10).Take(take).LastOrDefault();
-            public Box ProjectLast(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Select(group=>Capture(trace,group.Key,group)).Take(take).LastOrDefault();
-            public Box[] ResultSelector(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3),(key,rows)=>Capture(trace,key,rows)).Take(take).ToArray();
-            public Dictionary<int,IGrouping<int,Account>> Dictionary(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Take(take).ToDictionary(static group=>group.Key);
-            public IGrouping<int,Account>[] OrderedArray(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderByDescending(group=>Note(trace,20+group.Key)).ThenBy(group=>Note(trace,30+group.Count())).Take(take).ToArray();
-            public IGrouping<int,Account> OrderedFirst(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).First();
-            public IGrouping<int,Account> OrderedLast(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).LastOrDefault();
-            public Box OrderedProjectLast(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Select(group=>Capture(trace,group.Key,group)).OrderBy(box=>Note(trace,20+box.Key)).Take(take).LastOrDefault();
-            public Box[] OrderedWindow(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Select(group=>Capture(trace,group.Key,group)).Take(take).Where(box=>Note(trace,40+box.Key)>41).OrderBy(box=>Note(trace,20+box.Key)).ToArray();
-            public List<IGrouping<int,Account>> OrderedList(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).ToList();
-            public Dictionary<int,IGrouping<int,Account>> OrderedDictionary(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderByDescending(group=>Note(trace,20+group.Key)).Take(take).ToDictionary(static group=>group.Key);
-            public IGrouping<int,Account>[] OrderedComparer(Tx tx,List<int> trace,int take){IComparer<int> comparer=Comparer<int>.Create((left,right)=>{trace.Add(200+left*3+right);return right.CompareTo(left);});return tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key),comparer).Take(take).ToArray();}
+            public IGrouping<int,Account>[] Array(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Skip(1).Take(take).ToArray();
+            public List<IGrouping<int,Account>> List(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Take(take).ToList();
+            public IGrouping<int,Account> First(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Take(take).First();
+            public IGrouping<int,Account> Last(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Skip(1).Take(take).Last();
+            public IGrouping<int,Account> LastWhere(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Where(group=>Note(trace,10+group.Key)>10).Take(take).LastOrDefault();
+            public Box ProjectLast(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Select(group=>Capture(trace,group.Key,group)).Take(take).LastOrDefault();
+            public Box[] ResultSelector(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3),(key,rows)=>Capture(trace,key,rows)).Take(take).ToArray();
+            public Dictionary<int,IGrouping<int,Account>> Dictionary(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Take(take).ToDictionary(static group=>group.Key);
+            public IGrouping<int,Account>[] OrderedArray(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderByDescending(group=>Note(trace,20+group.Key)).ThenBy(group=>Note(trace,30+group.Count())).Take(take).ToArray();
+            public IGrouping<int,Account> OrderedFirst(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).First();
+            public IGrouping<int,Account> OrderedLast(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).LastOrDefault();
+            public Box OrderedProjectLast(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Select(group=>Capture(trace,group.Key,group)).OrderBy(box=>Note(trace,20+box.Key)).Take(take).LastOrDefault();
+            public Box[] OrderedWindow(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Select(group=>Capture(trace,group.Key,group)).Take(take).Where(box=>Note(trace,40+box.Key)>41).OrderBy(box=>Note(trace,20+box.Key)).ToArray();
+            public List<IGrouping<int,Account>> OrderedList(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).ToList();
+            public Dictionary<int,IGrouping<int,Account>> OrderedDictionary(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderByDescending(group=>Note(trace,20+group.Key)).Take(take).ToDictionary(static group=>group.Key);
+            public IGrouping<int,Account>[] OrderedComparer(Tx tx,List<int> trace,int take){IComparer<int> comparer=Comparer<int>.Create((left,right)=>{trace.Add(200+left*3+right);return right.CompareTo(left);});return tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key),comparer).Take(take).ToArray();}
             private static IComparer<int> MakeComparer(List<int> trace,int phase){trace.Add(phase);return Comparer<int>.Create((left,right)=>{trace.Add(phase+100+left*3+right);return right.CompareTo(left);});}
             private static IEqualityComparer<int> MakeEquality(List<int> trace){trace.Add(900);return EqualityComparer<int>.Default;}
             private static IComparer<int> ChangeTake(List<int> trace,ref int take){trace.Add(950);take=1;return Comparer<int>.Default;}
-            public IGrouping<int,Account>[] OrderedFactory(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key),MakeComparer(trace,700)).Take(take).ToArray();
-            public IGrouping<int,Account>[] GroupFactory(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3),MakeEquality(trace)).Take(take).ToArray();
-            public IGrouping<int,Account>[] OrderedTwiceArray(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key),MakeComparer(trace,700)).ThenBy(group=>Note(trace,30+group.Count())).OrderBy(group=>Note(trace,40+group.Count()),MakeComparer(trace,800)).Take(take).ToArray();
-            public IGrouping<int,Account> OrderedTwiceFirst(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).OrderByDescending(group=>Note(trace,40+group.Count())).Take(take).FirstOrDefault();
-            public Box[] OrderedTwiceProjection(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Select(group=>Capture(trace,group.Key,group)).Where(box=>Note(trace,50+box.Key)>50).OrderBy(box=>Note(trace,60+box.Key)).Take(take).ToArray();
-            public Account[][] OrderedTwiceArrays(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Select(group=>group.ToArray()).OrderByDescending(rows=>Note(trace,60+rows.Length)).Take(take).ToArray();
-            public IGrouping<int,Account>[] FactoryAfterWindow(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).Take(take).OrderBy(group=>Note(trace,20+group.Key),ChangeTake(trace,ref take)).ToArray();
-            public IGrouping<int,Account>[] FactoryBetweenWindows(Tx tx,List<int> trace,int take)=>tx.Accounts.Rows.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).OrderBy(group=>Note(trace,40+group.Key),ChangeTake(trace,ref take)).Take(take).ToArray();
+            public IGrouping<int,Account>[] OrderedFactory(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key),MakeComparer(trace,700)).Take(take).ToArray();
+            public IGrouping<int,Account>[] GroupFactory(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3),MakeEquality(trace)).Take(take).ToArray();
+            public IGrouping<int,Account>[] OrderedTwiceArray(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key),MakeComparer(trace,700)).ThenBy(group=>Note(trace,30+group.Count())).OrderBy(group=>Note(trace,40+group.Count()),MakeComparer(trace,800)).Take(take).ToArray();
+            public IGrouping<int,Account> OrderedTwiceFirst(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).OrderByDescending(group=>Note(trace,40+group.Count())).Take(take).FirstOrDefault();
+            public Box[] OrderedTwiceProjection(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Select(group=>Capture(trace,group.Key,group)).Where(box=>Note(trace,50+box.Key)>50).OrderBy(box=>Note(trace,60+box.Key)).Take(take).ToArray();
+            public Account[][] OrderedTwiceArrays(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Select(group=>group.ToArray()).OrderByDescending(rows=>Note(trace,60+rows.Length)).Take(take).ToArray();
+            public IGrouping<int,Account>[] FactoryAfterWindow(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).Take(take).OrderBy(group=>Note(trace,20+group.Key),ChangeTake(trace,ref take)).ToArray();
+            public IGrouping<int,Account>[] FactoryBetweenWindows(Tx tx,List<int> trace,int take)=>tx.Accounts.GroupBy(row=>Note(trace,row.Id%3)).OrderBy(group=>Note(trace,20+group.Key)).Take(take).OrderBy(group=>Note(trace,40+group.Key),ChangeTake(trace,ref take)).Take(take).ToArray();
             """;
         var wrappers=string.Join("",global::System.Text.RegularExpressions.Regex.Matches(methods,@"public ([^\r\n]+?) (\w+)\(Tx").Select(static match=>"public "+match.Groups[1].Value+" "+match.Groups[2].Value+"(Tx tx,List<int> trace,int take)=>new Reader()."+match.Groups[2].Value+"(tx,trace,take);"));
         var source="using System;using System.Linq;using System.Collections.Generic;using Seamless.FLinq;using Account=Seamless.Database.Transactions.Tests.Account;using Tx=Seamless.Database.Transactions.Tests.BankDatabase.TypedTransaction;namespace GroupLifetimeCase;public sealed record Box(int Key,IEnumerable<Account> Rows);[LinqIntercept(true)]public sealed class Reader{"+methods+"}[LinqIntercept(false)]public sealed class Reference{"+methods+"}public sealed class Router{"+wrappers+"}";
@@ -302,7 +302,7 @@ public sealed partial class DatabaseTransactionExpansionTests{
                 foreach(var empty in new[]{false,true}){
                     foreach(var take in new[]{-1,0,1,2,100}){
                         await using var tx=await db.BeginTransactionAsync();tx.Accounts[1]=new(1,77);tx.Accounts.Remove(2);
-                        if(empty){foreach(var row in tx.Accounts.Rows.ToArray()){tx.Accounts.Remove(row.Id);}}
+                        if(empty){foreach(var row in tx.Accounts.ToArray()){tx.Accounts.Remove(row.Id);}}
                         var a=new List<int>();var e=new List<int>();object? av=null;object? ev=null;Type? ae=null;Type? ee=null;
                         try{ev=reference.GetMethod(method.Name)!.Invoke(expected,[tx,e,take]);}catch(TargetInvocationException error){ee=error.InnerException!.GetType();}
                         try{av=method.Invoke(actual,[tx,a,take]);}catch(TargetInvocationException error){ae=error.InnerException!.GetType();}

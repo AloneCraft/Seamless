@@ -10,6 +10,10 @@
     },
     "0.1.0": {
       "parent": "0.1"
+    },
+    "relational-assignment": {
+      "parent": "main",
+      "forkPoint": "356f67bf"
     }
   },
   "rule": "Merge each child into its immediate recorded fork parent; return deepest children first.",

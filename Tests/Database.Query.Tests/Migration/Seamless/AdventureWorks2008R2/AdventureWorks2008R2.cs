@@ -1,4 +1,4 @@
-﻿// AdventureWorks2008R2 の宣言的データベース定義。
+// AdventureWorks2008R2 の宣言的データベース定義。
 // 本物のバックアップ取り込みは IDatabaseImportSource 経由で後日行うため、
 // 現時点ではリポジトリ内のサンプルデータだけで動作する実働サブセットを宣言する。
 // Table 実体は Tsavorite ストアで、DatabaseContainerOptions によりメモリ/ストレージを切り替える。
@@ -15,11 +15,11 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             })) {
         public AdventureWorks() : this(null) {
         }
-        public global::Seamless.Database.Table<Rows.Customer> Customers => this.Table<Rows.Customer>();
-        public global::Seamless.Database.Table<Rows.SalesOrderHeader> SalesOrderHeaders => this.Table<Rows.SalesOrderHeader>();
-        public global::Seamless.Database.Table<Rows.Store> Stores => this.Table<Rows.Store>();
-        public global::Seamless.Database.Table<Rows.StateProvince> StateProvinces => this.Table<Rows.StateProvince>();
-        public global::Seamless.Database.Table<Rows.CountryRegion> CountryRegions => this.Table<Rows.CountryRegion>();
+        public partial global::Seamless.Database.Table<Rows.Customer> Customers{get;set;}
+        public partial global::Seamless.Database.Table<Rows.SalesOrderHeader> SalesOrderHeaders{get;set;}
+        public partial global::Seamless.Database.Table<Rows.Store> Stores{get;set;}
+        public partial global::Seamless.Database.Table<Rows.StateProvince> StateProvinces{get;set;}
+        public partial global::Seamless.Database.Table<Rows.CountryRegion> CountryRegions{get;set;}
 
         // dbo.ufnCustomerTotalDue 相当の計算。コンテナの普通のメソッドなので目録には載らない。
         public decimal CustomerTotalDue(int customerId) =>

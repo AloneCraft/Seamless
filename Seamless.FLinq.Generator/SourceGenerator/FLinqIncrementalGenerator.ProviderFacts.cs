@@ -55,8 +55,51 @@ public sealed partial class FLinqIncrementalGenerator {
         TryMatchGenericNamedType(type,"Seamless.Transactions.Collections","TransactionCollection`2",2,out _)
         ||TryMatchGenericNamedType(type,"Seamless.Transactions.Collections","ReadOnlyTransactionCollection`2",2,out _);
     private static bool IsDatabaseRowsType(ITypeSymbol? type)=>TryMatchGenericNamedType(type,"Seamless.Database","DatabaseRows`2",2,out _);
-    private static bool IsDatabaseTableType(ITypeSymbol? type)=>TryMatchGenericNamedType(type,"Seamless.Database","Table`2",2,out _)
+    private static bool IsDatabaseTableType(ITypeSymbol? type)=>TryMatchGenericNamedType(type,"Seamless.Database","StoredTable`2",2,out _)
         ||TryMatchGenericNamedType(type,"Seamless.Database","MaterializedView`2",2,out _);
+
+    // [関係代入] 表のプロパティの型は基底の Table(式も表す型)。型だけでは保存された表か取引の表か分からない。
+    private static bool IsBaseTableType(ITypeSymbol? type)=>type is INamedTypeSymbol named
+        &&named.OriginalDefinition.ContainingNamespace.ToDisplayString()=="Seamless.Database"
+        &&named.OriginalDefinition.MetadataName is "Table`2" or "Table`1";
+
+    /// <summary>
+    /// 基底の Table 型の元データを、表のプロパティを持つ型で振り分ける。取引の入口(TypedTransaction・SchemaView)の表は取引の表、
+    /// コンテナ・スキーマの表は保存された表として、具体的な型への変換を付ける。表の式やローカル変数など、決められないものは元のまま(普通の列挙)。
+    /// </summary>
+    private static void ResolveDatabaseTableSource(ExpressionSyntax expression,SemanticModel model,ref ITypeSymbol? expressionType,ref string sourceExpression){
+        var target=expression;
+        while(target is ParenthesizedExpressionSyntax parenthesized){target=parenthesized.Expression;}
+        // 表の型の演算を System.Linq へ下げたときは IEnumerable<T> への変換が挟まる(SetCallLowering)。
+        if(target is CastExpressionSyntax cast){
+            target=cast.Expression;
+            while(target is ParenthesizedExpressionSyntax inner){target=inner.Expression;}
+        }
+        var tableType=model.GetTypeInfo(target).Type;
+        if(!IsBaseTableType(tableType)||model.GetSymbolInfo(target).Symbol is not IPropertySymbol property){return;}
+        var arguments=((INamedTypeSymbol)tableType!).TypeArguments;
+        var key=arguments[0];var row=arguments.Length==2?arguments[1]:arguments[0];
+        INamedTypeSymbol? resolved=null;
+        if(IsTransactionEntryType(property.ContainingType)){
+            resolved=model.Compilation.GetTypeByMetadataName("Seamless.Transactions.Collections.TransactionCollection`2")?.Construct(key,row);
+        }else if(arguments.Length==2&&IsDatabaseOwnerType(property.ContainingType)){
+            resolved=model.Compilation.GetTypeByMetadataName("Seamless.Database.StoredTable`2")?.Construct(key,row);
+        }
+        if(resolved is null){return;}
+        expressionType=resolved;
+        sourceExpression="(("+resolved.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)+")("+sourceExpression+"))";
+    }
+
+    private static bool IsTransactionEntryType(INamedTypeSymbol? type)=>type is not null
+        &&(type.Name=="TypedTransaction"&&IsDatabaseOwnerType(type.ContainingType)
+            ||type.Name.StartsWith("SchemaView",StringComparison.Ordinal)&&IsTransactionEntryType(type.ContainingType));
+
+    private static bool IsDatabaseOwnerType(INamedTypeSymbol? type){
+        for(var current=type;current is not null;current=current.BaseType){
+            if(current.ContainingNamespace?.ToDisplayString()=="Seamless.Database"&&current.Name is "DatabaseContainer" or "DatabaseSchema"){return true;}
+        }
+        return false;
+    }
 
     private static bool IsTsavoriteConcreteSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
         if(TryMatchGenericNamedType(type,"Seamless.Collections.Tsavorite","Set`2",2,out var named)) {
