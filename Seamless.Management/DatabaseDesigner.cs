@@ -228,29 +228,30 @@ public static partial class DatabaseDesigner{
     }
     private static string Format(string text)=>SyntaxFactory.ParseCompilationUnit(text).NormalizeWhitespace(eol:"\n").ToFullString()+"\n";
     public static Definition Remove(Definition definition,string path){
-        var property=Property(Container(Compilation(definition),definition),path);var syntax=TableDeclaration(property);var source=new SourceEditor().Apply(definition.Source,new(definition.Source.Hash(),syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,""));
+        var compilation=Compilation(definition);var container=Container(compilation,definition);var property=Property(container,path);
+        var removals=new List<SyntaxNode>{TableDeclaration(property)};
+        // 手書きの表の行の型が Tables にあると、DB の生成器がその行の型から表を作り直す(手順B 以降)。ほかの表が使っていなければ行の型も消す。
+        if(!IsGeneratedTable(property)&&RowTypes(property)[1] is INamedTypeSymbol row&&IsTablesRecord(row,container)&&
+            !Tables(definition).Where(other=>other!=path).Any(other=>SymbolEqualityComparer.Default.Equals(RowTypes(Property(container,other))[1],row))){
+            removals.AddRange(row.DeclaringSyntaxReferences.Select(reference=>reference.GetSyntax()).Where(syntax=>definition.Source.Files.Any(file=>file.Path==syntax.SyntaxTree.FilePath)));
+        }
+        var files=definition.Source.Files.Select(file=>{
+            var text=file.Text;var changed=false;
+            foreach(var syntax in removals.Where(syntax=>syntax.SyntaxTree.FilePath==file.Path).OrderByDescending(syntax=>syntax.SpanStart)){text=text.Remove(syntax.SpanStart,syntax.Span.Length);changed=true;}
+            // 行の型を消して型の宣言が残らないファイル(Tables/<名前>.cs など)はファイルごと消す(同じ名前で作り直せるように)。
+            if(changed&&!SyntaxFactory.ParseCompilationUnit(text).DescendantNodes().OfType<BaseTypeDeclarationSyntax>().Any()&&!SyntaxFactory.ParseCompilationUnit(text).DescendantNodes().OfType<DelegateDeclarationSyntax>().Any()){return null;}
+            return file with{Text=text};
+        }).OfType<SourceFile>().ToArray();
+        var source=definition.Source with{Files=files,Revision=Guid.NewGuid().ToString("N")};
         var migration=definition.Migration??new(1,[],[]);var prior=migration.Tables.SingleOrDefault(table=>table.Target==path);var dropped=migration.DroppedTables;
         if(!(migration.NewTables??[]).Contains(path)){dropped=dropped.Append(prior?.Source??path).Distinct().ToArray();}
         return definition with{Source=source,Migration=migration with{Tables=migration.Tables.Where(table=>table.Target!=path).ToArray(),DroppedTables=dropped,NewTables=(migration.NewTables??[]).Where(table=>table!=path).ToArray()}};
     }
-    public static RemovedTableDefinition CaptureRemoval(Definition definition,string path){
-        SourceEditor.Validate(definition.Source);var compilation=Compilation(definition);var property=Property(Container(compilation,definition),path);var syntax=TableDeclaration(property);var text=definition.Source.Files.Single(file=>file.Path==syntax.SyntaxTree.FilePath).Text;
-        var start=syntax.SpanStart;var end=syntax.Span.End;var prefixStart=Math.Max(0,start-128);var mapping=definition.Migration?.Tables.SingleOrDefault(table=>table.Target==path);var wasNew=definition.Migration?.NewTables?.Contains(path)==true;string? drop=null;
-        if(!wasNew){var key=path;if(mapping is not null){key=mapping.Source;}if(definition.Migration?.DroppedTables.Contains(key)!=true){drop=key;}}
-        return new(1,definition.Id,path,syntax.SyntaxTree.FilePath,text[start..end],text[prefixStart..start],text[end..Math.Min(text.Length,end+128)],RowFingerprint(property),mapping,wasNew,drop);
-    }
-    public static Definition RestoreRemoved(Definition definition,RemovedTableDefinition removed){
-        if(removed.Version!=1||definition.Id!=removed.DefinitionId){throw new ManagementException("Conflict","削除記録の対象・版が一致しません。");}if(Tables(definition).Contains(removed.Path)){throw new ManagementException("Conflict","同名のテーブルが既に存在します。");}
-        var file=definition.Source.Files.SingleOrDefault(file=>file.Path==removed.File)??throw new ManagementException("Conflict","元のソースファイルが変更されています。");var anchor=removed.Prefix+removed.Suffix;var offset=file.Text.IndexOf(anchor,StringComparison.Ordinal);
-        if(anchor.Length==0||offset<0||file.Text.IndexOf(anchor,offset+1,StringComparison.Ordinal)>=0){throw new ManagementException("Conflict","削除位置の周辺が変更されています。入力と削除記録を保持して差分を確認してください。");}
-        var source=new SourceEditor().Apply(definition.Source,new(definition.Source.Hash(),removed.File,offset+removed.Prefix.Length,0,removed.Declaration));var candidate=definition with{Source=source};var compilation=Compilation(candidate);
-        if(RowFingerprint(Property(Container(compilation,candidate),removed.Path))!=removed.RowFingerprint){throw new ManagementException("Conflict","行型・キー型が変更されています。削除の取消を自動適用できません。");}
-        var migration=definition.Migration??new(1,[],[]);var mappings=migration.Tables.ToList();if(removed.Mapping is{} mapping){if(mappings.Any(table=>table.Source==mapping.Source||table.Target==mapping.Target)){throw new ManagementException("Conflict","同じテーブルの移行定義が変更されています。");}mappings.Add(mapping);}
-        var added=migration.NewTables??[];if(removed.WasNew){added=added.Append(removed.Path).Distinct().ToArray();}var dropped=migration.DroppedTables;if(removed.AddedDrop is{} drop){dropped=dropped.Where(value=>value!=drop).ToArray();}
-        return candidate with{Migration=migration with{Tables=mappings.ToArray(),DroppedTables=dropped,NewTables=added}};
+    // 行の型が <根>.Tables の名前空間(またはその下)にあるか。手順B 以降、DB の生成器はこの行の型から表を作る。
+    private static bool IsTablesRecord(INamedTypeSymbol row,INamedTypeSymbol container){
+        var root=container.ContainingNamespace.ToDisplayString();var tables=root.Length==0?"Tables":root+".Tables";var ns=row.ContainingNamespace.ToDisplayString();
+        return ns==tables||ns.StartsWith(tables+".",StringComparison.Ordinal);
     }
     // 表を表す宣言：手書きの表は表のプロパティ、生成される表は行の型の宣言。
     private static SyntaxNode TableDeclaration(IPropertySymbol property)=>IsGeneratedTable(property)?Declaration(RowTypes(property)[1]):property.DeclaringSyntaxReferences.Single().GetSyntax();
-    // 行の型の指紋。仮のファイルの宣言(合成した表のプロパティ)は含めない。
-    private static string RowFingerprint(IPropertySymbol property)=>Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("\n",RowTypes(property).Select(type=>type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)+"\n"+string.Join("\n",type.DeclaringSyntaxReferences.OrderBy(reference=>reference.SyntaxTree.FilePath,StringComparer.Ordinal).Select(reference=>reference.GetSyntax().ToFullString())))))));
 }

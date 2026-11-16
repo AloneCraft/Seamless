@@ -55,13 +55,26 @@ public sealed partial class DatabaseDesigner{
         Assert.Equal("Unsupported",Assert.Throws<ManagementException>(()=>Seamless.Management.DatabaseDesigner.Apply(definition,order with{ForeignKeys=[relation]})).Code);
     }
 
-    [Fact]public void RemovingAGeneratedTableRemovesItsRowTypeAndCanBeRestored(){
+    [Fact]public void RemovingAGeneratedTableRemovesItsRowType(){
         var definition=GeneratedTables();
-        var removal=Seamless.Management.DatabaseDesigner.CaptureRemoval(definition,"Item");
         var removed=Seamless.Management.DatabaseDesigner.Remove(definition,"Item");
         Assert.DoesNotContain("Item",Seamless.Management.DatabaseDesigner.Tables(removed));
-        Assert.DoesNotContain("struct Item",removed.Source.Files.Single(file=>file.Path=="Tables/Item.cs").Text);
-        var restored=Seamless.Management.DatabaseDesigner.RestoreRemoved(removed,removal);
-        Assert.Contains("Item",Seamless.Management.DatabaseDesigner.Tables(restored));
+        Assert.DoesNotContain(removed.Source.Files,file=>file.Path=="Tables/Item.cs"||file.Text.Contains("struct Item",StringComparison.Ordinal));
+    }
+
+    // 設計器で作った表(手書きの表のプロパティ＋Tables の行の型)を消すと、行の型も消える。残すと DB の生成器が行の型から表を作り直し、表が消えない。
+    // ほかの表と共有している行の型は消さない。
+    [Fact]public void RemovingADesignedTableAlsoRemovesItsTablesRowType(){
+        var definition=Seamless.Management.DatabaseDesigner.Empty("remove","Remove");
+        definition=Seamless.Management.DatabaseDesigner.AddSchema(definition,"Sales");
+        definition=Seamless.Management.DatabaseDesigner.Apply(definition,new("DraftOnly","",[new("Id","int",true)],[]));
+        definition=Seamless.Management.DatabaseDesigner.Apply(definition,new("Customers","Sales",[new("Id","int",true),new("Name","string",false)],[]));
+        var removed=Seamless.Management.DatabaseDesigner.Remove(definition,"DraftOnly");
+        Assert.DoesNotContain("DraftOnly",Seamless.Management.DatabaseDesigner.Tables(removed));
+        Assert.DoesNotContain(removed.Source.Files,file=>file.Text.Contains("struct DraftOnly",StringComparison.Ordinal));
+        removed=Seamless.Management.DatabaseDesigner.Remove(removed,"Sales.Customers");
+        Assert.Empty(Seamless.Management.DatabaseDesigner.Tables(removed));
+        // 消した後も同じ名前で作り直せる(行の型が残っていない)。
+        Assert.Contains("DraftOnly",Seamless.Management.DatabaseDesigner.Tables(Seamless.Management.DatabaseDesigner.Apply(removed,new("DraftOnly","",[new("Id","int",true)],[]))));
     }
 }
