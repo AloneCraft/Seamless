@@ -7,6 +7,7 @@ using Seamless.Management.Server;
 
 namespace Management.Tests;
 
+[Collection(SourceBuildBudgetCollection.Name)]
 public sealed partial class SourceProjectBuildInspection{
     [Theory][InlineData("8.0.0.0","10.0.0.0",true)][InlineData("10.0.0.0","10.0.0.0",true)][InlineData("11.0.0.0","10.0.0.0",false)]
     public void ReferenceBindingUsesRuntimeVersionRules(string requested,string loaded,bool expected){

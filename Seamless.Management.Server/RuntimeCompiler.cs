@@ -103,10 +103,3 @@ public sealed class RuntimeCompiler{
             .Select(item=>new DiagnosticInfo("ManagementCodePolicy",item.Reason,tree.FilePath,item.Node.SpanStart,item.Node.Span.Length))).ToArray();
 }
 
-/// <summary>検証時は検証DBだけを束縛する。任意名のDB取得は公開しない。</summary>
-public sealed class ManagementExecutionContext(global::Seamless.Database.DatabaseContainer database,CancellationToken cancellationToken){
-    public CancellationToken CancellationToken{get;}=cancellationToken;
-    public T GetDatabase<T>() where T:global::Seamless.Database.DatabaseContainer{
-        this.CancellationToken.ThrowIfCancellationRequested();return database as T??throw new ManagementException("SchemaMismatch","DB型が実行環境と一致しません。");
-    }
-}

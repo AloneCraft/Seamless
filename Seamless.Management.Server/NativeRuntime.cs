@@ -66,8 +66,11 @@ internal sealed partial class NativeRuntime:IDisposable{
     internal CompiledSource Compile(Definition definition){
         if(definition.Kind==DefinitionKind.Database){return this.SdkBuilder?.Build(definition)??this.compiler.Compile(definition.Source);}
         var version=this.DatabaseDefinition(this.store.CurrentDatabase(definition));using var database=this.ReadArtifact(version);
-        return this.compiler.Compile(definition.Source,[database.AssemblyBytes],definition.EntryType,definition.EntryMember);
+        return this.CompileQuery(definition,database.AssemblyBytes);
     }
+    // 登録クエリは公開済みの DB の成果物を参照してビルドする。SDK のビルドが有効なら SDK で作る(段階7(3))。
+    internal CompiledSource CompileQuery(Definition query,byte[] database)=>
+        this.SdkBuilder?.BuildQuery(query,database)??this.compiler.Compile(query.Source,[database],query.EntryType,query.EntryMember);
     internal AnalysisResult Analyze(Definition definition){
         var references=SourceEditor.PlatformReferences().Cast<Microsoft.CodeAnalysis.MetadataReference>().ToList();
         if(definition.Kind==DefinitionKind.Query){using var database=this.ReadArtifact(this.DatabaseDefinition(this.store.CurrentDatabase(definition)));references.Add(Microsoft.CodeAnalysis.MetadataReference.CreateFromImage(database.AssemblyBytes));}
@@ -81,7 +84,7 @@ internal sealed partial class NativeRuntime:IDisposable{
     }
     internal DiagnosticInfo[] ValidateDependents(Definition definition,CompiledSource compiled){
         if(definition.Kind!=DefinitionKind.Database||compiled.AssemblyBytes.Length==0){return [];}
-        var diagnostics=new List<DiagnosticInfo>();long cursor=0;do{var page=this.store.List<DefinitionVersion>("active",cursor,predicate:item=>item.Database==this.store.CurrentDatabase(definition)&&item.Definition.Kind==DefinitionKind.Query);foreach(var query in page.Items){var result=this.compiler.Compile(query.Definition.Source,[compiled.AssemblyBytes],query.Definition.EntryType,query.Definition.EntryMember);diagnostics.AddRange(result.Result.Diagnostics.Select(item=>item with{Message=query.Definition.Id+": "+item.Message}));}cursor=page.NextCursor;if(!page.HasMore){break;}}while(true);return diagnostics.ToArray();
+        var diagnostics=new List<DiagnosticInfo>();long cursor=0;do{var page=this.store.List<DefinitionVersion>("active",cursor,predicate:item=>item.Database==this.store.CurrentDatabase(definition)&&item.Definition.Kind==DefinitionKind.Query);foreach(var query in page.Items){using var result=this.CompileQuery(query.Definition,compiled.AssemblyBytes);diagnostics.AddRange(result.Result.Diagnostics.Select(item=>item with{Message=query.Definition.Id+": "+item.Message}));}cursor=page.NextCursor;if(!page.HasMore){break;}}while(true);return diagnostics.ToArray();
     }
     internal string[] DescribeChanges(DefinitionVersion? previousVersion,Definition after,CompiledSource selected){
         var before=previousVersion?.Definition;
@@ -146,7 +149,7 @@ internal sealed partial class NativeRuntime:IDisposable{
                 instance.Open();if(old is not null){if(enableAuditGeneration is not null){TypedMigration.Copy(this.Open(old),instance,cancellationToken,migration:null,checkpoint:migrationCheckpoint);}else{this.Copy(this.Open(old),instance,cancellationToken);}CopyDirectSets(this.Open(old).Database,instance.Database,cancellationToken);}
                 var rebuilt=new List<PreparedDefinition>();long cursor=0;
                 do{var page=this.store.List<DefinitionVersion>("active",cursor,predicate:item=>item.Database==this.store.CurrentDatabase(definition)&&item.Definition.Kind==DefinitionKind.Query);
-                    foreach(var query in page.Items){cancellationToken.ThrowIfCancellationRequested();var result=this.compiler.Compile(query.Definition.Source,[compiled.AssemblyBytes],query.Definition.EntryType,query.Definition.EntryMember);rebuilt.Add(this.Save(query.Definition,result,query.Version,candidate.ArtifactHash));}
+                    foreach(var query in page.Items){cancellationToken.ThrowIfCancellationRequested();var result=this.CompileQuery(query.Definition,compiled.AssemblyBytes);rebuilt.Add(this.Save(query.Definition,result,query.Version,candidate.ArtifactHash));}
                     cursor=page.NextCursor;if(!page.HasMore){break;}
                 }while(true);
                 instance.Dispose();instance=new(definition,this.Full(System.IO.Path.Combine(candidate.StoragePath,"data")),compiled.Retain());instance.Open();cancellationToken.ThrowIfCancellationRequested();
@@ -245,16 +248,16 @@ internal sealed partial class NativeRuntime:IDisposable{
         if(request.ValidationDatabaseId is not null){var validation=this.Validation(request.ValidationDatabaseId,user);if(validation.Validation.Database!=databaseName){throw new ManagementException("Permission","検証DBの接続先が異なります。");}version=validation.Version;gateKey="validation:"+request.ValidationDatabaseId;}
         else{version=this.DatabaseDefinition(databaseName);gateKey="db:"+version.Definition.Id;}
         if(request.ExpectedDatabaseDefinitionId is{} expectedDatabase&&version.Definition.Id!=expectedDatabase){throw new ManagementException("CatalogChanged","関数の所属DBが変わりました。");}
-        var gate=this.Gate(gateKey);capture?.Begin();this.BeforeQueryAdmission?.Invoke();capture?.WaitingForGate();gate.Wait(cancellationToken);ManagedLoadContext? context=null;ReadAuditObservation? completedRead=null;
+        var gate=this.Gate(gateKey);capture?.Begin();this.BeforeQueryAdmission?.Invoke();capture?.WaitingForGate();gate.Wait(cancellationToken);ManagedLoadContext? context=null;CompiledSource? loaded=null;ReadAuditObservation? completedRead=null;
         try{
             capture?.EnteredGate();
             if(request.ValidationDatabaseId is null){version=this.store.Read<DefinitionVersion>("active",version.Definition.Id)??throw new ManagementException("NotFound","DBがありません。");}
             else{version=this.Validation(request.ValidationDatabaseId,user).Version;}
             DatabaseInstance database;if(request.ValidationDatabaseId is null){database=this.Open(version);}else{temporary=new(version.Definition,this.Full(System.IO.Path.Combine(version.StoragePath,"data")),this.ReadArtifact(version));temporary.Open();database=temporary;}
-            CompiledSource query;if(request.DraftRevision.HasValue){query=this.compiler.Compile(definition.Source,[database.Compiled.AssemblyBytes],definition.EntryType,definition.EntryMember);}else{var published=this.store.Read<DefinitionVersion>("active",definition.Id)??throw new ManagementException("NotFound","問い合わせがありません。");if(request.ExpectedVersion is{} expectedVersion&&published.Version!=expectedVersion||request.ExpectedArtifactHash is{} expectedArtifact&&published.ArtifactHash!=expectedArtifact){throw new ManagementException("CatalogChanged","関数の公開版または成果物が変わりました。");}definition=published.Definition;query=this.ReadArtifact(published);capture?.Bound(published);var manifest=JsonSerializer.Deserialize<ArtifactManifest>(File.ReadAllText(this.Full(System.IO.Path.Combine(published.StoragePath,"manifest.json"))),ManagementJson.Options)!;if(manifest.DatabaseArtifact!=version.ArtifactHash){throw new ManagementException("SchemaMismatch","問い合わせの参照世代が異なります。");}}
+            CompiledSource query;if(request.DraftRevision.HasValue){query=this.CompileQuery(definition,database.Compiled.AssemblyBytes);loaded=query;}else{var published=this.store.Read<DefinitionVersion>("active",definition.Id)??throw new ManagementException("NotFound","問い合わせがありません。");if(request.ExpectedVersion is{} expectedVersion&&published.Version!=expectedVersion||request.ExpectedArtifactHash is{} expectedArtifact&&published.ArtifactHash!=expectedArtifact){throw new ManagementException("CatalogChanged","関数の公開版または成果物が変わりました。");}definition=published.Definition;query=this.ReadArtifact(published);loaded=query;capture?.Bound(published);var manifest=JsonSerializer.Deserialize<ArtifactManifest>(File.ReadAllText(this.Full(System.IO.Path.Combine(published.StoragePath,"manifest.json"))),ManagementJson.Options)!;if(manifest.DatabaseArtifact!=version.ArtifactHash){throw new ManagementException("SchemaMismatch","問い合わせの参照世代が異なります。");}}
             if(query.AssemblyBytes.Length==0){throw new ManagementException("Validation",string.Join("\n",query.Result.Diagnostics.Select(item=>item.Message)));}
             context=new(database.Assembly);this.LastQueryContext=new(context);using var pe=new MemoryStream(query.AssemblyBytes);var assembly=context.LoadFromStream(pe);var entry=assembly.GetType("Seamless.Management.Generated.QueryEntry",false);var type=entry??assembly.GetType(definition.EntryType,true)!;var member=definition.EntryMember;if(entry is not null){member="Invoke";}var method=type.GetMethod(member,BindingFlags.Public|BindingFlags.Static)??throw new ManagementException("Validation","公開されたstatic入口がありません。");
-            var execution=new ManagementExecutionContext(database.Database,cancellationToken);var arguments=method.GetParameters().Select(parameter=>{if(parameter.ParameterType==typeof(ManagementExecutionContext)){return execution;}return RuntimeValueJson.Deserialize(request.Arguments.GetProperty(parameter.Name!),parameter.ParameterType);}).ToArray();
+            var execution=new ManagementExecutionContext(database.Database,cancellationToken,static()=>new ManagementException("SchemaMismatch","DB型が実行環境と一致しません。"));var arguments=method.GetParameters().Select(parameter=>{if(parameter.ParameterType==typeof(ManagementExecutionContext)){return execution;}return RuntimeValueJson.Deserialize(request.Arguments.GetProperty(parameter.Name!),parameter.ParameterType);}).ToArray();
             // 更新する公開定義だけが取引を開始できる。結果上限・取消・列挙例外では確定しない。
             DatabaseReadSession? readScope=null;DatabaseTransaction? writeScope=null;if(definition.WritesData){writeScope=database.Database.BeginTransaction(cancellationToken);}else{readScope=database.Database.BeginReadSession(cancellationToken);}
             using var read=readScope;using var write=writeScope;
@@ -273,7 +276,7 @@ internal sealed partial class NativeRuntime:IDisposable{
                 else{write.Commit();}
             }
             else if(this.ReadCompleted is not null&&request.ValidationDatabaseId is null&&!request.DraftRevision.HasValue){completedRead=new(DateTimeOffset.UtcNow,ManagementStore.Normalize(user.Name),this.store.CurrentDatabase(definition),definition.Id,query.Result.ArtifactHash);}
-        }finally{context?.Unload();temporary?.Dispose();gate.Release();}
+        }finally{context?.Unload();loaded?.Dispose();temporary?.Dispose();gate.Release();}
         if(completedRead is{} sample){this.ReadCompleted?.Invoke(sample);}
     }
     public void Dispose(){this.StopAuditDelivery();foreach(var item in this.databases.Values){item.Dispose();}this.databases.Clear();}
