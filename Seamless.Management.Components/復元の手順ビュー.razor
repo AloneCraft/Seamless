@@ -1,0 +1,57 @@
+@implements IDisposable
+@inject IManagementOperations 管理操作
+@inject Microsoft.JSInterop.IJSRuntime スクリプト
+
+@* 段階8：復元の手順とチャットAI・エージェント向けのプロンプト。CLI の recovery-guide と同じものをサーバーから受け取って示す。 *@
+<details class="設定詳細 復元の手順" @ontoggle="開閉時Async">
+    <summary>@(表示文言.取得("復元の手順"))</summary>
+    <p class="小案内">@(表示文言.取得("困ったときの場面を選ぶと、手順と、チャットAIに貼る問い合わせ文・エージェントに渡す指示文を表示します。Managerに入れないときは、CLIの recovery-guide で同じものを表示できます。"))</p>
+    <div class="復元場面" role="group" aria-label="@表示文言.取得("復元の場面")">
+        @foreach(var (場面,名前) in 場面一覧){
+            <button type="button" class="@(選択==場面?"主要ボタン":"控えめボタン")" aria-pressed="@((選択==場面).ToString().ToLowerInvariant())" disabled="@読込中か" @onclick="()=>選択時Async(場面)">@表示文言.取得(名前)</button>
+        }
+    </div>
+    @if(案内.Length>0){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
+    @if(手順 is{} 現在){
+        <h3>@現在.Title</h3>
+        <ol class="復元手順一覧">
+            @foreach(var 段 in 現在.Steps){
+                <li>@段.Text
+                    @if(段.Command is{} 命令){<pre><code>@命令</code></pre>}
+                    @if(段.Folder is{} 場所){<div class="小案内">@(表示文言.取得("フォルダー"))：<code>@場所</code></div>}
+                </li>
+            }
+        </ol>
+        <label class="復元プロンプト">@(表示文言.取得("チャットAIに貼る問い合わせ文"))<textarea readonly rows="8" aria-label="@表示文言.取得("チャットAIに貼る問い合わせ文")">@現在.ChatPrompt</textarea></label>
+        <button type="button" class="控えめボタン" @onclick="()=>写すAsync(現在.ChatPrompt)">@(表示文言.取得("問い合わせ文を写す"))</button>
+        <label class="復元プロンプト">@(表示文言.取得("エージェントに渡す自動復元の指示文"))<textarea readonly rows="10" aria-label="@表示文言.取得("エージェントに渡す自動復元の指示文")">@現在.AgentPrompt</textarea></label>
+        <button type="button" class="控えめボタン" @onclick="()=>写すAsync(現在.AgentPrompt)">@(表示文言.取得("指示文を写す"))</button>
+    }
+</details>
+
+@code{
+    private static readonly (RecoveryScenario 場面,string 名前)[] 場面一覧=[
+        (RecoveryScenario.PasswordLost,"パスワードを忘れた"),(RecoveryScenario.ServerWontStart,"サーバーが起動できない"),
+        (RecoveryScenario.InterruptedMigration,"移行が途中で止まった"),(RecoveryScenario.RestoreFromBackup,"バックアップから戻す")];
+    private RecoveryScenario? 選択;
+    private RecoveryGuideDocument? 手順;
+    private bool 読込中か,エラーか;
+    private string 案内="";
+    private long 世代;
+    private readonly CancellationTokenSource 寿命=new();
+
+    // 開いたときに、まだ何も選んでいなければ「サーバーが起動できない」を表示する。
+    private Task 開閉時Async()=>this.選択 is null?this.選択時Async(RecoveryScenario.ServerWontStart):Task.CompletedTask;
+    private async Task 選択時Async(RecoveryScenario 場面){
+        var 現在世代=++this.世代;this.選択=場面;this.読込中か=true;this.エラーか=false;this.案内="";
+        try{var 結果=await this.管理操作.RecoveryGuideAsync(場面,this.寿命.Token);if(現在世代==this.世代){this.手順=結果;}}
+        catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){}
+        catch(Exception 例外){if(現在世代==this.世代){this.手順=null;this.エラーか=true;this.案内=表示文言.取得("復元の手順を取得できませんでした。")+例外.Message;}}
+        finally{if(現在世代==this.世代){this.読込中か=false;}}
+    }
+    private async Task 写すAsync(string 文){
+        try{await this.スクリプト.InvokeVoidAsync("navigator.clipboard.writeText",this.寿命.Token,文);this.エラーか=false;this.案内=表示文言.取得("クリップボードへ写しました。");}
+        catch(Exception 例外)when(例外 is not OperationCanceledException){this.エラーか=true;this.案内=表示文言.取得("クリップボードへ写せませんでした。文を選んで写してください。");}
+    }
+    public void Dispose(){this.世代++;this.寿命.Cancel();this.寿命.Dispose();}
+}

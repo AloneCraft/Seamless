@@ -42,6 +42,9 @@ public interface IManagementOperations{
     Task<ExecutionPlanDocument[]> PlansAsync(string definitionId,CancellationToken cancellationToken=default);
     Task<QueryPlanResult> QueryPlansAsync(QueryPlanRequest request,CancellationToken cancellationToken=default)=>
         Task.FromException<QueryPlanResult>(new ManagementException("Unsupported","この接続は対象別の実行計画に対応していません。"));
+    /// <summary>復元の手順とプロンプト(対応機能 RecoveryGuideV1)。管理領域の場所と中断した移行はサーバーが調べる。</summary>
+    Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>
+        Task.FromException<RecoveryGuideDocument>(new ManagementException("Unsupported","この接続は復元の手順の表示に対応していません。"));
     Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>
         Task.FromException<ServerSettingsSnapshot>(new ManagementException("Unsupported","このホストは管理サーバー設定に対応していません。"));
     Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>

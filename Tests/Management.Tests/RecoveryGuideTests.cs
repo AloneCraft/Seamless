@@ -48,6 +48,28 @@ public sealed class RecoveryGuideTests{
         Assert.Contains(guide.Steps,step=>step.Command?.Contains("get-operation",StringComparison.Ordinal)==true);
     }
 
+    // Manager の画面からも同じ手順を取れる(対応機能 RecoveryGuideV1)。管理領域の場所はサーバーが入れる。管理の権限が要る。
+    [Fact]
+    public async Task ManagerOperationsReturnTheGuideForTheServerRoot(){
+        var root=Root();
+        using var host=InProcessManagementHost.Create(root);
+        IManagementOperations operations=host;
+        Assert.Contains("RecoveryGuideV1",(await operations.InfoAsync()).Capabilities);
+        var guide=await operations.RecoveryGuideAsync(RecoveryScenario.RestoreFromBackup);
+        Assert.Equal(RecoveryScenario.RestoreFromBackup,guide.Scenario);
+        Assert.Contains(Path.GetFullPath(root),guide.ChatPrompt);
+        Assert.Contains(guide.Steps,step=>step.Command?.Contains("restore --backup",StringComparison.Ordinal)==true);
+        // 画面の部品は、選んだ場面の手順をサーバーから受け取って持つ。
+        using var screen=new Seamless.Management.Components.復元の手順ビュー();
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+        var type=typeof(Seamless.Management.Components.復元の手順ビュー);
+        type.GetProperty("管理操作",flags)!.SetValue(screen,host);
+        await (Task)type.GetMethod("選択時Async",flags)!.Invoke(screen,[RecoveryScenario.PasswordLost])!;
+        var shown=Assert.IsType<RecoveryGuideDocument>(type.GetField("手順",flags)!.GetValue(screen));
+        Assert.Equal(RecoveryScenario.PasswordLost,shown.Scenario);
+        Assert.False((bool)type.GetField("エラーか",flags)!.GetValue(screen)!);
+    }
+
     [Fact]
     public void StartupFailureHintCarriesTheRootAndError(){
         var hint=RecoveryGuideCommand.StartupHint(["serve","--root","C:\\data\\management"],"管理ヘッダーがありません。\n\"バックアップ\"から復旧してください。");

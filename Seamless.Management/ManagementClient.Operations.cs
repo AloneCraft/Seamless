@@ -9,6 +9,8 @@ public sealed partial class ManagementClient{
     public Task<ResourceHeatReadResult> QueryResourceHeatAsync(ResourceHeatQuery query,CancellationToken cancellationToken=default)=>this.CallAsync<ResourceHeatReadResult>("queryResourceHeat","system",query,cancellationToken);
     public Task<QueryTraceWatchResult> WatchQueryTraceAsync(QueryTraceWatchQuery query,CancellationToken cancellationToken=default)=>this.CallAsync<QueryTraceWatchResult>("watchQueryTrace","system",query,cancellationToken);
     public Task<QueryExecutionHistoryPage> QueryExecutionHistoryAsync(QueryExecutionHistoryQuery query,CancellationToken cancellationToken=default)=>this.CallAsync<QueryExecutionHistoryPage>("queryExecutionHistory","system",query,cancellationToken);
+    public Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>
+        this.CallAsync<RecoveryGuideDocument>("recoveryGuide","*",new RecoveryGuideRequest(scenario),cancellationToken);
     public Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>
         this.CallAsync<ServerSettingsSnapshot>("serverSettings","*",new{},cancellationToken);
     public Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>

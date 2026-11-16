@@ -69,6 +69,8 @@ public sealed partial class InProcessManagementHost{
         this.InvokeAsync((service,user)=>service.QueryPlans(user,request),cancellationToken).AsTask();
     public Task<CatalogPage<DefinitionSummary>> QueriesAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.Queries(user,request),cancellationToken).AsTask();
+    public Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync((service,user)=>service.RecoveryGuide(user,scenario),cancellationToken).AsTask();
     public Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.ServerSettings(user),cancellationToken).AsTask();
     public Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>

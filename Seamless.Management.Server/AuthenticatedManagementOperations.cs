@@ -58,6 +58,8 @@ internal sealed class AuthenticatedManagementOperations(ConcurrentManagementOper
         this.InvokeAsync((service,user)=>service.QueryPlans(user,request),cancellationToken);
     public Task<CatalogPage<DefinitionSummary>> QueriesAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.Queries(user,request),cancellationToken);
+    public Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync((service,user)=>service.RecoveryGuide(user,scenario),cancellationToken);
     public Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.ServerSettings(user),cancellationToken);
     public Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>

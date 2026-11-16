@@ -86,6 +86,8 @@ public sealed partial class ConcurrentManagementOperations:IManagementOperations
         this.InvokeAsync(()=>this.service.QueryPlans(this.owner,request),cancellationToken);
     public Task<CatalogPage<DefinitionSummary>> QueriesAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>
         this.InvokeAsync(()=>this.service.Queries(this.owner,request),cancellationToken);
+    public Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync(()=>this.service.RecoveryGuide(this.owner,scenario),cancellationToken);
     public Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>
         this.InvokeAsync(()=>this.service.ServerSettings(this.owner),cancellationToken);
     public Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>

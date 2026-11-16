@@ -64,6 +64,7 @@ public sealed class BrowserManagementOperations:IManagementOperations,IManagemen
     public Task<ExecutionPlanDocument[]> PlansAsync(string definitionId,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.PlansAsync(definitionId,cancellationToken));
     public Task<QueryPlanResult> QueryPlansAsync(QueryPlanRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.QueryPlansAsync(request,cancellationToken));
     public Task<CatalogPage<DefinitionSummary>> QueriesAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.QueriesAsync(request,cancellationToken));
+    public Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.RecoveryGuideAsync(scenario,cancellationToken));
     public Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.ServerSettingsAsync(cancellationToken));
     public Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.SaveServerSettingsAsync(request,cancellationToken));
     public Task<Page<UserProfile>> UserProfilesAsync(long cursor=0,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.UserProfilesAsync(cursor,cancellationToken));

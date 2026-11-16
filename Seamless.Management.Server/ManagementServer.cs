@@ -215,6 +215,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 "auditReadBuffer"=>this.service.ReadAuditStatus(user),
                 "users"=>this.service.Users(user,Cursor(request.Payload)),
                 "serverSettings"=>this.service.ServerSettings(user),
+                "recoveryGuide"=>this.service.RecoveryGuide(user,ManagementJson.Read<RecoveryGuideRequest>(request.Payload).Scenario),
                 "authorizationDatabases"=>await this.service.ManageAuthorizationAsync<DatabaseAuthorizationList>(user,request.Operation,ManagementJson.Read<DatabaseAuthorizationListQuery>(request.Payload),operationToken),
                 "authorizationDatabase"=>await this.service.ManageAuthorizationAsync<DatabaseAuthorizationInfo>(user,request.Operation,ManagementJson.Read<DatabaseAuthorizationQuery>(request.Payload),operationToken),
                 "authorizationScope"=>await this.service.ManageAuthorizationAsync<AuthorizationScopeInfo>(user,request.Operation,ManagementJson.Read<AuthorizationScopeQuery>(request.Payload),operationToken),

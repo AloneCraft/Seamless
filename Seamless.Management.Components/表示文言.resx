@@ -2544,4 +2544,18 @@
   <data name="SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。" xml:space="preserve"><value>SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。</value></data>
   <data name="反映・ビルド・取り込み" xml:space="preserve"><value>反映・ビルド・取り込み</value></data>
   <data name="DB下書きへ反映し、SDKでビルド・検査して取り込みます。適用はDB画面で変更を確認してから行います。" xml:space="preserve"><value>DB下書きへ反映し、SDKでビルド・検査して取り込みます。適用はDB画面で変更を確認してから行います。</value></data>
+  <data name="復元の手順" xml:space="preserve"><value>復元の手順</value></data>
+  <data name="困ったときの場面を選ぶと、手順と、チャットAIに貼る問い合わせ文・エージェントに渡す指示文を表示します。Managerに入れないときは、CLIの recovery-guide で同じものを表示できます。" xml:space="preserve"><value>困ったときの場面を選ぶと、手順と、チャットAIに貼る問い合わせ文・エージェントに渡す指示文を表示します。Managerに入れないときは、CLIの recovery-guide で同じものを表示できます。</value></data>
+  <data name="復元の場面" xml:space="preserve"><value>復元の場面</value></data>
+  <data name="チャットAIに貼る問い合わせ文" xml:space="preserve"><value>チャットAIに貼る問い合わせ文</value></data>
+  <data name="問い合わせ文を写す" xml:space="preserve"><value>問い合わせ文を写す</value></data>
+  <data name="エージェントに渡す自動復元の指示文" xml:space="preserve"><value>エージェントに渡す自動復元の指示文</value></data>
+  <data name="指示文を写す" xml:space="preserve"><value>指示文を写す</value></data>
+  <data name="パスワードを忘れた" xml:space="preserve"><value>パスワードを忘れた</value></data>
+  <data name="サーバーが起動できない" xml:space="preserve"><value>サーバーが起動できない</value></data>
+  <data name="移行が途中で止まった" xml:space="preserve"><value>移行が途中で止まった</value></data>
+  <data name="バックアップから戻す" xml:space="preserve"><value>バックアップから戻す</value></data>
+  <data name="復元の手順を取得できませんでした。" xml:space="preserve"><value>復元の手順を取得できませんでした。</value></data>
+  <data name="クリップボードへ写しました。" xml:space="preserve"><value>クリップボードへ写しました。</value></data>
+  <data name="クリップボードへ写せませんでした。文を選んで写してください。" xml:space="preserve"><value>クリップボードへ写せませんでした。文を選んで写してください。</value></data>
 </root>

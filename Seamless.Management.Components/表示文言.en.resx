@@ -2544,4 +2544,18 @@
   <data name="SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。" xml:space="preserve"><value>Built with the SDK and inspected the DLL, PDB, source, and dependencies.</value></data>
   <data name="反映・ビルド・取り込み" xml:space="preserve"><value>Apply, build, and import</value></data>
   <data name="DB下書きへ反映し、SDKでビルド・検査して取り込みます。適用はDB画面で変更を確認してから行います。" xml:space="preserve"><value>Applies to the DB draft, then builds with the SDK, inspects, and imports. Apply the changes after reviewing them in the DB view.</value></data>
+  <data name="復元の手順" xml:space="preserve"><value>Recovery guide</value></data>
+  <data name="困ったときの場面を選ぶと、手順と、チャットAIに貼る問い合わせ文・エージェントに渡す指示文を表示します。Managerに入れないときは、CLIの recovery-guide で同じものを表示できます。" xml:space="preserve"><value>Choose a situation to see the steps, a question to paste into a chat AI, and instructions for an agent. If you cannot sign in to Manager, the CLI command recovery-guide shows the same.</value></data>
+  <data name="復元の場面" xml:space="preserve"><value>Recovery situation</value></data>
+  <data name="チャットAIに貼る問い合わせ文" xml:space="preserve"><value>Question to paste into a chat AI</value></data>
+  <data name="問い合わせ文を写す" xml:space="preserve"><value>Copy the question</value></data>
+  <data name="エージェントに渡す自動復元の指示文" xml:space="preserve"><value>Instructions for an agent to recover automatically</value></data>
+  <data name="指示文を写す" xml:space="preserve"><value>Copy the instructions</value></data>
+  <data name="パスワードを忘れた" xml:space="preserve"><value>Forgot the password</value></data>
+  <data name="サーバーが起動できない" xml:space="preserve"><value>The server does not start</value></data>
+  <data name="移行が途中で止まった" xml:space="preserve"><value>A migration stopped midway</value></data>
+  <data name="バックアップから戻す" xml:space="preserve"><value>Restore from a backup</value></data>
+  <data name="復元の手順を取得できませんでした。" xml:space="preserve"><value>Could not get the recovery guide. </value></data>
+  <data name="クリップボードへ写しました。" xml:space="preserve"><value>Copied to the clipboard.</value></data>
+  <data name="クリップボードへ写せませんでした。文を選んで写してください。" xml:space="preserve"><value>Could not copy to the clipboard. Select the text and copy it.</value></data>
 </root>

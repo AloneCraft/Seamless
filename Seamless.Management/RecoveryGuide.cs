@@ -8,6 +8,9 @@ public enum RecoveryScenario{PasswordLost,ServerWontStart,InterruptedMigration,R
 /// <summary>中断した明示の移行。管理領域の中の印のファイルで見分け、対応する取り消しのコマンドで戻す。</summary>
 public sealed record InterruptedUpgrade(string Marker,string Name,string RollbackCommand,string RetryCommand);
 
+/// <summary>管理RPCの recoveryGuide の要求。</summary>
+public sealed record RecoveryGuideRequest(RecoveryScenario Scenario);
+
 /// <summary>手順の1つ。Command は CLI で打つコマンド、Folder は開くとよいフォルダー。</summary>
 public sealed record RecoveryStep(string Text,string? Command=null,string? Folder=null);
 
