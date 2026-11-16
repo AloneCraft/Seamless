@@ -1,4 +1,4 @@
-﻿namespace Seamless.Database;
+namespace Seamless.Database;
 
 using global::System.Linq;
 /// <summary>
@@ -149,7 +149,7 @@ public abstract partial class DatabaseContainer:IDisposable {
     }
 
     internal TableTransactionOverlay<TKey,TRecord>? GetTransactionOverlay<TKey,TRecord>(
-        Table<TKey,TRecord> table,
+        StoredTable<TKey,TRecord> table,
         bool create)
         where TKey:struct
         where TRecord:struct {
@@ -170,7 +170,7 @@ public abstract partial class DatabaseContainer:IDisposable {
     }
 
     internal UnkeyedTableTransactionOverlay<TRecord>? GetTransactionOverlay<TRecord>(
-        Table<TRecord> table,
+        StoredTable<TRecord> table,
         bool create)
         where TRecord:notnull {
         this.ValidateOverlayWrite(create);
@@ -246,19 +246,19 @@ public abstract partial class DatabaseContainer:IDisposable {
         where TRecord:struct=>new(rows,keySelector);
 
     /// <summary>宣言プロパティから呼ばれ、テーブル実体を宣言名単位で生成・共有する。</summary>
-    protected Table<TRecord> Table<TRecord>([CallerMemberName] string name = "")
+    protected StoredTable<TRecord> Table<TRecord>([CallerMemberName] string name = "")
         where TRecord:notnull {
         return this.GetTable<TRecord>(name);
     }
 
     /// <summary>宣言プロパティから呼ばれ、候補キーで探索できるテーブルを生成・共有する。</summary>
-    protected Table<TKey,TRecord> Table<TKey,TRecord>(
+    protected StoredTable<TKey,TRecord> Table<TKey,TRecord>(
         Func<TRecord,TKey> keySelector,
         [CallerMemberName] string name="")
         where TKey:struct
         where TRecord:struct=>this.GetTable(keySelector,name);
 
-    internal Table<TKey,TRecord> GetTable<TKey,TRecord>(
+    internal StoredTable<TKey,TRecord> GetTable<TKey,TRecord>(
         Func<TRecord,TKey> keySelector,
         string name)
         where TKey:struct
@@ -267,7 +267,7 @@ public abstract partial class DatabaseContainer:IDisposable {
         ObjectDisposedException.ThrowIf(this.disposed,this);
         lock(this.gate) {
             if(this.tables.TryGetValue(name,out var existing)) {
-                return (Table<TKey,TRecord>)existing;
+                return (StoredTable<TKey,TRecord>)existing;
             }
             var table=this.CreateTable(keySelector,name);
             try {
@@ -316,12 +316,12 @@ public abstract partial class DatabaseContainer:IDisposable {
         where TKey:struct
         where TRecord:struct=>view.Add(record);
 
-    internal Table<TRecord> GetTable<TRecord>(string name)
+    internal StoredTable<TRecord> GetTable<TRecord>(string name)
         where TRecord:notnull {
         ObjectDisposedException.ThrowIf(this.disposed,this);
         lock(this.gate) {
             if(this.tables.TryGetValue(name,out var existing)) {
-                return (Table<TRecord>)existing;
+                return (StoredTable<TRecord>)existing;
             }
             var table = this.CreateTable<TRecord>(name);
             try {
@@ -347,10 +347,10 @@ public abstract partial class DatabaseContainer:IDisposable {
         return new(definition(),name);
     }
 
-    private Table<TRecord> CreateTable<TRecord>(string name)
+    private StoredTable<TRecord> CreateTable<TRecord>(string name)
         where TRecord:notnull=>this.CreateSharedTable<TRecord>(name);
 
-    private Table<TKey,TRecord> CreateTable<TKey,TRecord>(Func<TRecord,TKey> keySelector,string name)
+    private StoredTable<TKey,TRecord> CreateTable<TKey,TRecord>(Func<TRecord,TKey> keySelector,string name)
         where TKey:struct
         where TRecord:struct=>this.CreateSharedTable(keySelector,name);
 

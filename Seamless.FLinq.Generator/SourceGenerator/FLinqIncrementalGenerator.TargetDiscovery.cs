@@ -132,7 +132,8 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var linqAnalysis = LinqExpressionAnalyzer.Analyze(method,semanticModel.Compilation);
-        if(!linqAnalysis.HasEnumerableCall) {
+        // [関係代入] 表のプロパティへの代入を含むメソッドも対象にする(差分の処理の呼び出しへ書き換える)。
+        if(!linqAnalysis.HasEnumerableCall&&!ContainsRelationalAssignment(method,semanticModel.Compilation,cancellationToken)) {
             return false;
         }
 
@@ -764,5 +765,15 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         return new 型対象型(symbol,isPartial);
+}
+
+    // [関係代入] メソッドの本体に表のプロパティへの代入があるか。
+    private static bool ContainsRelationalAssignment(IMethodSymbol method,Compilation compilation,CancellationToken cancellationToken){
+        foreach(var reference in method.DeclaringSyntaxReferences){
+            var syntax=reference.GetSyntax(cancellationToken);
+            if(RelationalAssignmentLowering.ContainsAssignment(syntax,compilation.GetSemanticModel(syntax.SyntaxTree))){return true;}
+        }
+        return false;
     }
+
 }

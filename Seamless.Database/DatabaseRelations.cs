@@ -49,7 +49,7 @@ public abstract partial class DatabaseContainer{
         var positions=Members(constructor).Select(member=>Array.FindIndex(relation.ReferencedColumns,name=>name.Equals(member,StringComparison.OrdinalIgnoreCase))).ToArray();
         foreach(var field in keyFields){var index=Array.IndexOf(relation.ReferencedColumns,field.Name);if((Nullable.GetUnderlyingType(fields[index].PropertyType)??fields[index].PropertyType)!=field.PropertyType){throw new InvalidOperationException("Foreign key types differ: "+relation.Name);}}
         return (database,scope)=>{
-            var childTable=(Table<TChildKey,TChild>)child.GetTable(database);var parentTable=(Table<TParentKey,TParent>)parent.GetTable(database);
+            var childTable=(StoredTable<TChildKey,TChild>)child.GetTable(database);var parentTable=(StoredTable<TParentKey,TParent>)parent.GetTable(database);
             IEnumerable<TChild> rows=childTable;Func<TParentKey,bool> contains=parentTable.ContainsKey;
             if(scope is not null){rows=database.GetTransactionCollection(scope,childTable);contains=database.GetTransactionCollection(scope,parentTable).ContainsKey;}
             foreach(var row in rows){
@@ -62,7 +62,8 @@ public abstract partial class DatabaseContainer{
     /// <summary>未公開の構築結果も通常取引と同じ検査を使用する。</summary>
     public void ValidateRelations(){foreach(var validate in this.RelationValidators){validate(null);}}
     private void ValidateRelations(TransactionScope scope){foreach(var validate in this.RelationValidators){if(this.ambientTransaction.Value is not null){validate(null);}else{validate(scope);}}}
-    internal bool RequiresRelationTransaction=>this.ambientTransaction.Value is null&&this.Options.GatewayProfile is null&&this.RelationValidators.Length>0;
+    // 取引の外の書き込みは暗黙の取引(確定時に外部キーを検査する)で行うので、従来の取引で包むのはそれ以外の経路だけ。
+    internal bool RequiresRelationTransaction=>!this.UsesImplicitTransaction&&this.ambientTransaction.Value is null&&this.Options.GatewayProfile is null&&this.RelationValidators.Length>0;
     internal TResult RelationWrite<TResult>(Func<TResult> operation){using var transaction=this.BeginTransaction();var result=operation();transaction.Commit();return result;}
     protected DatabaseTransaction? BeginRelationImport(){if(this.Options.GatewayProfile is not null||this.RelationValidators.Length==0){return null;}return this.BeginTransaction();}
 }

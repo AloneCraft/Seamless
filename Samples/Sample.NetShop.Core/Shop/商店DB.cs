@@ -24,18 +24,18 @@ public sealed partial class 商店DB(DatabaseContainerOptions オプション):D
     }
 
     // ---- 表 ----
-    public Table<Keys.商品,Tables.商品>商品=>this.Table<Keys.商品,Tables.商品>(static 行=>new(行.商品ID));
-    public Table<Keys.顧客,Tables.顧客>顧客=>this.Table<Keys.顧客,Tables.顧客>(static 行=>new(行.顧客ID));
+    public partial Table<Keys.商品,Tables.商品> 商品{get;set;}
+    public partial Table<Keys.顧客,Tables.顧客> 顧客{get;set;}
 
     // ---- リレーションシップ(外部キー) ----
     // 子の表のプロパティに [ForeignKey(制約名,親の表,子の列,親の主キーの列)] を付ける。
     // 取引の Commit 時に最終状態で検査し、親の行が無ければ ForeignKeyViolationException で全部取り消す。
     // そのため、同じ取引の中なら明細を先に書いて注文を後に書いてもよい。
     [ForeignKey("注文の顧客","顧客",new[]{"顧客ID"},new[]{"顧客ID"})]
-    public Table<Keys.注文,Tables.注文>注文=>this.Table<Keys.注文,Tables.注文>(static 行=>new(行.注文ID));
+    public partial Table<Keys.注文,Tables.注文> 注文{get;set;}
     [ForeignKey("明細の注文","注文",new[]{"注文ID"},new[]{"注文ID"})]
     [ForeignKey("明細の商品","商品",new[]{"商品ID"},new[]{"商品ID"})]
-    public Table<Keys.注文明細,Tables.注文明細>注文明細=>this.Table<Keys.注文明細,Tables.注文明細>(static 行=>new(行.注文ID,行.行番号));
+    public partial Table<Keys.注文明細,Tables.注文明細> 注文明細{get;set;}
 
     // ---- ビュー・関数: 商店DBの問い合わせ(IReader への拡張メンバー)に書く ----
 

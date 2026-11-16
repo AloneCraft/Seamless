@@ -26,7 +26,10 @@ public abstract partial class DatabaseContainer{
         private readonly Dictionary<string,SnapshotHandle> snapshots=new(StringComparer.Ordinal);
         internal UnpublishedSnapshotBuilder(DatabaseContainer owner){this.owner=owner;}
         public long RowCount=>this.rowCount;
-        public void Insert<TKey,TRecord>(Table<TKey,TRecord> table,TRecord record) where TKey:struct where TRecord:struct{
+        // [関係代入] 表のプロパティの型は基底の Table。中身はこのDBの保存された表でなければならない。
+        public void Insert<TKey,TRecord>(Table<TKey,TRecord> table,TRecord record) where TKey:struct where TRecord:struct=>
+            this.Insert(table as StoredTable<TKey,TRecord>??throw new InvalidOperationException("Only a stored table of this database can be built."),record);
+        public void Insert<TKey,TRecord>(StoredTable<TKey,TRecord> table,TRecord record) where TKey:struct where TRecord:struct{
             lock(this.owner.gate){
                 this.Check();
                 if(!this.owner.tables.TryGetValue(table.Name,out var registered)||!ReferenceEquals(registered,table)){throw new ArgumentException("The table does not belong to this snapshot.",nameof(table));}

@@ -1,4 +1,4 @@
-﻿using DatabaseObjectKey = global::Seamless.Database.System.Keys.DatabaseObject;
+using DatabaseObjectKey = global::Seamless.Database.System.Keys.DatabaseObject;
 using DatabaseObjectKind = global::Seamless.Database.System.DatabaseObjectKind;
 using DatabaseObjectRecord = global::Seamless.Database.System.Records.DatabaseObject;
 
@@ -59,7 +59,7 @@ namespace Test.Seamless.Database.Spec {
                 Assert.Equal(new DatabaseObjectKey("Items"),declaration.Key);
                 Assert.Equal(DatabaseObjectKind.Table,declaration.Kind);
                 Assert.Equal(typeof(Tables.Items),declaration.RecordType);
-                Assert.Equal("Items",this.Database.Items.Name);
+                Assert.Equal("Items",((global::Seamless.Database.StoredTable<Keys.Items,Tables.Items>)this.Database.Items).Name);
             }
             {
                 //生成されたTable<T>プロパティが実際に読み書きできること

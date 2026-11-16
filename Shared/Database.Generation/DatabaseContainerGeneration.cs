@@ -359,7 +359,8 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         string? keyType=null;
         if(member is IPropertySymbol property&&property.Type is INamedTypeSymbol {TypeArguments.Length:2} named){keyType=named.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);}
-        return new(kind,name,typeName,importKind,location,keyType);
+        IPropertySymbol? partial=null;if(member is IPropertySymbol{IsPartialDefinition:true,PartialImplementationPart:null} definition){partial=definition;}
+        return new(kind,name,typeName,importKind,location,keyType){PartialProperty=partial};
     }
 
     private static bool TryGetMaterializedRecordType(ITypeSymbol type,out ITypeSymbol recordType) {
@@ -435,14 +436,14 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             builder.AppendLine($"{indent}        public new {className} Database => ({className})base.Database;");
             foreach(var item in group) {
                 var propName = Identifier(item.Name.Substring(schemaName.Length + 1));
-                builder.AppendLine($"{indent}        {item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
+                builder.AppendLine($"{indent}        {item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} {{ get => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key); set => this.{propName}.Assign(value); }}");
             }
             builder.AppendLine($"{indent}    }}");
             builder.AppendLine($"{indent}    public {schemaClass} {Identifier(schemaName)} => new(this);");
         }
         foreach(var item in declaredObjects.Where(static d => !d.Name.Contains('.'))) {
             var propName = Identifier(item.Name);
-            builder.AppendLine($"{indent}    {item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
+            builder.AppendLine($"{indent}    {item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} {{ get => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key); set => this.{propName}.Assign(value); }}");
         }
         builder.AppendLine($"{indent}    private static readonly global::Seamless.Database.System.SystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject> GeneratedDatabaseObjects=");
         builder.AppendLine($"{indent}        CreateSystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject>(");
@@ -506,13 +507,50 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             builder.AppendLine($"partial class {Identifier(schema.Name)}{{");
             foreach(var item in group){
                 var propertyName=Identifier(item.Name.Substring(group.Key.Length+1));
-                builder.AppendLine($"{item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName},{item.RecordTypeName}> {propertyName}=>this.Table<{item.KeyTypeName},{item.RecordTypeName}>(static row=>row.Key);");
+                builder.AppendLine($"{item.PropertyAttributes}public global::Seamless.Database.Table<{item.KeyTypeName},{item.RecordTypeName}> {propertyName}{{get=>this.Table<{item.KeyTypeName},{item.RecordTypeName}>(static row=>row.Key);set=>this.{propertyName}.Assign(value);}}");
             }
             builder.AppendLine("}");
             if(schemaNamespace.Length>0){builder.AppendLine("}");}
         }
+        AppendPartialTableImplementations(builder,declarations);
         return builder.ToString();
     }
+
+    // [宣言/partial の表] 利用者が宣言だけを書いた partial の表のプロパティ(属性を付けるときなど)に、get と関係代入の set を作る。
+    // 2026-11-17 利用者決定(Document/refactoring-designs/20261117-関係代入.md の決定14)。
+    private static void AppendPartialTableImplementations(StringBuilder builder,ImmutableArray<ObjectDeclaration> declarations){
+        foreach(var group in declarations.Where(static item=>item.PartialProperty is not null).GroupBy(static item=>item.PartialProperty!.ContainingType,SymbolEqualityComparer.Default)){
+            var owner=(INamedTypeSymbol)group.Key!;
+            var chain=new List<INamedTypeSymbol>();
+            for(var current=owner;current is not null;current=current.ContainingType){chain.Insert(0,current);}
+            var ownerNamespace=NamespaceName(owner.ContainingNamespace);
+            if(ownerNamespace.Length>0){builder.AppendLine($"namespace {ownerNamespace}{{");}
+            foreach(var type in chain){
+                var keyword=type.TypeKind==TypeKind.Struct?"struct":"class";
+                if(type.IsRecord){keyword="record "+keyword;}
+                builder.AppendLine($"partial {keyword} {Identifier(type.Name)}{{");
+            }
+            foreach(var item in group){
+                var property=item.PartialProperty!;
+                var name=Identifier(property.Name);
+                var type=property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                var open=$"this.Table<{item.KeyTypeName},{item.RecordTypeName}>(static row=>row.Key)";
+                if(item.KeyTypeName is null){open=$"this.Table<{item.RecordTypeName}>()";}
+                builder.AppendLine($"{AccessibilityText(property.DeclaredAccessibility)} partial {type} {name}{{get=>{open};set=>this.{name}.Assign(value);}}");
+            }
+            foreach(var _ in chain){builder.AppendLine("}");}
+            if(ownerNamespace.Length>0){builder.AppendLine("}");}
+        }
+    }
+
+    private static string AccessibilityText(Accessibility accessibility)=>accessibility switch{
+        Accessibility.Public=>"public",
+        Accessibility.Internal=>"internal",
+        Accessibility.Protected=>"protected",
+        Accessibility.ProtectedOrInternal=>"protected internal",
+        Accessibility.ProtectedAndInternal=>"private protected",
+        _=>"private",
+    };
 
     private static string NamespaceName(INamespaceSymbol symbol)=>
         symbol.IsGlobalNamespace ? string.Empty : symbol.ToDisplayString();
@@ -549,7 +587,8 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         /// <summary>生成する表のプロパティへ写す属性(C# の属性の構文)。</summary>
         public string PropertyAttributes{get;init;}=string.Empty;
         public QueryMember? Query{get;private init;}
-        public ObjectDeclaration WithQuery(QueryMember query)=>new(this.Kind,this.Name,this.RecordTypeName,this.ImportKind,this.Location,this.KeyTypeName){Query=query,PropertyAttributes=this.PropertyAttributes};
+        public IPropertySymbol? PartialProperty{get;init;}
+        public ObjectDeclaration WithQuery(QueryMember query)=>new(this.Kind,this.Name,this.RecordTypeName,this.ImportKind,this.Location,this.KeyTypeName){Query=query,PropertyAttributes=this.PropertyAttributes,PartialProperty=this.PartialProperty};
     }
     private static void AppendTransactions(StringBuilder builder,string indent,string className,ImmutableArray<ObjectDeclaration> declarations,ObjectDeclaration[] schemaMarkers){
         var tables=declarations.Where(static d=>d.ImportKind is "Table" or "MaterializedView").ToArray();
@@ -681,11 +720,16 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
     private static void AppendTransactionProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number,string root){
         foreach(var table in tables.Where(t=>t.Kind!=SchemaMarkerKind&&!t.Name.Substring(prefix.Length).Contains('.'))){
             var name=Identifier(table.Name.Substring(prefix.Length));
-            var collection="TransactionCollection";if(table.ImportKind=="MaterializedView"){collection="ReadOnlyTransactionCollection";}
+            var key=table.KeyTypeName??table.RecordTypeName;
+            var open=$"this.owner.GetTransactionCollection(this.scope,this.owner.{MemberAccess(table.Name)})";
             builder.AppendLine($"{indent}// [表アクセス] {table.Name}: 同じscopeの型付きビューを取得。キー・不存在・走査の依存と自己変更の反映は操作時に共通層で扱う。");
-            builder.AppendLine($"{indent}public global::Seamless.Transactions.Collections.{collection}<{table.KeyTypeName??table.RecordTypeName},{table.RecordTypeName}> {name}=>this.owner.GetTransactionCollection(this.scope,this.owner.{MemberAccess(table.Name)});");
             var readerView=$"this.{name}";
-            if(table.ImportKind=="Table"){readerView=$"new global::Seamless.Transactions.Collections.ReadOnlyTransactionCollection<{table.KeyTypeName??table.RecordTypeName},{table.RecordTypeName}>(this.{name})";}
+            if(table.ImportKind=="MaterializedView"){builder.AppendLine($"{indent}public global::Seamless.Transactions.Collections.ReadOnlyTransactionCollection<{key},{table.RecordTypeName}> {name}=>{open};");}
+            else{
+                // [関係代入] 型は基底の Table(get と set が同じ型)。set は関係代入で、この取引の私有の変更として差分だけを書く。
+                builder.AppendLine($"{indent}public global::Seamless.Database.Table<{key},{table.RecordTypeName}> {name}{{get=>{open};set=>{open}.Assign(value);}}");
+                readerView=$"new global::Seamless.Transactions.Collections.ReadOnlyTransactionCollection<{key},{table.RecordTypeName}>({open})";
+            }
             builder.AppendLine($"{indent}// [読み取りの形] IReader からは読取専用の集合として見せる。書ける表そのものは集合にしない(FLinqの取引用の経路を保つ)。");
             builder.AppendLine($"{indent}global::Seamless.Collections.ISet<{table.RecordTypeName}> {ReaderInterface(prefix)}.{name}=>{readerView};");
         }

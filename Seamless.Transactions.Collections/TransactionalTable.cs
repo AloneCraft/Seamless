@@ -118,7 +118,8 @@ public sealed class TransactionalTable<TKey,TRecord>:IContextualTransactionParti
         public void Dispose(){try{this.changes.Dispose();}finally{this.walMemory.Dispose();}}
     }
 }
-public sealed class TransactionCollection<TKey,TRecord>:IEnumerable<TRecord> where TKey:notnull{
+/// <summary>取引の中の表。関係代入(<c>tx.dbo.T = …</c>)では、この取引の私有の変更として差分を書く。</summary>
+public sealed class TransactionCollection<TKey,TRecord>:global::Seamless.Database.Table<TKey,TRecord> where TKey:notnull{
     private readonly ITransactionalTable<TKey,TRecord> table;
     private readonly TransactionScope scope;
     private readonly Func<TRecord,TKey> keyOf;
@@ -143,26 +144,30 @@ public sealed class TransactionCollection<TKey,TRecord>:IEnumerable<TRecord> whe
     internal QueryDictionaryBuffer<TResultKey,TResultValue> CreateDictionaryBuffer<TResultKey,TResultValue>(IEqualityComparer<TResultKey>? comparer) where TResultKey:notnull{
         return this.Use(changes=>changes.CreateDictionaryBuffer<TResultKey,TResultValue>(comparer));
     }
-    public TRecord this[TKey key]{
+    public override TRecord this[TKey key]{
         get=>this.Use(changes=>{var result=changes.Read(key);if(!result.Found){throw new KeyNotFoundException();}return result.Row;});
         set=>this.Use(changes=>{changes.Set(key,value);return true;});
     }
-    public bool TryGetValue(TKey key,out TRecord row){
+    public override bool TryGetValue(TKey key,[global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TRecord row){
         var result=this.scope.Use(this.table,key,static(ITableChanges<TKey,TRecord> changes,TKey value)=>changes.Read(value));
         row=result.Row;
         return result.Found;
     }
-    public bool ContainsKey(TKey key)=>this.Use(changes=>changes.Read(key).Found);
+    public override bool ContainsKey(TKey key)=>this.Use(changes=>changes.Read(key).Found);
     // [集合] 同じキーの行が取引から見えていて、行全体が等しいときだけ含む。キーだけの一致では含まない。
-    public bool Contains(TRecord row)=>this.TryGetValue(this.keyOf(row),out var current)&&EqualityComparer<TRecord>.Default.Equals(current,row);
-    // [件数] snapshotと私有変更を反映した行数。走査で数える(O(n))。集合としての Count は読取専用の包みだけが持つ。
+    public override bool Contains(TRecord row)=>this.TryGetValue(this.keyOf(row),out var current)&&EqualityComparer<TRecord>.Default.Equals(current,row);
+    // [件数] snapshotと私有変更を反映した行数。走査で数える(O(n))。
     internal long CountRows(){var count=0L;foreach(var _ in this){count++;}return count;}
-    public bool Add(TRecord row)=>this.Use(changes=>changes.Add(row));
-    public bool Remove(TKey key)=>this.Use(changes=>changes.Remove(key));
-    public IEnumerator<TRecord> GetEnumerator()=>this.Enumerate().GetEnumerator();
+    // [件数] 基底の Table の件数(2026-11-17 利用者決定)。取引から見える行を走査で数える(O(n))。
+    public override long LongCount=>this.CountRows();
+    public override bool Add(TRecord row)=>this.Use(changes=>changes.Add(row));
+    public override bool Remove(TKey key)=>this.Use(changes=>changes.Remove(key));
+    public override IEnumerator<TRecord> GetEnumerator()=>this.Enumerate().GetEnumerator();
     private IEnumerable<TRecord> Enumerate(){
         using var iterator=this.Use(static changes=>changes.Rows().GetEnumerator());
         while(this.Use(_=>iterator.MoveNext())){yield return iterator.Current;}
     }
-    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();
+    protected override TKey KeyOf(TRecord row)=>this.keyOf(row);
+    // [関係代入] 取引の表は読むたびに新しい包みを返すので、同じ保存先・同じ取引なら同じ表とみなす。
+    protected override bool RefersToSameTable(global::Seamless.Database.Table<TKey,TRecord> other)=>other is TransactionCollection<TKey,TRecord> collection&&ReferenceEquals(collection.table,this.table)&&ReferenceEquals(collection.scope,this.scope);
 }

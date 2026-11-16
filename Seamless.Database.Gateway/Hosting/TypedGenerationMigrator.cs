@@ -42,7 +42,7 @@ public static class TypedGenerationMigrator{
             if(property?.GetMethod is not{IsPublic:true}||property.GetIndexParameters().Length!=0){throw new InvalidDataException("A generated table path is unavailable: "+path);}
             current=property.GetValue(current)??throw new InvalidDataException("A generated table path returned null: "+path);
         }
-        var type=current.GetType();if(!type.IsGenericType||type.GetGenericTypeDefinition()!=typeof(Table<,>)){throw new InvalidDataException("A migration target must be a keyed typed table.");}
+        var type=current.GetType();if(!type.IsGenericType||type.GetGenericTypeDefinition()!=typeof(StoredTable<,>)){throw new InvalidDataException("A migration target must be a keyed typed table.");}
         return current;
     }
     private static Func<object,object,DatabaseContainer.UnpublishedSnapshotBuilder,MigrationContext,long> Bind<TOldKey,TOld,TNewKey,TNew>(MigrationPlan plan)

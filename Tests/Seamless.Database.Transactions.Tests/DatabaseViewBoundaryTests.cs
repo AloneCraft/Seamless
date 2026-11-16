@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -23,13 +23,13 @@ public sealed partial class DatabaseTransactionExpansionTests{
             public static class Queries{extension(Database.IReader q){public Seamless.Collections.ISet<Row> Identity=>q.Inner;}}
             public sealed class Entry{
                 private int calls;private int Key(Row row){this.calls++;return row.Value;}
-                [LinqIntercept(true)] private int[] Query(Database.TypedTransaction tx,int limit)=>tx.Outer.Rows.Where(row=>row.Id<limit).Join(tx.Inner.Rows,row=>this.Key(row),static row=>row.Id,static(a,b)=>a.Id*100+b.Value).ToArray();
-                [LinqIntercept(true)] private int[] ThroughView(Database.TypedTransaction tx,int limit)=>tx.Outer.Rows.Where(row=>row.Id<limit).Join(tx.Identity,row=>this.Key(row),static row=>row.Id,static(a,b)=>a.Id*100+b.Value).ToArray();
+                [LinqIntercept(true)] private int[] Query(Database.TypedTransaction tx,int limit)=>tx.Outer.Where(row=>row.Id<limit).Join(tx.Inner,row=>this.Key(row),static row=>row.Id,static(a,b)=>a.Id*100+b.Value).ToArray();
+                [LinqIntercept(true)] private int[] ThroughView(Database.TypedTransaction tx,int limit)=>tx.Outer.Where(row=>row.Id<limit).Join(tx.Identity,row=>this.Key(row),static row=>row.Id,static(a,b)=>a.Id*100+b.Value).ToArray();
                 public static async Task<string> Run(){
                     using var db=new Database(DatabaseContainerOptions.InMemory with{TransactionConcurrency=TransactionConcurrencyMode.Optimistic,RecordSerialization=DatabaseRecordSerialization.CanonicalV1,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!,TransactionHistory=new(){MaxRetainedMemoryBytes=1<<20,MaxRetainedStorageBytes=0,MaxMetadataBytes=1<<20,MaintenanceReserveMemoryBytes=1<<20,MaintenanceReserveStorageBytes=0,MaintenanceWaitTimeout=TimeSpan.FromSeconds(5)}});
                     _=db.Inner;await using(var seed=await db.BeginTransactionAsync()){for(var i=1;i<=3;i++)seed.Inner.Add(new(i,i*10));for(var i=0;i<80;i++)seed.Outer.Add(new(i,i%3+1));await seed.CommitAsync();}
                     await using var read=await db.BeginReadOnlyTransactionAsync();
-                    var keyType=typeof(Database).Assembly.GetTypes().Single(type=>type.Name.StartsWith("DatabaseJoinKey_",StringComparison.Ordinal));var key=keyType.GetMethod("Key",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<Func<Row,int>>();var available=read.Inner.Rows.TryGetJoinIndex(key,out _);
+                    var keyType=typeof(Database).Assembly.GetTypes().Single(type=>type.Name.StartsWith("DatabaseJoinKey_",StringComparison.Ordinal));var key=keyType.GetMethod("Key",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<Func<Row,int>>();var available=((global::Seamless.Transactions.Collections.TransactionCollection<int,Row>)read.Inner).Rows.TryGetJoinIndex(key,out _);
                     var entry=new Entry();var values=entry.Query(read,80);var calls=entry.calls;entry.calls=0;var viewValues=entry.ThroughView(read,80);var viewCalls=entry.calls;await read.CommitAsync();return JsonSerializer.Serialize(new{count=values.Length,calls,indexAvailable=available,values,viewValues,viewCalls});
                 }
             }
@@ -67,10 +67,10 @@ public sealed partial class DatabaseTransactionExpansionTests{
              private bool Filter(Row row,int limit){this.events.Add("F"+row.Id);this.filters++;if(this.mode=="filter"&&this.filters==65)throw new InvalidOperationException("filter65");return row.Id<limit;}
              private int Key(Row row){this.events.Add("K"+row.Id);this.keys++;if(this.mode=="key"&&this.keys==65||this.mode=="emptyinner")throw new InvalidOperationException("key65");return row.Value;}
              private int Result(Row outer,Row inner){this.events.Add("R"+outer.Id);this.results++;if(this.mode=="result"&&this.results==65)throw new InvalidOperationException("result65");return outer.Id*100+inner.Value;}
-             [LinqIntercept(true)]private int[] Query(Database.TypedTransaction tx,int limit)=>tx.Outer.Rows.Where(row=>this.Filter(row,limit)).Join(tx.Inner.Rows,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
-             [LinqIntercept(false)]private int[] Reference(Database.TypedTransaction tx,int limit)=>tx.Outer.Rows.Where(row=>this.Filter(row,limit)).Join(tx.Inner.Rows,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
-             [LinqIntercept(true)]private int[] QueryEmpty(Database.TypedTransaction tx)=>tx.Outer.Rows.Where(row=>this.Filter(row,70)).Join(tx.Empty.Rows,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
-             [LinqIntercept(false)]private int[] ReferenceEmpty(Database.TypedTransaction tx)=>tx.Outer.Rows.Where(row=>this.Filter(row,70)).Join(tx.Empty.Rows,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
+             [LinqIntercept(true)]private int[] Query(Database.TypedTransaction tx,int limit)=>tx.Outer.Where(row=>this.Filter(row,limit)).Join(tx.Inner,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
+             [LinqIntercept(false)]private int[] Reference(Database.TypedTransaction tx,int limit)=>tx.Outer.Where(row=>this.Filter(row,limit)).Join(tx.Inner,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
+             [LinqIntercept(true)]private int[] QueryEmpty(Database.TypedTransaction tx)=>tx.Outer.Where(row=>this.Filter(row,70)).Join(tx.Empty,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
+             [LinqIntercept(false)]private int[] ReferenceEmpty(Database.TypedTransaction tx)=>tx.Outer.Where(row=>this.Filter(row,70)).Join(tx.Empty,row=>this.Key(row),static row=>row.Id,(a,b)=>this.Result(a,b)).ToArray();
              private object Observe(Database.TypedTransaction tx,bool expanded){int[] values=[];string? error=null;try{if(this.mode=="emptyinner"){values=expanded?this.QueryEmpty(tx):this.ReferenceEmpty(tx);}else{var limit=this.mode=="emptyouter"?0:70;values=expanded?this.Query(tx,limit):this.Reference(tx,limit);}}catch(InvalidOperationException exception){error=exception.Message;}return new{values,error,events=this.events.ToArray(),this.filters,this.keys,this.results};}
              public static async Task<string> Run(){
               using var db=new Database(DatabaseContainerOptions.InMemory with{TransactionConcurrency=TransactionConcurrencyMode.Optimistic,RecordSerialization=DatabaseRecordSerialization.CanonicalV1,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!,TransactionHistory=new(){MaxRetainedMemoryBytes=1<<20,MaxRetainedStorageBytes=0,MaxMetadataBytes=1<<20,MaintenanceReserveMemoryBytes=1<<20,MaintenanceReserveStorageBytes=0,MaintenanceWaitTimeout=TimeSpan.FromSeconds(5)}});

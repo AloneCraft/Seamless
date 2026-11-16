@@ -13,5 +13,5 @@ internal static class DatabaseGenerator{
 }
 
 public sealed partial class ApplicationDatabase(DatabaseContainerOptions options):DatabaseContainer(options){
-    public Table<Keys.Item,Tables.Item>Items=>this.Table<Keys.Item,Tables.Item>(static row=>row.Key);
+    public partial Table<Keys.Item,Tables.Item> Items{get;set;}
 }

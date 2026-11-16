@@ -49,7 +49,7 @@ public sealed partial class DatabaseTransactionExpansionTests{
                     }
                     await using var read=await db.BeginReadOnlyTransactionAsync();
                     var reader=new Reader();var trace=new List<int>();
-                    var rowOrder=read.Accounts.Rows.Select(static row=>row.Id).ToArray();
+                    var rowOrder=read.Accounts.Select(static row=>row.Id).ToArray();
                     Check(reader.Conditional(read,trace,true),trace,0,false,rowOrder);
                     Check(reader.Conditional(read,trace,false),trace,6,true,rowOrder);
                     Check(reader.And(read,trace,false),trace,0,false,rowOrder);

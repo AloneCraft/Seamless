@@ -33,7 +33,7 @@ public sealed class TransactionRows<TKey,TRecord>(TransactionCollection<TKey,TRe
     public readonly struct JoinIndex{
         private readonly TransactionCollection<TKey,TRecord> source;
         internal JoinIndex(TransactionCollection<TKey,TRecord> source)=>this.source=source;
-        public bool TryGetValue(TKey key,out TRecord row)=>this.source.TryGetValue(key,out row);
+        public bool TryGetValue(TKey key,[global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TRecord row)=>this.source.TryGetValue(key,out row);
     }
     public void Iterate<TStrategy>(ref TStrategy strategy) where TStrategy:struct,IStrategy<TStrategy,TRecord>{collection.Iterate(ref strategy);}
     public void IterateParallel<TStrategy>(ref TStrategy strategy) where TStrategy:struct,IParallelStrategy<TStrategy,TRecord>{collection.IterateParallel(ref strategy);}
