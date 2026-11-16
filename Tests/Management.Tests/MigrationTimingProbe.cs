@@ -58,7 +58,41 @@ public sealed class MigrationTimingProbe{
         return line;
     }
 
+    // 表を tables<表の数> 個持つDBに、Manager と同じ設定で表ごとに rows 件ずつ書く。ストアのメモリ上限(既定256MB)に
+    // 表ごとの上限(16MB)の合計が届いたときに書き込みが失敗するかを見る。失敗したら何個目の表の何件目かを記録する。
+    private static string RunTables(string directory,string variant,int rows,StringBuilder? report){
+        var tables=int.Parse(variant["tables".Length..]);
+        var members=new StringBuilder();var seeds=new StringBuilder();
+        for(var index=0;index<tables;index++){
+            members.Append("public Table<Key,Row> Rows").Append(index).Append("=>this.Table<Key,Row>(row=>new(row.Id));");
+            seeds.Append("case ").Append(index).Append(":for(var id=start;id<start+count;id++){if(!db.Rows").Append(index).Append(".Add(new(id,id))){throw new System.InvalidOperationException();}}break;");
+        }
+        var source="using Seamless.Database;namespace Model{public sealed class Db(DatabaseContainerOptions options):DatabaseContainer(options){"+members
+            +"protected override void EnsureTransactionSchema(){}"
+            +"public static void Seed(Db db,int table,int start,int count){using var write=db.BeginTransaction();switch(table){"+seeds+"}write.Commit();}}"
+            +"public readonly record struct Key(int Id);public readonly record struct Row(int Id,int Value);}";
+        var compilation=CSharpCompilation.Create("Tables"+tables,[CSharpSyntaxTree.ParseText(source,new CSharpParseOptions(LanguageVersion.CSharp14))],Seamless.Management.SourceEditor.PlatformReferences(),new(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release));
+        using var pe=new MemoryStream();var emitted=compilation.Emit(pe);Assert.True(emitted.Success,string.Join(Environment.NewLine,emitted.Diagnostics));
+        var bytes=pe.ToArray();var definition=new Definition("tables","Tables",DefinitionKind.Database,"Model.Db","",new("1",[new("Db.cs",source)],[]));
+        using var instance=new DatabaseInstance(definition,"unused",new(bytes,new(definition.Source.Hash(),Convert.ToHexString(SHA256.HashData(bytes)),[],[])));
+        var path=Path.Combine(directory,"db");
+        stage="open";instance.Open(DatabaseContainerOptions.OnStorage(path) with{RecordSerialization=DatabaseRecordSerialization.CanonicalV1,IndexSize=1024,PageSize=1<<20,SegmentSize=1<<24,MemorySize=1<<24,TemporaryDirectory=Path.Combine(path,"temporary")});
+        var seed=instance.Database.GetType().GetMethod("Seed")!;var clock=Stopwatch.StartNew();
+        string outcome="ok";
+        for(var table=0;table<tables&&outcome=="ok";table++){
+            for(var start=0;start<rows;start+=10_000){
+                try{seed.Invoke(null,[instance.Database,table,start,Math.Min(10_000,rows-start)]);}
+                catch(Exception error){var inner=error is System.Reflection.TargetInvocationException{InnerException:{} cause}?cause:error;outcome="FAIL(table="+table+";row="+start+";"+inner.GetType().Name+":"+inner.Message.Replace(",",";")+")";break;}
+            }
+        }
+        clock.Stop();
+        var line=string.Join(",",variant,rows,clock.ElapsedMilliseconds,outcome);
+        report?.AppendLine(line);
+        return line;
+    }
+
     private static string Run(string directory,string variant,int rows,StringBuilder? report){
+        if(variant.StartsWith("tables",StringComparison.Ordinal)){return RunTables(directory,variant,rows,report);}
         if(variant.StartsWith("reopen",StringComparison.Ordinal)){return RunReopen(directory,variant,rows,report);}
         // Manager の DatabaseInstance.Open と同じ設定(NativeRuntime.cs)。
         DatabaseContainerOptions Manager(string path)=>DatabaseContainerOptions.OnStorage(path) with{RecordSerialization=DatabaseRecordSerialization.CanonicalV1,IndexSize=1024,PageSize=1<<20,SegmentSize=1<<24,MemorySize=1<<24,TemporaryDirectory=Path.Combine(path,"temporary")};
