@@ -50,7 +50,8 @@ public static partial class DatabaseDesigner{
                     var path=prefix+member.Name;
                     if(IsSchemaType(type)){Walk(type,path+".",path);continue;}
                     if(type.ContainingNamespace.ToDisplayString()!="Seamless.Database"){continue;}
-                    var kind=type.Name switch{"Table"=>"Table","MaterializedView"=>"View",_=>null};
+                    // 取引を通さない表(db.X、Set<T>)は一覧と行のデータだけ。構造の編集は C# で行う。
+                    var kind=type.Name switch{"Table"=>"Table","MaterializedView"=>"View","Set"=>"Set",_=>null};
                     if(kind is null||type.TypeArguments.Length==0){continue;}
                     objects.Add(path,new(path,member.Name,schema,kind,TypeName(type.TypeArguments[^1])));
                     if(kind=="Table"){handWritten.Add(type.TypeArguments[^1].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));}

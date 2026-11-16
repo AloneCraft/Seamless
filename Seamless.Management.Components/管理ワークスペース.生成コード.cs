@@ -82,7 +82,7 @@ public partial class 管理ワークスペース{
     private static string 生成コード対象名(管理対象 対象){
         if(対象.表 is{} 表){return 表;}
         if(対象.種類=="オブジェクト分類"){
-            var 名前=表示文言.取得(対象.追加種類??"");
+            var 名前=対象.追加種類==ツリー展開状態.スキーマ分類?表示文言.取得("スキーマ"):表示文言.取得(対象.追加種類??"");
             if(対象.スキーマ.Length>0){return 対象.スキーマ+" / "+名前;}
             return 名前;
         }
@@ -94,6 +94,9 @@ public partial class 管理ワークスペース{
         var 名前一覧=new List<string>();
         if(対象.表 is{} 表){
             名前一覧.Add(表.Split('.').Last());
+        }else if(対象.種類=="オブジェクト分類"&&対象.追加種類==ツリー展開状態.スキーマ分類){
+            // 見出し「スキーマ」はすべてのスキーマの生成コード。
+            名前一覧.AddRange(DatabaseDesigner.Schemas(文書.定義).Select(名前=>名前.Split('.').Last()));
         }else if(対象.種類=="オブジェクト分類"){
             var 種類=対象.追加種類??"";
             名前一覧.AddRange(DatabaseDesigner.Objects(文書.定義).Where(項目=>項目.Schema==対象.スキーマ&&(項目.Kind==種類||種類=="Function"&&項目.Kind.EndsWith("Function",StringComparison.Ordinal))).Select(項目=>項目.Name));

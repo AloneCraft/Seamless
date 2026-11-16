@@ -17,7 +17,7 @@ public partial class 管理ワークスペース{
     private bool 文書参照権限があるか(CatalogDatabase DB,ブラウザー保存文書 参照){
         if(参照.PublishedOnly){return this.権限があるか(DB.Name,ManagementPermission.View);}
         if(!this.権限があるか(DB.Name,ManagementPermission.View)||!this.権限があるか(DB.Name,ManagementPermission.Edit)){return false;}
-        if(参照.Kind=="Table"&&参照.View=="データ"&&!this.権限があるか(DB.Name,ManagementPermission.ReadRows)){return false;}
+        if(参照.Kind is "Table" or "Set"&&参照.View=="データ"&&!this.権限があるか(DB.Name,ManagementPermission.ReadRows)){return false;}
         if(参照.View is "アクセス履歴" or "実行履歴"&&!this.権限があるか(DB.Name,ManagementPermission.Manage)){return false;}
         return true;
     }

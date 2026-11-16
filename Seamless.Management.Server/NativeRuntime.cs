@@ -141,7 +141,7 @@ internal sealed partial class NativeRuntime:IDisposable{
             if(enableAuditGeneration is not null){auditWrites=true;}
             var candidate=this.Save(definition,compiled,old?.Version??0,auditWrites:auditWrites);var instance=new DatabaseInstance(definition,this.Full(System.IO.Path.Combine(candidate.StoragePath,"data")),compiled.Retain());
             try{
-                instance.Open();if(old is not null){if(enableAuditGeneration is not null){TypedMigration.Copy(this.Open(old),instance,cancellationToken,migration:null,checkpoint:migrationCheckpoint);}else{this.Copy(this.Open(old),instance,cancellationToken);}}
+                instance.Open();if(old is not null){if(enableAuditGeneration is not null){TypedMigration.Copy(this.Open(old),instance,cancellationToken,migration:null,checkpoint:migrationCheckpoint);}else{this.Copy(this.Open(old),instance,cancellationToken);}CopyDirectSets(this.Open(old).Database,instance.Database,cancellationToken);}
                 var rebuilt=new List<PreparedDefinition>();long cursor=0;
                 do{var page=this.store.List<DefinitionVersion>("active",cursor,predicate:item=>item.Database==this.store.CurrentDatabase(definition)&&item.Definition.Kind==DefinitionKind.Query);
                     foreach(var query in page.Items){cancellationToken.ThrowIfCancellationRequested();var result=this.compiler.Compile(query.Definition.Source,[compiled.AssemblyBytes],query.Definition.EntryType,query.Definition.EntryMember);rebuilt.Add(this.Save(query.Definition,result,query.Version,candidate.ArtifactHash));}
@@ -154,6 +154,31 @@ internal sealed partial class NativeRuntime:IDisposable{
         }finally{gate.Release();}
     }
     private void Copy(DatabaseInstance source,DatabaseInstance target,CancellationToken cancellationToken)=>TypedMigration.Copy(source,target,cancellationToken,target.Definition.Migration);
+    // 取引を通さない表(Set<T>)を写す。新旧の両方に同じ経路の宣言がある表だけを、行を JSON にして新しい行の型へ読み直して足す。
+    // 新しい定義から消えた表は写さない。行の形が合わなければ公開を止める(黙って欠けさせない)。
+    private static void CopyDirectSets(DatabaseContainer before,DatabaseContainer after,CancellationToken cancellation){
+        var targets=DatabaseTableDeclaration.ReadDirectSets(after.GetType()).ToDictionary(item=>item.Path,StringComparer.Ordinal);
+        foreach(var source in DatabaseTableDeclaration.ReadDirectSets(before.GetType())){
+            if(!targets.TryGetValue(source.Path,out var target)){continue;}
+            var type=target.Property.PropertyType;
+            var method=type.GetGenericTypeDefinition()==typeof(Set<,>)?nameof(CopyIntoKeyedSet):nameof(CopyIntoKeylessSet);
+            var copy=typeof(NativeRuntime).GetMethod(method,BindingFlags.NonPublic|BindingFlags.Static)!.MakeGenericMethod(type.GenericTypeArguments);
+            try{copy.Invoke(null,[source.Path,(System.Collections.IEnumerable)source.GetTable(before),target.GetTable(after),cancellation]);}
+            catch(TargetInvocationException error) when(error.InnerException is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();}
+        }
+    }
+    private static void CopyIntoKeyedSet<TKey,TRecord>(string path,System.Collections.IEnumerable rows,object target,CancellationToken cancellation) where TRecord:global::Seamless.Collections.IRecord<TKey>{
+        var set=(Set<TKey,TRecord>)target;
+        foreach(var row in rows){cancellation.ThrowIfCancellationRequested();if(!set.Add((TRecord)ReadDirectSetRow(path,row,typeof(TRecord)))){throw new ManagementException("Validation","取引を通さない表を写すときに主キーが重複しました: "+path);}}
+    }
+    private static void CopyIntoKeylessSet<TRecord>(string path,System.Collections.IEnumerable rows,object target,CancellationToken cancellation) where TRecord:notnull{
+        var set=(Set<TRecord>)target;
+        foreach(var row in rows){cancellation.ThrowIfCancellationRequested();set.Add((TRecord)ReadDirectSetRow(path,row,typeof(TRecord)));}
+    }
+    private static object ReadDirectSetRow(string path,object? row,Type type){
+        try{return RuntimeValueJson.Deserialize(RuntimeValueJson.Serialize(row),type)??throw new InvalidDataException("null");}
+        catch(Exception error) when(error is not OperationCanceledException and not ManagementException){throw new ManagementException("Validation","取引を通さない表の行の形が新しい定義と合わないため、写せません: "+path+"（"+error.Message+"）");}
+    }
     private void BackupGeneration(DefinitionVersion version,string destination,CancellationToken cancellation){
         if(Directory.Exists(destination)||File.Exists(destination)){throw new IOException("バックアップ先は未使用の場所を指定してください。");}
         if(this.databases.TryRemove(version.Definition.Id,out var active)){active.Dispose();}

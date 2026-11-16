@@ -34,8 +34,8 @@ public partial class 管理ワークスペース{
         if(this.現在対象文書 is{} 対象&&対象.DBID==ID&&対象.対象 is not null){return 対象.対象;}
         if(this.ツリー所属選択中か||this.選択DBID!=ID||!this.文書一覧.TryGetValue(ID,out var 文書)){return null;}
         var 一覧=文書.オブジェクト;
-        if(this.選択表名 is{} 表){return 一覧.FirstOrDefault(項目=>項目.Kind=="Table"&&項目.Id==表);}
-        if(this.計画対象 is{} 計画&&計画.DefinitionId==文書.定義.Id){return 一覧.FirstOrDefault(項目=>項目.Kind!="Table"&&項目.Id==計画.ObjectId);}
+        if(this.選択表名 is{} 表){return 一覧.FirstOrDefault(項目=>項目.Kind is "Table" or "Set"&&項目.Id==表);}
+        if(this.計画対象 is{} 計画&&計画.DefinitionId==文書.定義.Id){return 一覧.FirstOrDefault(項目=>項目.Kind is not ("Table" or "Set")&&項目.Id==計画.ObjectId);}
         if(this.実行問い合わせ is{} 問い合わせ){return 一覧.FirstOrDefault(項目=>項目.Kind==問い合わせ.Kind.ToString()&&項目.Id==問い合わせ.Path);}
         return null;
     }

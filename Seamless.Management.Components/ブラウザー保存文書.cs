@@ -11,6 +11,7 @@ public sealed record ブラウザー保存文書(string DatabaseId,long Database
         var 許可表示=new[]{"データ","構造","C#","実行計画","実行履歴"};
         if(this.Kind is "Database" or "Schema"){許可表示=["DB情報"];}
         else if(this.Kind=="Table"){許可表示=["データ","構造","C#","アクセス履歴"];}
+        else if(this.Kind=="Set"){許可表示=["データ"];}
         if(!許可表示.Contains(this.View,StringComparer.Ordinal)){throw new InvalidOperationException("保存された文書表示が不正です。");}
     }
     internal bool DBが一致するか(CatalogDatabase DB)=>!DB.IsSystem&&this.DatabaseId==DB.Id&&this.DatabaseVersion==DB.Version&&this.DatabaseArtifactHash==DB.ArtifactHash;

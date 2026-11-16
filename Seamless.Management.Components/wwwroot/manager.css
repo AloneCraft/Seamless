@@ -6,7 +6,7 @@
 .メニュー項目[data-破壊的=true] .コマンドアイコン{color:inherit}
 .ソース入口{justify-content:flex-start}
 .表アイコン .操作アイコン{width:21px;height:21px}
-.DB子一覧{margin-left:12px;border-left:1px solid var(--線);padding-left:4px}.スキーマ子一覧,.オブジェクト子一覧{margin-left:12px}.分類名{font-size:11px;color:var(--補助)}.枝の開閉{display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;min-height:24px;padding:0!important;width:20px;color:var(--補助)!important;border-radius:4px}.枝の開閉:hover{background:#dce5d8}.枝の開閉:focus-visible{outline:2px solid var(--強調);outline-offset:1px}.所属パンくず{display:flex;gap:6px;align-items:center;color:var(--補助);margin:16px 0 8px}.処理本体ラベル{display:block;margin-top:16px}.問い合わせ本体{display:block;width:100%;min-height:190px;padding:12px;border:1px solid var(--線);border-radius:6px;font-family:Consolas,monospace;font-size:12px;line-height:1.6;resize:vertical;background:#fafbf8;color:var(--文字)}
+.DB子一覧{margin-left:12px;border-left:1px solid #d6d5ce;padding-left:4px}/* 開いた見出し・スキーマの子の範囲も DB と同じ縦の線で囲み、どの階層の子かを示す(Notion の字下げにならう)。 */.スキーマ子一覧,.オブジェクト子一覧{margin-left:12px;border-left:1px solid #d6d5ce;padding-left:4px}.分類名{font-size:11px;color:var(--補助)}.枝の開閉{display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;min-height:24px;padding:0!important;width:20px;color:var(--補助)!important;border-radius:4px}.枝の開閉:hover{background:#dce5d8}.枝の開閉:focus-visible{outline:2px solid var(--強調);outline-offset:1px}.所属パンくず{display:flex;gap:6px;align-items:center;color:var(--補助);margin:16px 0 8px}.処理本体ラベル{display:block;margin-top:16px}.問い合わせ本体{display:block;width:100%;min-height:190px;padding:12px;border:1px solid var(--線);border-radius:6px;font-family:Consolas,monospace;font-size:12px;line-height:1.6;resize:vertical;background:#fafbf8;color:var(--文字)}
 body:has(.管理ワークスペース){margin:0}
 .管理ワークスペース{--線:#e9e8e3;--薄:#f7f7f3;--文字:#373832;--補助:#697164;--強調:#267768;display:flex;min-height:100vh;background:#fff;color:var(--文字);font-size:13px;line-height:1.5}
 .管理ワークスペース *{box-sizing:border-box}
@@ -32,7 +32,7 @@ body:has(.管理ワークスペース){margin:0}
 .対象行:focus-visible{outline:2px solid #82afa3;outline-offset:-2px}
 .DB一覧 .対象行>.対象内容{order:0;flex:1;min-width:0}
 .DB一覧 .対象行>.操作帯{order:1}
-.ツリー列一覧{padding:2px 8px 5px 22px;min-width:0}
+/* 表の列の一覧も、ほかの子の範囲と同じ縦の線で囲む。 */.ツリー列一覧{margin-left:12px;border-left:1px solid #d6d5ce;padding:2px 8px 5px 4px;min-width:0}
 .ツリー列行{display:flex;align-items:center;gap:6px;width:100%;border:0;background:transparent;text-align:left;padding:4px;color:inherit}
 .ツリー列行:hover,.ツリー列行:focus-visible{background:#eeeee8}
 .ツリー列行 span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -285,7 +285,9 @@ body:has(.管理ワークスペース){margin:0}
 /* 左ツリーのインプレース編集(2026-11-11): 表示行と編集行・追加行を同じ高さに固定し、編集の開始・終了で位置を1pxも動かさない。 */
 .ツリー列外枠{position:relative;height:30px;box-sizing:border-box}
 .ツリー列外枠>.ツリー列行{height:100%;box-sizing:border-box;padding:2px 4px}
-.ツリー列一覧>.ツリー列追加{display:flex;align-items:center;gap:6px;height:30px;box-sizing:border-box;padding:0 8px!important}
+.ツリー列一覧>.ツリー列追加{display:flex;align-items:center;gap:6px;height:30px;box-sizing:border-box;padding:0 8px 0 3px!important}
+button.テキストボタン.ツリー列追加{color:#80857e}
+button.テキストボタン.ツリー列追加:hover{color:#405b49}
 .ツリー列外枠>.ツリー列編集行{display:flex;align-items:center;gap:3px;min-width:0}
 .ツリー列外枠>.ツリー列編集行>input:not([type=checkbox]),.ツリー列外枠>.ツリー列編集行 .型入力 input{height:24px;min-height:0;box-sizing:border-box;padding:2px 5px;font-size:12px}
 .ツリー列外枠>.ツリー列編集行>input:not([type=checkbox]){flex:1 1 70px;width:auto}
@@ -300,10 +302,12 @@ body:has(.管理ワークスペース){margin:0}
 .行右ボタン{width:24px;height:24px;flex:0 0 24px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:4px;background:transparent;color:#7b8a79;cursor:pointer}
 .行右ボタン:hover,.行右ボタン:focus-visible{background:#e7ece1;color:#26372e}
 .行右ボタン:disabled{opacity:.45;cursor:default}
-.ツリー追加行{display:flex;align-items:center;gap:7px;width:100%;height:35px;margin:1px 0;box-sizing:border-box;padding:0 8px 0 30px!important;text-align:left;border:0;background:transparent}
+/* 「＋…を追加」の「＋」は、追加する先の階層の行の開閉の三角の列に置き、文字は薄くする(子の範囲の線の内側＝その見出しの子)。 */.ツリー追加行{display:flex;align-items:center;gap:7px;width:100%;height:35px;margin:1px 0;box-sizing:border-box;padding:0 8px 0 3px!important;text-align:left;border:0;background:transparent;color:#80857e}
 .ツリー追加行 .ツリー追加入力,.ツリー名前入力{height:24px;min-width:0;flex:1;box-sizing:border-box;border:1px solid #b2c9b9;border-radius:4px;padding:2px 6px;font:inherit;font-size:12px;outline-color:#559c83;background:#fff}
 .ツリー名前変更{display:flex;flex:1;min-width:0}
 .ツリー追加行{justify-content:flex-start}
+button.テキストボタン.ツリー追加行{color:#80857e}
+button.テキストボタン.ツリー追加行:hover{color:#405b49}
 /* 名前・コピー・削除は、行にマウスを乗せたとき・フォーカス時・選択中に表示し、通常は名前を読めるようにする。行の高さと位置は変えない。 */
 .対象行 .行右操作{display:none}
 .対象行:hover .行右操作,.対象行:focus-within .行右操作,.対象行[data-選択中=true] .行右操作{display:flex}

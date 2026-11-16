@@ -54,7 +54,9 @@
     private string? 作成中分類,名前変更中ID,案内;
     private bool 処理中か,未対応案内か;
     private string 案内クラス{get{if(this.未対応案内か){return "ツリー列未対応";}return "ツリー列診断";}}
-    private static readonly string[] 追加分類=["Function","Table","View"];
+    // 固定の見出しの並び：テーブル・(取引を通さない表)・ビュー・関数。スキーマの見出しは DB の木が最後に置く。
+    private static readonly string[] 追加分類=["Table","View","Function"];
+    private static readonly string[] 分類の並び=["Table","Set","View","Function"];
     private bool 追加できる分類か(string 分類)=>this.編集可能か&&this.対象操作 is not null&&追加分類.Contains(分類,StringComparer.Ordinal);
     // 編集できる場合は、まだ1件もない分類も「＋…を追加」の置き場所として表示する。
     private IEnumerable<IGrouping<string,CatalogObject>> 分類一覧(){
@@ -68,7 +70,7 @@
             }
         }else{
         }
-        return 組.OrderBy(項目=>{var 位置=Array.IndexOf(追加分類,項目.Key);if(位置<0){return 追加分類.Length;}return 位置;});
+        return 組.OrderBy(項目=>{var 位置=Array.IndexOf(分類の並び,項目.Key);if(位置<0){return 分類の並び.Length;}return 位置;});
     }
     private sealed class 空の分類(string 種類):IGrouping<string,CatalogObject>{
         public string Key=>種類;
@@ -76,7 +78,8 @@
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();
     }
     private RenderFragment? 行操作(CatalogObject 項目){
-        if(!this.編集可能か||this.対象操作 is null||項目.Kind=="RegisteredFunction"){return null;}
+        // 取引を通さない表(Set<T>)は設計器が宣言を読まないので、名前の変更・コピー・削除は C# で行う。
+        if(!this.編集可能か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return null;}
         return @<text>
             <button type="button" class="行右ボタン" title="@表示文言.取得("名前の変更")" aria-label="@表示文言.取得("{0}の名前を変更",項目.Name)" disabled="@処理中か" @onclick="()=>名前変更を開始(項目)"><操作アイコン 種類="名前の変更"/></button>
             <button type="button" class="行右ボタン" title="@表示文言.取得("コピー")" aria-label="@表示文言.取得("{0}をコピー",項目.Name)" disabled="@処理中か" @onclick="()=>操作Async(()=>this.対象操作!.コピー(項目))"><操作アイコン 種類="コピー"/></button>
@@ -85,7 +88,7 @@
     }
     private void 作成を開始(string 分類){this.名前変更中ID=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類,true);this.作成中分類=分類;}
     private void 作成を閉じる(){this.作成中分類=null;}
-    public void 名前変更を開始(CatalogObject 項目){if(!this.編集可能か||this.対象操作 is null||項目.Kind=="RegisteredFunction"){return;}this.作成中分類=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類(項目.Kind),true);this.名前変更中ID=項目.Id;this.StateHasChanged();}
+    public void 名前変更を開始(CatalogObject 項目){if(!this.編集可能か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return;}this.作成中分類=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類(項目.Kind),true);this.名前変更中ID=項目.Id;this.StateHasChanged();}
     private void 名前変更を閉じる(){this.名前変更中ID=null;}
     private async Task 作成確定Async(string 分類,string 名前){
         await this.操作Async(()=>this.対象操作!.作成(this.所属,分類,名前));
@@ -106,9 +109,9 @@
     private bool? 表展開状態(CatalogObject 項目){if(項目.Kind=="Table"){return this.展開状態.テーブル展開中か(項目.Id);}return null;}
     public async Task 列追加を開始Async(string ID){this.展開状態.分類を開閉(this.所属,"Table",true);this.展開状態.テーブルを開閉(ID,true);if(this.列画面.TryGetValue(ID,out var 画面)){await 画面.追加開始Async();}await this.InvokeAsync(this.StateHasChanged);}
     private static string 分類(string 種類){if(種類 is "ScalarFunction" or "TableFunction" or "RegisteredFunction"){return "Function";}return 種類;}
-    private static string 表示名(string 種類)=>種類 switch{"Table"=>"テーブル","View"=>"ビュー","Function"=>"関数",_=>"その他"};
+    private static string 表示名(string 種類)=>種類 switch{"Table"=>"テーブル","Set"=>"取引を通さない表","View"=>"ビュー","Function"=>"関数",_=>"その他"};
     private static string 追加文言(string 種類)=>種類 switch{"Table"=>"テーブルを追加","View"=>"ビューを追加",_=>"関数を追加"};
     private static string 新しい名前の説明(string 種類)=>種類 switch{"Table"=>"新しいテーブル名","View"=>"新しいビュー名",_=>"新しい関数名"};
-    private static string アイコン(string 種類)=>種類 switch{"Table"=>"テーブル","View"=>"ビュー",_=>"関数"};
-    private static string 項目ID(CatalogObject 項目){if(項目.Kind=="Table"){return "table:"+項目.Id;}return "query:"+項目.Id;}
+    private static string アイコン(string 種類)=>種類 switch{"Table" or "Set"=>"テーブル","View"=>"ビュー",_=>"関数"};
+    private static string 項目ID(CatalogObject 項目){if(項目.Kind=="Table"){return "table:"+項目.Id;}if(項目.Kind=="Set"){return "set:"+項目.Id;}return "query:"+項目.Id;}
 }

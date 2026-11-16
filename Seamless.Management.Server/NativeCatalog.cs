@@ -76,6 +76,8 @@ internal static class NativeCatalog{
                 else if(generic==typeof(MaterializedView<,>)){kind="View";}
                 else if(generic==typeof(StoredProcedure<>)){kind="StoredProcedure";}
                 else if(generic.FullName=="Seamless.Database.System.SystemTable`2"){kind="SystemTable";}
+                // 取引を通さない表(db.X)。行の一覧と編集はできるが、衝突は値の比較だけで見つける。
+                else if(generic==typeof(Set<,>)||generic==typeof(Set<>)){kind="Set";}
                 if(kind is null){continue;}
                 var imported=member.GetCustomAttributesData().FirstOrDefault(attribute=>attribute.AttributeType.FullName==typeof(ImportedDatabaseObjectAttribute).FullName);
                 var actualSchema=imported?.ConstructorArguments[0].Value as string??schema;var name=imported?.ConstructorArguments[1].Value as string??member.Name;
@@ -89,8 +91,8 @@ internal static class NativeCatalog{
         }finally{ancestors.Remove(type);}
     }
     // Tables と [Key] で書いた行の生成された Key(IRecord<キーの型> の Key)は列ではない(キーの型の列は行の同じ名前の列として並ぶ)。
-    private static bool IsRecordKey(Type type,PropertyInfo property)=>property.Name=="Key"&&type.GetInterfaces().Any(contract=>
-        contract.IsGenericType&&contract.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.IRecord<>)&&contract.GenericTypeArguments[0]==property.PropertyType);
+    // 手で書いた IRecord<TKey> の行(取引を通さない表の行など)の Key は本物の列なので残す(判定は値の JSON 化と同じ)。
+    private static bool IsRecordKey(Type type,PropertyInfo property)=>property.Name=="Key"&&GeneratedRecordShape.IsDeclaredRecord(type);
     private static CatalogField[] Fields(Type type)=>type.GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.GetIndexParameters().Length==0&&!IsRecordKey(type,property)).Select(property=>new CatalogField(property.Name,Display(property.PropertyType))).Concat(type.GetFields(BindingFlags.Public|BindingFlags.Instance).Select(field=>new CatalogField(field.Name,Display(field.FieldType)))).ToArray();
     private static string Display(Type type)=>type.FullName??type.ToString();
 }

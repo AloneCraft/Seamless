@@ -7,7 +7,7 @@
         <div hidden="@(状態.表示!="データ")">
         @if(!公開済みか){
             <section class="未適用テーブル"><h3>@状態.名前 <span class="未適用印">@表示文言.取得("未適用")</span></h3><p>@表示文言.取得("この定義は下書きにあります。変更を確認して稼働DBへ適用してください。")</p><button class="控えめボタン" @onclick="@(()=>表示変更時Async("構造"))"><操作アイコン 種類="編集"/>@表示文言.取得("定義を編集")</button><button class="主要ボタン" @onclick="変更確認時"><操作アイコン 種類="変更を確認"/>@表示文言.取得("変更を確認")</button></section>
-        }else if(状態.対象?.Kind=="Table"){
+        }else if(状態.対象?.Kind is "Table" or "Set"){
             <結果グリッド DB名="@DB名" テーブル名="@状態.対象.Id" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 編集可能か="データ編集可能か" 未保存変更時="データ未保存時"/>
         }else{
             <関数データ DB名="@DB名" 対象="状態.対象!" 関数="関数対象" ビュー="ビュー定義" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 実行可能か="実行可能か" 資源計測可能か="資源計測可能か" ノード実測可能か="編集可能か" ノード実測時="ノード実測時" 実測完了時="実測時" トレース実行時="トレース時" 資源記録時="資源記録時"/>
@@ -54,7 +54,8 @@
     private Definition? ビュー読取定義;
     private QueryDesign? 読取ビュー;
     private bool 計画を表示できるか=>!this.未保管か&&!this.状態.編集中か;
-    private string[] 表示項目{get{if(this.状態.対象?.Kind=="Table"){return ["データ","構造","C#","アクセス履歴"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
+    // 取引を通さない表(Set<T>)は、設計器が宣言を読まないので構造・C# の編集は出さない(データだけ)。
+    private string[] 表示項目{get{if(this.状態.対象?.Kind=="Table"){return ["データ","構造","C#","アクセス履歴"];}if(this.状態.対象?.Kind=="Set"){return ["データ"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
     private string 編集表示{get{if(this.状態.表示=="C#"){return "Source";}return "Structure";}}
     private string 実行対象ID{get{if(this.状態.関数?.Target.Origin==FunctionOrigin.RegisteredEntry){return this.状態.関数.Target.ObjectId;}return this.状態.対象!.Id;}}
     private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction"){return new(FunctionOrigin.DatabaseMember,this.状態.DBID,this.状態.定義ID,this.状態.対象.Id);}return null;}}
