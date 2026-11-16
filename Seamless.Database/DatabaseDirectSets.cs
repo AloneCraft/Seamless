@@ -56,7 +56,7 @@ public abstract partial class DatabaseContainer {
             throw new InvalidOperationException($"取引を通さない表が古い形式({LegacyDirectSetDirectoryName})で保存されています。自動では読み替えません。新しいフォルダの DB へ明示的に移してください。");
         }
         // 取引の保存領域と混ざらないよう、直接使う表は専用の下位ディレクトリの共通ストアに置く。
-        this.directStore=ExecutionStore.Open(Path.Combine(root,DirectSetDirectoryName),options:this.Options.SharedStoreOptions,parentBudget:this.executionResources.Budget);
+        this.directStore=ExecutionStore.Open(Path.Combine(root,DirectSetDirectoryName),this.SharedStoreLimits,this.Options.SharedStoreOptions,this.executionResources.Budget);
         return this.directStore;
     }
 

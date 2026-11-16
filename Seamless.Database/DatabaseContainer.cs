@@ -55,6 +55,9 @@ public abstract partial class DatabaseContainer:IDisposable {
         this.executionResources.Budget.PeakMemoryBytes,
         this.executionResources.Budget.PeakTemporaryStorageBytes);
     internal global::Seamless.Execution.ExecutionScope ExecutionResources=>this.executionResources;
+    // 共通ストアのメモリの上限は DB の上限(ManagedMemoryLimitBytes)にそろえる。渡さないとストアの既定の 256MB のままになり、
+    // DB の上限を上げても表を開くときの先取り(表ごとのログのメモリ)が 256MB に収まらず、表の多い DB を開けなかった(2026-11-16)。
+    private global::Seamless.Execution.StoreLimits SharedStoreLimits=>new(){MemoryBytes=this.Options.ManagedMemoryLimitBytes};
     /// <summary>DBの親予算と一時領域に属し、usingまたはDB終了時に解放する作業ストアを作る。</summary>
     public global::Seamless.Execution.Store CreateWorkStore(global::Seamless.Execution.StoreLimits? limits=null,global::Seamless.Execution.StoreOptions? options=null){
         this.EnsureAvailable();

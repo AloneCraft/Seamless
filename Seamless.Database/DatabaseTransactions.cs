@@ -99,7 +99,7 @@ public abstract partial class DatabaseContainer{
                         failure=this.preparedSharedJournal.Failure;
                     }else{this.sharedJournal=new(Path.Combine(root,walDirectory),walOptions,this.executionResources.Budget,failure);}
                 }
-                this.sharedStore=ExecutionStore.Open(Path.Combine(root,storeDirectory),options:this.Options.SharedStoreOptions,parentBudget:this.executionResources.Budget);
+                this.sharedStore=ExecutionStore.Open(Path.Combine(root,storeDirectory),this.SharedStoreLimits,this.Options.SharedStoreOptions,this.executionResources.Budget);
                 this.sharedCheckpoint.DatabaseId=this.Options.GatewayProfile?.DatabaseId??0;
                 this.sharedCheckpoint.GenerationId=this.Options.GatewayProfile?.GenerationId??Guid.Empty;
                 this.sharedCheckpoint.GraphProfile=this.Options.RecordSerialization==DatabaseRecordSerialization.RecordGraphV1;

@@ -37,11 +37,19 @@ internal sealed class DatabaseInstance(Definition definition,string path,Compile
         else{this.Assembly=this.Context.LoadFromStream(stream);}
         var type=this.Assembly.GetType(this.Definition.EntryType,true)!;
         if(!typeof(DatabaseContainer).IsAssignableFrom(type)){throw new ManagementException("Validation","DBの入口はDatabaseContainer派生型にしてください。");}
-        var options=DatabaseContainerOptions.OnStorage(this.Path) with{RecordSerialization=DatabaseRecordSerialization.CanonicalV1,IndexSize=1024,PageSize=1<<20,SegmentSize=1<<24,MemorySize=1<<24,TemporaryDirectory=System.IO.Path.Combine(this.Path,"temporary"),MaximumQueryWorkers=Math.Min(8,Environment.ProcessorCount)};
+        var options=DatabaseContainerOptions.OnStorage(this.Path) with{RecordSerialization=DatabaseRecordSerialization.CanonicalV1,IndexSize=1024,PageSize=1<<20,SegmentSize=1<<24,MemorySize=TableMemoryBytes,ManagedMemoryLimitBytes=MemoryLimit(type),TemporaryDirectory=System.IO.Path.Combine(this.Path,"temporary"),MaximumQueryWorkers=Math.Min(8,Environment.ProcessorCount)};
         if(debugOptions is null){using var manifestFile=File.OpenRead(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path)!,"manifest.json"));var manifest=JsonSerializer.Deserialize<ArtifactManifest>(manifestFile,ManagementJson.Options)??throw new InvalidDataException("DBのmanifestがありません。");if(manifest.Definition.Hash()!=this.Definition.Hash()||manifest.Sha256!=this.Compiled.Result.ArtifactHash||manifest.MetadataConsumer is not null&&(manifest.MetadataConsumer!="audit-v1"||manifest.AuditDestination is null||manifest.AuditDestination==Guid.Empty)||manifest.MetadataConsumer is null&&manifest.AuditDestination is not null){throw new InvalidDataException("DBの監査プロファイルが一致しません。");}options=options with{TransactionMetadataConsumer=manifest.MetadataConsumer};this.AuditDestination=manifest.AuditDestination;}
         this.Database=(DatabaseContainer)(Activator.CreateInstance(type,[debugOptions??options])??throw new ManagementException("Validation","DBコンストラクターが必要です。"));
         foreach(var property in Tables(this.Database)){_=property.GetValue(this.Database);}
     }
+    // 表ごとのログのメモリ(MemorySize)。表を開くときに、これを元に索引・ページの分を DB の上限から先に取り置く(空の表でも約15MB)。
+    internal const long TableMemoryBytes=1L<<24;
+    // DB の上限は、表の数に合わせて広げる(表16個までは従来の 256MB)。共通ストアの上限が DB の上限にそろったので効く(2026-11-16)。
+    // 使う表だけを開く形にするまでの間の対処。設計：Document/refactoring-designs/20261116-使う表だけを開く.md。
+    internal static long MemoryLimit(Type database)=>Math.Max(256L<<20,checked((64L<<20)+StorageCount(database)*TableMemoryBytes));
+    // 自分の保存の仕組み(Tsavorite)を開く宣言の数：取引で書く表・集計の表・取引を通さない表。
+    internal static int StorageCount(Type database)=>database.GetProperties(BindingFlags.Public|BindingFlags.Instance).Count(property=>property.PropertyType.IsGenericType&&
+        property.PropertyType.GetGenericTypeDefinition() is var definition&&(definition==typeof(Table<,>)||definition==typeof(Table<>)||definition==typeof(MaterializedView<,>)||definition==typeof(global::Seamless.Database.Set<,>)||definition==typeof(global::Seamless.Database.Set<>)));
     internal static PropertyInfo[] Tables(DatabaseContainer database)=>database.GetType().GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.PropertyType.IsGenericType&&(property.PropertyType.GetGenericTypeDefinition()==typeof(Table<,>)||property.PropertyType.GetGenericTypeDefinition()==typeof(Table<>))).ToArray();
     public void Dispose(){if(this.disposed){return;}this.disposed=true;try{this.Database?.Dispose();}finally{try{this.Context.Unload();}finally{this.Compiled.Dispose();}}}
 }
