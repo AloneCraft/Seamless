@@ -1,7 +1,19 @@
 namespace Seamless.Management.Components;
 
 public partial class プロジェクト作業領域{
-    private Task 成果物検査時Async(ソース文書 文書)=>this.実行Async(async()=>{
+    private Task 成果物検査時Async(ソース文書 文書)=>this.実行Async(()=>this.成果物検査Async(文書),false);
+    // DLL の場所を空にして検査を頼むと、サーバーが SDK でビルドしてから検査する(取り込みのときも同じくビルドし直して検査する)。
+    private Task SDKビルド検査時Async(ソース文書 文書){文書.成果物パス="";return this.成果物検査時Async(文書);}
+    private Task 成果物取込時Async(ソース文書 文書)=>this.実行Async(()=>this.成果物取込Async(文書),false);
+    // 1回の操作で、DB の下書きへの反映・SDK のビルドと検査・取り込みまで進める。
+    // 適用は、移行の内容(消える列・表など)を DB 画面の「変更を確認」で確かめてから明示で行う。
+    private Task 反映してビルドし取込時Async(ソース文書 文書)=>this.実行Async(async()=>{
+        await this.DB下書きへ反映Async(文書);
+        文書.成果物パス="";
+        await this.成果物検査Async(文書);
+        await this.成果物取込Async(文書);
+    },false);
+    private async Task 成果物検査Async(ソース文書 文書){
         文書.成果物=null;文書.成果物案内=null;文書.成果物エラーか=false;
         try{
             await this.同期Async(文書);
@@ -13,10 +25,8 @@ public partial class プロジェクト作業領域{
             文書.成果物エラーか=true;文書.成果物案内=例外.Message;
             throw;
         }
-    },false);
-    // DLL の場所を空にして検査を頼むと、サーバーが SDK でビルドしてから検査する(取り込みのときも同じくビルドし直して検査する)。
-    private Task SDKビルド検査時Async(ソース文書 文書){文書.成果物パス="";return this.成果物検査時Async(文書);}
-    private Task 成果物取込時Async(ソース文書 文書)=>this.実行Async(async()=>{
+    }
+    private async Task 成果物取込Async(ソース文書 文書){
         var 成果物=文書.成果物??throw new InvalidOperationException("ビルド成果物を検査してください。");
         文書.成果物エラーか=false;
         await this.下書き反映中変更時.InvokeAsync(true);
@@ -29,5 +39,5 @@ public partial class プロジェクト作業領域{
             文書.成果物案内=表示文言.取得("成果物を取り込みました。DB画面の「変更を確認」から検証・明示適用へ進めます。");
         }catch(Exception 例外){文書.成果物エラーか=true;文書.成果物案内=例外.Message;throw;}
         finally{await this.下書き反映中変更時.InvokeAsync(false);}
-    },false);
+    }
 }

@@ -2542,4 +2542,6 @@
   <data name="DB下書きへ反映後、ManagerがこのプロジェクトをSDKでビルドして検査します。IDEでビルドしたDLLのサーバー上の絶対パスを指定することもできます。" xml:space="preserve"><value>After applying to the DB draft, Manager builds this project with the SDK and inspects it. You can also specify the absolute server path of a DLL built in your IDE.</value></data>
   <data name="ビルドして検査" xml:space="preserve"><value>Build and inspect</value></data>
   <data name="SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。" xml:space="preserve"><value>Built with the SDK and inspected the DLL, PDB, source, and dependencies.</value></data>
+  <data name="反映・ビルド・取り込み" xml:space="preserve"><value>Apply, build, and import</value></data>
+  <data name="DB下書きへ反映し、SDKでビルド・検査して取り込みます。適用はDB画面で変更を確認してから行います。" xml:space="preserve"><value>Applies to the DB draft, then builds with the SDK, inspects, and imports. Apply the changes after reviewing them in the DB view.</value></data>
 </root>
