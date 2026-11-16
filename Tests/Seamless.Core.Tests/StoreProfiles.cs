@@ -9,6 +9,9 @@ public sealed class StoreProfiles{
     [Theory]
     [InlineData("fixed",512)]
     [InlineData("doubling",8192)]
+    // ディスク上の行の確認読みは1,024行の区切りでまとめて出す(Scans/Lookup.cs)。同じキーの古い版と新しい版が
+    // 同じ区切りにも別の区切りにも入り、利用側の受け皿(4,096件)の切れ目とも重なる件数でも確かめる。
+    [InlineData("doubling",50000)]
     public void DiskEnumerationPreservesCollidingKeys(string growth,int count){
         Policy policy=new Policy<Doubling>();
         if(growth=="fixed"){policy=new Policy<Fixed>();}
