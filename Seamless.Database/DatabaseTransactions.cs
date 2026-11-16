@@ -19,6 +19,16 @@ public abstract partial class DatabaseContainer{
     private readonly Dictionary<string,ITransactionParticipant> sharedParticipants=new(StringComparer.Ordinal);
     private readonly List<(Action Release,Action Acquire)> sharedHandles=[];
     private bool sharedReady;
+    // 試験用：閉じるときに保存しない(落ちたことにする)。WAL から当て直す経路を確かめる。
+    internal bool DiscardOnDispose{get;set;}
+    // 使う表だけを開く：保存の仕組みをまだ開いていないかもしれない表(名前→開いているか)。
+    private readonly Dictionary<string,Func<bool>> lazyTables=new(StringComparer.Ordinal);
+    // 素の WAL・版付きの保存なし・Gateway なし・書き込みを1つずつ通す方式の永続の DB で、最初の取引の前に作る表だけを遅らせる。
+    private bool CanOpenTablesLazily=>!this.sharedReady&&this.sharedStore?.Kind==StoreKind.Persistent&&this.sharedJournal is not null&&this.preparedSharedJournal is null
+        &&this.Options.TransactionHistory is null&&this.Options.GatewayProfile is null&&this.Options.GatewayVersionedBinding is null
+        &&this.sharedCoordinator is{SupportsDeferredReplay:true,Concurrency:TransactionConcurrencyMode.Exclusive};
+    // 表が当て直し済みの WAL の位置。前の保存のときに開いていなかった表は、その表の位置(保存点に記録)。ほかは保存点の位置。
+    private long TableCheckpointLsn(string name)=>this.sharedCheckpoint.TableLsn is{} lsns&&lsns.TryGetValue(name,out var own)?own:this.sharedCheckpoint.Lsn;
     protected virtual string TransactionCatalogIdentity=>this.GetType().FullName??this.DatabaseName;
     private void CheckRecordGraphContract(string name,string identity){
         if(this.Options.RecordSerialization!=DatabaseRecordSerialization.RecordGraphV1){return;}
@@ -126,21 +136,30 @@ public abstract partial class DatabaseContainer{
         if(this.Options.TransactionHistory is not null){var versioned=this.CreateVersionedParticipant(keySelector,name);return new(this,keySelector,versioned,name);}
         this.EnsureSharedStorage();var sizing=this.ResolveTableStorage(name);
         var identity=this.TransactionCodecIdentity<TKey,TRecord>(name);this.CheckRecordGraphContract(name,identity);
-        var data=this.sharedStore!.CreateTsavorite<TKey,TRecord>(name,new TsavoriteTuning{
-            IndexSize=checked(sizing.IndexSize*64),PageSize=sizing.PageSize,SegmentSize=sizing.SegmentSize,LogMemorySize=sizing.MemorySize,
-        });
+        var tuning=new TsavoriteTuning{IndexSize=checked(sizing.IndexSize*64),PageSize=sizing.PageSize,SegmentSize=sizing.SegmentSize,LogMemorySize=sizing.MemorySize};
+        global::Seamless.Collections.Tsavorite.DictionaryStore<TKey,TRecord>? data=null;
         global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> Create(){
+            data??=this.sharedStore!.CreateTsavorite<TKey,TRecord>(name,tuning);
             if(this.Options.RecordSerialization==DatabaseRecordSerialization.RecordGraphV1){return data.Create<global::Seamless.Execution.Codecs.RecordGraphSerializer<TKey>,global::Seamless.Execution.Codecs.RecordGraphSerializer<TRecord>>();}
             if(this.Options.RecordSerialization==DatabaseRecordSerialization.CanonicalV1){return data.Create<global::Seamless.Execution.Codecs.CanonicalSerializer<TKey>,global::Seamless.Execution.Codecs.CanonicalSerializer<TRecord>>();}
             return data.Create();
         }
-        var handle=Create();
-        var table=new Table<TKey,TRecord>(this,handle,keySelector,new SharedEmptyLease(),name,Create);
         var id=BinaryPrimitives.ReadInt32LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(name)))&int.MaxValue;
         if(id==0){id=1;}
-        var participant=new TransactionalTable<TKey,TRecord>(0,id,identity,this.executionResources,this.Options.TransactionMemoryLimit,
+        // 使う表だけを開く(設計 20261116-使う表だけを開く.md)：条件に合えば、保存の仕組み(メモリを取り置く)は初めて使うときに開き、
+        // そのときに、この表の分の変更の記録だけを当て直す。登録(取引の調停への参加)は今までどおり最初の取引の前に行う。
+        TransactionalTable<TKey,TRecord>? participant=null;
+        Table<TKey,TRecord> table;
+        if(this.CanOpenTablesLazily){
+            table=new Table<TKey,TRecord>(this,keySelector,new SharedEmptyLease(),name,Create,()=>this.sharedCoordinator!.OpenDeferred(participant!),Create);
+            this.sharedStore!.KeepUnopened([name]);this.lazyTables.Add(name,()=>table.IsStorageOpen);
+        }else{
+            table=new Table<TKey,TRecord>(this,Create(),keySelector,new SharedEmptyLease(),name,Create);
+        }
+        participant=new TransactionalTable<TKey,TRecord>(0,id,identity,this.executionResources,this.Options.TransactionMemoryLimit,
             key=>{var found=table.DirectTryGetValue(key,out var row);return(found,row);},table.DirectSet,key=>table.DirectRemove(key),keySelector,()=>table.DirectRows);
         this.sharedCoordinator!.Register(participant);this.sharedParticipants.Add(name,participant);
+        if(this.lazyTables.ContainsKey(name)){this.sharedCoordinator.DeferReplay(participant,this.TableCheckpointLsn(name));}
         this.sharedHandles.Add((table.ReleaseSharedHandle,table.AcquireSharedHandle));return table;
     }
     public TransactionCollection<TKey,TRecord> GetTransactionCollection<TKey,TRecord>(TransactionScope scope,Table<TKey,TRecord> table) where TKey:struct where TRecord:struct{
@@ -224,9 +243,13 @@ public abstract partial class DatabaseContainer{
     private async ValueTask SaveShared(bool reopenHandles=true){
         if(this.Options.GatewayProfile is not null){throw new InvalidOperationException("Only the Gateway common checkpoint may save this profile.");}
         if(this.sharedStore!.Kind!=StoreKind.Persistent){return;}
-        this.sharedCoordinator!.Failure.ThrowIfFailed();var lsn=this.sharedCoordinator.AppliedLsn;
+        this.sharedCoordinator!.Failure.ThrowIfFailed();var lsn=this.sharedCoordinator.AppliedLsn;var pruneLimit=long.MaxValue;
         try{
             void Save(long fence){
+                // 開いていない表は前の位置のまま記録する(その表の分の記録は、開くまで当てていない)。WAL もその位置より前は消さない。
+                Dictionary<string,long>? unopened=null;
+                foreach(var (name,isOpen) in this.lazyTables){if(isOpen()){continue;}var own=this.TableCheckpointLsn(name);(unopened??=new(StringComparer.Ordinal))[name]=own;pruneLimit=Math.Min(pruneLimit,own);}
+                this.sharedCheckpoint.TableLsn=unopened;
                 this.sharedCheckpoint.Lsn=fence;
                 if(this.Options.TransactionHistory is not null){this.sharedCheckpoint.CommitVersion=this.sharedCoordinator!.GetDomainDiagnostics().PublishedVersion;}
                 foreach(var handle in this.sharedHandles){handle.Release();}
@@ -241,7 +264,7 @@ public abstract partial class DatabaseContainer{
             }else{
                 await this.sharedJournal!.Writer.WaitForDurableAsync(lsn).ConfigureAwait(false);
                 Save(lsn);
-                await this.sharedJournal.CheckpointAndPruneAsync(lsn).ConfigureAwait(false);
+                await this.sharedJournal.CheckpointAndPruneAsync(Math.Min(lsn,pruneLimit)).ConfigureAwait(false);
             }
         }catch(Exception error){this.sharedCoordinator.Failure.Fail(error);this.sharedJournal?.Writer.Fail(error);throw;}
     }
@@ -252,7 +275,7 @@ public abstract partial class DatabaseContainer{
         this.sharedCoordinator?.StopAccepting();
         if(this.sharedCoordinator is not null){
             using var lease=this.sharedCoordinator.EnterReadForShutdown();
-            if(this.sharedReady&&this.sharedCoordinator.Failure.Error is null&&this.Options.GatewayProfile is null){try{this.SaveShared(this.Options.TransactionHistory is null).AsTask().GetAwaiter().GetResult();}catch(Exception error){errors.Add(error);}}
+            if(this.sharedReady&&!this.DiscardOnDispose&&this.sharedCoordinator.Failure.Error is null&&this.Options.GatewayProfile is null){try{this.SaveShared(this.Options.TransactionHistory is null).AsTask().GetAwaiter().GetResult();}catch(Exception error){errors.Add(error);}}
             this.disposed=true;
             foreach(var table in this.tables.Values){try{table.Dispose();}catch(Exception error){errors.Add(error);}}
             this.tables.Clear();
@@ -310,13 +333,17 @@ public abstract partial class DatabaseContainer{
         public long CommitVersion;
         public bool GraphProfile;
         public Dictionary<string,string> RecordContracts=new(StringComparer.Ordinal);
+        // 使う表だけを開く：保存のときに開いていなかった表と、その表が当て直し済みの WAL の位置。無ければ全部の表が Lsn まで当て直し済み。
+        public Dictionary<string,long>? TableLsn;
         public string Save(){
             var version=2;if(this.DatabaseId!=0){version=3;}if(this.GenerationId!=Guid.Empty){version=4;}if(this.DataSha256 is not null){version=5;}if(this.Versioned){version=6;}
             Dictionary<string,string>? contracts=null;if(this.GraphProfile){version=7;contracts=this.RecordContracts;}
-            return global::System.Text.Json.JsonSerializer.Serialize(new CheckpointData(version,this.WalId,this.Lsn,this.DatabaseId,this.GenerationId,this.DataSha256,this.Versioned,this.CommitVersion,contracts));
+            return global::System.Text.Json.JsonSerializer.Serialize(new CheckpointData(version,this.WalId,this.Lsn,this.DatabaseId,this.GenerationId,this.DataSha256,this.Versioned,this.CommitVersion,contracts){TableLsn=this.TableLsn});
         }
         public void Load(string state){
             var value=global::System.Text.Json.JsonSerializer.Deserialize<CheckpointData>(state)??throw new InvalidDataException("Missing transaction checkpoint.");
+            if(value.TableLsn is{} lsns&&lsns.Any(pair=>string.IsNullOrWhiteSpace(pair.Key)||pair.Value<0||pair.Value>value.Lsn)){throw new InvalidDataException("Invalid table WAL positions in the transaction checkpoint.");}
+            this.TableLsn=value.TableLsn is null?null:new(value.TableLsn,StringComparer.Ordinal);
             if(value.Version==7){
                 if(!this.GraphProfile||value.RecordContracts is null||value.Versioned!=this.Versioned||value.WalId==Guid.Empty||value.Lsn<0||value.CommitVersion<0||!this.Versioned&&value.CommitVersion!=0||value.DatabaseId!=this.DatabaseId||value.GenerationId!=this.GenerationId
                     ||value.DataSha256 is not null&&(value.DataSha256.Length!=64||!value.DataSha256.All(static character=>Uri.IsHexDigit(character)))
@@ -335,6 +362,8 @@ public abstract partial class DatabaseContainer{
         public void Flush(){}
         public void Dispose(){}
         private sealed record CheckpointData(int Version,Guid WalId,long Lsn,int DatabaseId=0,Guid GenerationId=default,string? DataSha256=null,bool Versioned=false,long CommitVersion=0,
-            [property:global::System.Text.Json.Serialization.JsonIgnore(Condition=global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]Dictionary<string,string>? RecordContracts=null);
+            [property:global::System.Text.Json.Serialization.JsonIgnore(Condition=global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]Dictionary<string,string>? RecordContracts=null){
+            [global::System.Text.Json.Serialization.JsonIgnore(Condition=global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]public Dictionary<string,long>? TableLsn{get;init;}
+        }
     }
 }
