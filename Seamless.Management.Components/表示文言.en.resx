@@ -2539,4 +2539,7 @@
   <data name="取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。" xml:space="preserve"><value>This table bypasses transactions. Save conflicts are detected only by comparing row values: writes by others between the check and the write, and changes reverted to the same value, are not detected. If a save fails midway, the writes already made cannot be undone.</value></data>
   <data name="取引を通さない表" xml:space="preserve"><value>Non-transactional tables</value></data>
   <data name="取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。" xml:space="preserve"><value>Rename, copy, or delete a non-transactional table in C#.</value></data>
+  <data name="DB下書きへ反映後、ManagerがこのプロジェクトをSDKでビルドして検査します。IDEでビルドしたDLLのサーバー上の絶対パスを指定することもできます。" xml:space="preserve"><value>After applying to the DB draft, Manager builds this project with the SDK and inspects it. You can also specify the absolute server path of a DLL built in your IDE.</value></data>
+  <data name="ビルドして検査" xml:space="preserve"><value>Build and inspect</value></data>
+  <data name="SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。" xml:space="preserve"><value>Built with the SDK and inspected the DLL, PDB, source, and dependencies.</value></data>
 </root>

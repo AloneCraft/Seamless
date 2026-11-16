@@ -2539,4 +2539,7 @@
   <data name="取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。" xml:space="preserve"><value>取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。</value></data>
   <data name="取引を通さない表" xml:space="preserve"><value>取引を通さない表</value></data>
   <data name="取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。" xml:space="preserve"><value>取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。</value></data>
+  <data name="DB下書きへ反映後、ManagerがこのプロジェクトをSDKでビルドして検査します。IDEでビルドしたDLLのサーバー上の絶対パスを指定することもできます。" xml:space="preserve"><value>DB下書きへ反映後、ManagerがこのプロジェクトをSDKでビルドして検査します。IDEでビルドしたDLLのサーバー上の絶対パスを指定することもできます。</value></data>
+  <data name="ビルドして検査" xml:space="preserve"><value>ビルドして検査</value></data>
+  <data name="SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。" xml:space="preserve"><value>SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。</value></data>
 </root>

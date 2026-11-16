@@ -53,7 +53,7 @@ public sealed partial class ConcurrentManagementOperations:IManagementOperations
         this.InvokeAsync(()=>operation(this.service,authenticate()),cancellationToken);
     internal Task<T> InvokeAuthenticatedTaskAsync<T>(Func<UserAccount> authenticate,Func<ManagementService,UserAccount,Task<T>> operation,CancellationToken cancellationToken)=>
         this.InvokeTaskAsync(()=>operation(this.service,authenticate()),cancellationToken);
-    public Task<ServerInfo> InfoAsync(CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Info with{Capabilities=[..this.service.Info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]},cancellationToken);
+    public Task<ServerInfo> InfoAsync(CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Info with{Capabilities=[..this.service.Info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceSdkBuildV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]},cancellationToken);
     public Task<CatalogPage<CatalogDatabase>> DatabasesAsync(long cursor=0,string versionToken="",CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Databases(this.owner,cursor,versionToken),cancellationToken);
     public Task<CatalogDatabase> RenameDatabaseAsync(RenameDatabaseRequest request,CancellationToken cancellationToken=default)=>
         this.InvokeAsync(()=>this.service.RenameDatabase(this.owner,request,cancellationToken),cancellationToken);

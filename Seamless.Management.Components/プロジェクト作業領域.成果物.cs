@@ -7,13 +7,15 @@ public partial class プロジェクト作業領域{
             await this.同期Async(文書);
             var 結果=await this.操作.InspectSourceProjectBuildAsync(new(文書.情報.Id,文書.成果物パス.Trim(),文書.基準.Hash()),this.寿命.Token);
             文書.成果物=結果;
-            文書.成果物案内=表示文言.取得("DLL・PDB・元ソース・依存DLLの検査に成功しました。");
+            文書.成果物案内=表示文言.取得(string.IsNullOrWhiteSpace(文書.成果物パス)?"SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。":"DLL・PDB・元ソース・依存DLLの検査に成功しました。");
             if(this.成果物取込可能か){文書.成果物案内+=表示文言.取得("取り込んだ後、DB画面で変更を確認して適用できます。");}
         }catch(Exception 例外){
             文書.成果物エラーか=true;文書.成果物案内=例外.Message;
             throw;
         }
     },false);
+    // DLL の場所を空にして検査を頼むと、サーバーが SDK でビルドしてから検査する(取り込みのときも同じくビルドし直して検査する)。
+    private Task SDKビルド検査時Async(ソース文書 文書){文書.成果物パス="";return this.成果物検査時Async(文書);}
     private Task 成果物取込時Async(ソース文書 文書)=>this.実行Async(async()=>{
         var 成果物=文書.成果物??throw new InvalidOperationException("ビルド成果物を検査してください。");
         文書.成果物エラーか=false;
