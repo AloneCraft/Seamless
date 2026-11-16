@@ -75,7 +75,7 @@ public sealed class ManagementApplicationHost:IAsyncDisposable{
         }
     }
     private async Task StartServerAsync(ManagementStore store,ManagementServerSettings defaults,ManagementServerSettings running,string[] overrides,string certificatePath,string? password,string? configuration,int capacity,CancellationToken cancellation){
-        this.RunningSettings=running.Validate();this.service=new(store,ManagementService.AuditOptions(store,running));
+        this.RunningSettings=running.Validate();this.service=new(store,ManagementService.AuditOptions(store,running)){UseSdkBuilds=true};
         this.certificate=X509CertificateLoader.LoadPkcs12FromFile(certificatePath,password);
         this.concurrent=new(this.service,capacity);this.Operations=this.concurrent;
         this.Manager=await ManagerWebHost.StartAsync(this.concurrent,running.ManagerPort,cancellationToken:cancellation).ConfigureAwait(false);

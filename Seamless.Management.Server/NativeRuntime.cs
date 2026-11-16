@@ -61,8 +61,10 @@ internal sealed partial class NativeRuntime:IDisposable{
         var gate=this.Gate("db:"+id);gate.Wait(cancellation);
         try{return action();}finally{gate.Release();}
     }
+    // [段階7] 設定されていれば、DB 定義の下書きは SDK でビルドする(内蔵のコンパイルを使わない)。製品の入口(ManagementApplicationHost)で有効にする。
+    internal DraftSdkBuilder? SdkBuilder{get;set;}
     internal CompiledSource Compile(Definition definition){
-        if(definition.Kind==DefinitionKind.Database){return this.compiler.Compile(definition.Source);}
+        if(definition.Kind==DefinitionKind.Database){return this.SdkBuilder?.Build(definition)??this.compiler.Compile(definition.Source);}
         var version=this.DatabaseDefinition(this.store.CurrentDatabase(definition));using var database=this.ReadArtifact(version);
         return this.compiler.Compile(definition.Source,[database.AssemblyBytes],definition.EntryType,definition.EntryMember);
     }
