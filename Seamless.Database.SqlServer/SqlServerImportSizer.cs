@@ -7,6 +7,8 @@ public static class SqlServerImportSizer {
     private const long MaximumPageSize = 1L<<30;
     private const long MinimumMemorySize = MinimumPageSize*2;
     private const long RowOverheadReserve = 1L<<12;
+    // 符号化の型ごとの頭(型の識別など)。
+    private const long EntryHeaderReserve = 64;
 
     public static async Task<SqlServerImportSizing> MeasureAsync(
         string connectionString,
@@ -39,7 +41,8 @@ public static class SqlServerImportSizer {
                 continue;
             }
             maximumTableRows=reader.GetInt64(0);
-            maximumRowBytes=reader.GetInt64(1);
+            // 保存の1件はキーと行の両方を符号化して持つ。キーの無い表は行の全部がキーなので、行の上限の2倍を1件の上限にする。
+            maximumRowBytes=checked(reader.GetInt64(1)*2+EntryHeaderReserve);
             measured.Add(table.ObjectName,Calculate(maximumRowBytes,maximumTableRows));
         }
         return measured;
@@ -64,11 +67,14 @@ public static class SqlServerImportSizer {
 
     private static string CreateMeasureQuery(GeneratedTableBinding table) {
         var builder=new StringBuilder("SELECT COUNT_BIG(*),COALESCE(MAX(CONVERT(bigint,0)");
+        // 行を保存の形(canonical など)に符号化したときの長さの上限を、列ごとに足す(Seamless.Execution の CodecRegistry.Write)。
+        // バイト列は1バイトごとに印の1バイトが付くので2倍、文字列は1文字2バイト(varchar は1バイトで1文字になりうるので2倍)、
+        // 固定長の値は印と中身で最大17バイト(decimal・Guid)。どの列も「2×DATALENGTH+17」を超えない。
         foreach(var column in table.Columns) {
-            if(column.IsSynthetic){builder.Append("+CONVERT(bigint,8)");continue;}
-            builder.Append("+COALESCE(CONVERT(bigint,DATALENGTH(")
+            if(column.IsSynthetic){builder.Append("+CONVERT(bigint,17)");continue;}
+            builder.Append("+2*COALESCE(CONVERT(bigint,DATALENGTH(")
                 .Append(Quote(column.SourceName))
-                .Append(")),0)");
+                .Append(")),0)+17");
         }
         builder.Append("),0) FROM ")
             .Append(Quote(table.SourceSchema))

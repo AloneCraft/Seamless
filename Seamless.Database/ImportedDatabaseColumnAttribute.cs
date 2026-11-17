@@ -8,4 +8,8 @@ public sealed class ImportedDatabaseColumnAttribute(string name,int maximumLengt
     public string?SqlTypeName{get;}=sqlTypeName;
     public string?Collation{get;}=collation;
     public bool IsSynthetic{get;init;}
+    /// <summary>元の型の精度(decimal・numeric の桁数)。無ければ -1。SQL へ書き出すとき元の型に戻すのに使う。</summary>
+    public int Precision{get;init;}=-1;
+    /// <summary>元の型の小数部の桁数(decimal・numeric・time・datetime2・datetimeoffset)。無ければ -1。</summary>
+    public int Scale{get;init;}=-1;
 }

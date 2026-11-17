@@ -19,6 +19,11 @@
     "relational-assignment": {
       "parent": "main",
       "forkPoint": "356f67bf"
+    },
+    "rdbms-transfer": {
+      "parent": "manager-alignment",
+      "forkPoint": "9f2d28c2",
+      "purpose": "Manager からの SQL Server・CSV の取り込みと書き出し、T-SQL 翻訳器の段階4（2026-11-17）"
     }
   },
   "rule": "Merge each child into its immediate recorded fork parent; return deepest children first.",
