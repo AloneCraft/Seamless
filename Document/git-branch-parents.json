@@ -15,6 +15,10 @@
       "parent": "main",
       "forkPoint": "649e8907",
       "purpose": "Manager の設計・仕様と実装の照合（2026-11-15）に基づく8段階の実装"
+    },
+    "relational-assignment": {
+      "parent": "main",
+      "forkPoint": "356f67bf"
     }
   },
   "rule": "Merge each child into its immediate recorded fork parent; return deepest children first.",

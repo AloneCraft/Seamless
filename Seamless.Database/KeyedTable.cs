@@ -1,7 +1,7 @@
 namespace Seamless.Database;
 
 /// <summary>候補キーで探索できる物理テーブル。</summary>
-public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IReadOnlyCollection<TRecord>,IDisposable
+public sealed class StoredTable<TKey,TRecord>:Table<TKey,TRecord>,global::System.Collections.Generic.IReadOnlyCollection<TRecord>,IDisposable
     where TKey:struct
     where TRecord:struct {
     private readonly DatabaseContainer database;
@@ -24,7 +24,7 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         }
     }
     // 保存の仕組みを開かずに作る(使う表だけを開く)。sharedFactory は開いた後の取り直しに使う。
-    internal Table(DatabaseContainer database,Func<TRecord,TKey> keySelector,IDisposable ownedResources,string name,
+    internal StoredTable(DatabaseContainer database,Func<TRecord,TKey> keySelector,IDisposable ownedResources,string name,
         Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>> opener,Action onOpened,Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>> sharedFactory){
         this.database=database;this.keySelector=keySelector;this.ownedResources=ownedResources;this.Name=name;this.opener=opener;this.onOpened=onOpened;this.sharedFactory=sharedFactory;
     }
@@ -32,9 +32,9 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     private readonly Func<TRecord,TKey> keySelector;
     private readonly IDisposable ownedResources;
     private bool disposed;
-    internal Table(DatabaseContainer database,Func<TRecord,TKey> keySelector,IDisposable ownedResources,string name){this.database=database;this.keySelector=keySelector;this.ownedResources=ownedResources;this.Name=name;}
+    internal StoredTable(DatabaseContainer database,Func<TRecord,TKey> keySelector,IDisposable ownedResources,string name){this.database=database;this.keySelector=keySelector;this.ownedResources=ownedResources;this.Name=name;}
 
-    internal Table(
+    internal StoredTable(
         DatabaseContainer database,
         global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows,
         Func<TRecord,TKey> keySelector,
@@ -54,27 +54,27 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     }
 
     public string Name { get; }
+    internal DatabaseContainer Database=>this.database;
     internal Action<TRecord?,TRecord?>? GatewayChanged{get;set;}
     internal Func<TRecord,TRecord>? GatewayNormalize{get;set;}
     internal IEqualityComparer<TKey>? GatewayKeyComparer{get;set;}
     internal bool KeysEqual(TKey first,TKey second)=>(this.GatewayKeyComparer??this.database.ExecutionResources.Codecs.GetEqualityComparer<TKey>()).Equals(first,second);
     internal TKey RecordKey(TRecord record)=>this.keySelector(record);
-    public long LongCount {
+    public override long LongCount {
         get {
+            if(this.database.TryGetImplicitCollection(this,out var implicitRows)){return global::System.Linq.Enumerable.LongCount(implicitRows);}
             if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return global::System.Linq.Enumerable.LongCount(native.Rows);}
             var overlay=this.database.GetTransactionOverlay(this,create:false);
             if(overlay is not null){return overlay.LongCount;}
             return this.database.WithReadGate(()=>this.rows.GetLongCount());
         }
     }
-    public int Count {
-        get=>checked((int)this.LongCount);
-    }
-    public IEnumerable<TKey> Keys=>this.EnumerateKeys();
+    public override IEnumerable<TKey> Keys=>this.EnumerateKeys();
     /// <summary>生成queryが方式を一度だけ選択する入口。新しい取引は開始しない。</summary>
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
     public DatabaseRows<TKey,TRecord> GetQueryRows(){
         ObjectDisposedException.ThrowIf(this.disposed,this);this.database.ValidateQueryAccess();
+        if(this.database.TryGetImplicitCollection(this,out var implicitRows)){return new(this.database,this,implicitRows.Rows);}
         if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return new(this.database,this,native.Rows);}return new(this.database,this,null);
     }
     /// <summary>Gateway共通scopeのnative行ソース。FLinqの融合・予算・query内workerを同じ取引へ渡す。</summary>
@@ -82,9 +82,10 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     public global::Seamless.Transactions.Collections.TransactionRows<TKey,TRecord> GetGatewayTransactionRows(){
         if(!this.database.TryGatewayVersionedCollection(this,false,out var native)){throw new InvalidOperationException("A versioned Gateway execution is required.");}return native.Rows;
     }
-    public TRecord this[TKey key] {
+    public override TRecord this[TKey key] {
         get=>this.TryGetValue(key,out var record)?record:throw new KeyNotFoundException();
         set {
+            if(this.database.TryWriteImplicitly(this,collection=>{collection[key]=value;return true;},out _)){return;}
             if(this.database.RequiresRelationTransaction){this.database.RelationWrite(()=>{this[key]=value;return true;});return;}
             ObjectDisposedException.ThrowIf(this.disposed,this);
             if(this.database.TryGatewayVersionedCollection(this,true,out var native)){
@@ -103,8 +104,9 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         }
     }
 
-    public bool ContainsKey(TKey key)=>this.TryGetValue(key,out _);
-    public bool TryGetValue(TKey key,[global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TRecord record) {
+    public override bool ContainsKey(TKey key)=>this.TryGetValue(key,out _);
+    public override bool TryGetValue(TKey key,[global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TRecord record) {
+        if(this.database.TryGetImplicitCollection(this,out var implicitRows)){return implicitRows.TryGetValue(key,out record);}
         if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return native.TryGetValue(key,out record);}
         var overlay=this.database.GetTransactionOverlay(this,create:false);
         if(overlay is not null) {
@@ -116,7 +118,8 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         return result;
     }
 
-    public bool Add(TRecord record) {
+    public override bool Add(TRecord record) {
+        if(this.database.TryWriteImplicitly(this,collection=>collection.Add(record),out var implicitAdded)){return implicitAdded;}
         if(this.database.RequiresRelationTransaction){return this.database.RelationWrite(()=>this.Add(record));}
         ObjectDisposedException.ThrowIf(this.disposed,this);
         if(this.database.TryGatewayVersionedCollection(this,true,out var native)){
@@ -130,7 +133,8 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
             :this.database.WithWriteGate(()=>this.DirectAdd(key,record));
     }
 
-    public bool Remove(TKey key) {
+    public override bool Remove(TKey key) {
+        if(this.database.TryWriteImplicitly(this,collection=>collection.Remove(key),out var implicitRemoved)){return implicitRemoved;}
         if(this.database.RequiresRelationTransaction){return this.database.RelationWrite(()=>this.Remove(key));}
         ObjectDisposedException.ThrowIf(this.disposed,this);
         if(this.database.TryGatewayVersionedCollection(this,true,out var native)){
@@ -143,7 +147,8 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     }
 
     /// <summary>キーの変更も一つの更新として通知する。重複先または存在しない元では変更しない。</summary>
-    public bool Replace(TKey previousKey,TRecord record){
+    public override bool Replace(TKey previousKey,TRecord record)=>this.database.InImplicitTransaction(()=>this.ReplaceCore(previousKey,record));
+    private bool ReplaceCore(TKey previousKey,TRecord record){
         if(this.database.RequiresRelationTransaction){return this.database.RelationWrite(()=>this.Replace(previousKey,record));}
         ObjectDisposedException.ThrowIf(this.disposed,this);
         if(this.database.TryGatewayVersionedCollection(this,true,out var native)){
@@ -154,7 +159,9 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         if(this.GatewayNormalize is{} normalize){record=normalize(record);}var key=this.keySelector(record);var overlay=this.database.GetTransactionOverlay(this,create:true);if(overlay is not null){return overlay.Replace(previousKey,key,record);}return this.database.WithWriteGate(()=>{if(!this.DirectTryGetValue(previousKey,out _)){return false;}if(this.KeysEqual(previousKey,key)){this.DirectSet(key,record);return true;}if(!this.DirectAdd(key,record)){return false;}_=this.DirectRemove(previousKey);return true;});
     }
 
-    public void Update(TKey key,Func<TRecord,TRecord> updater){
+    // [暗黙の取引] 読んでから書く操作は、取引の外なら1回の呼び出し全体を1つの暗黙の取引で確定する。
+    public override void Update(TKey key,Func<TRecord,TRecord> updater)=>this.database.InImplicitTransaction(()=>{this.UpdateCore(key,updater);return true;});
+    private void UpdateCore(TKey key,Func<TRecord,TRecord> updater){
         ArgumentNullException.ThrowIfNull(updater);
         if(!this.TryGetValue(key,out var current)){throw new KeyNotFoundException($"Key '{key}' was not found in table '{this.Name}'.");}
         var updated=updater(current);var newKey=this.keySelector(updated);
@@ -162,7 +169,8 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         else{if(!this.Replace(key,updated)){throw new InvalidOperationException($"Cannot replace key '{key}' with '{newKey}': destination key already exists or conflict occurred.");}}
     }
 
-    public MergeResult Merge(TKey key,Func<TKey,TRecord> create,Func<TRecord,TRecord> update){
+    public override MergeResult Merge(TKey key,Func<TKey,TRecord> create,Func<TRecord,TRecord> update)=>this.database.InImplicitTransaction(()=>this.MergeCore(key,create,update));
+    private MergeResult MergeCore(TKey key,Func<TKey,TRecord> create,Func<TRecord,TRecord> update){
         ArgumentNullException.ThrowIfNull(create);ArgumentNullException.ThrowIfNull(update);
         if(this.TryGetValue(key,out var current)){
             var updated=update(current);var newKey=this.keySelector(updated);
@@ -176,7 +184,7 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         }
     }
 
-    public bool Contains(TRecord record){
+    public override bool Contains(TRecord record){
         var key=this.keySelector(record);
         if(!this.TryGetValue(key,out var existing)){return false;}
         return this.database.ExecutionResources.Codecs.GetEqualityComparer<TRecord>().Equals(existing,record);
@@ -190,6 +198,22 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     }
 
     public bool RemoveKey(TKey key)=>this.Remove(key);
+
+    protected override TKey KeyOf(TRecord row)=>this.keySelector(row);
+    protected override bool AreSameKey(TKey first,TKey second)=>this.KeysEqual(first,second);
+    protected override bool RowsEqual(TRecord first,TRecord second)=>this.database.ExecutionResources.Codecs.GetEqualityComparer<TRecord>().Equals(first,second);
+
+    /// <summary>関係代入。取引の外なら、この1回の代入を1つの暗黙の取引で確定する。取引が開いている流れでは例外。</summary>
+    public override void Assign(Table<TKey,TRecord> value){
+        ArgumentNullException.ThrowIfNull(value);ObjectDisposedException.ThrowIf(this.disposed,this);
+        if(this.database.TryWriteImplicitly(this,collection=>{ApplyAssignment(collection,this,value);return true;},out _)){return;}
+        ApplyAssignment(this,this,value);
+    }
+    // [関係代入/FLinq] 取引の外なら、1回の呼び出しを1つの暗黙の取引で確定する。
+    public override void AssignUnion(params IEnumerable<TRecord>[] rows){if(this.database.TryWriteImplicitly(this,collection=>{collection.AssignUnion(rows);return true;},out _)){return;}base.AssignUnion(rows);}
+    public override void AssignExcept(params IEnumerable<TRecord>[] rows){if(this.database.TryWriteImplicitly(this,collection=>{collection.AssignExcept(rows);return true;},out _)){return;}base.AssignExcept(rows);}
+    public override void AssignWhere(Func<TRecord,bool> keep){if(this.database.TryWriteImplicitly(this,collection=>{collection.AssignWhere(keep);return true;},out _)){return;}base.AssignWhere(keep);}
+    public override void AssignRows(IEnumerable<TRecord> rows){if(this.database.TryWriteImplicitly(this,collection=>{collection.AssignRows(rows);return true;},out _)){return;}base.AssignRows(rows);}
 
     internal bool DirectAdd(TKey key,TRecord record)=>
         this.rows.TryAdd(key,record) switch {
@@ -207,15 +231,16 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     internal IEnumerable<KeyValuePair<TKey,TRecord>> DirectRows=>this.rows;
     internal TKey DirectKey(TRecord record)=>this.keySelector(record);
 
-    public IEnumerator<TRecord> GetEnumerator() {
+    public override IEnumerator<TRecord> GetEnumerator() {
+        if(this.database.TryGetImplicitCollection(this,out var implicitRows)){return implicitRows.GetEnumerator();}
         if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return native.Rows.GetEnumerator();}
         var overlay=this.database.GetTransactionOverlay(this,create:false);
         if(overlay is not null){return overlay.Rows.GetEnumerator();}
         return this.database.Stream(()=>this.rows.Values.GetEnumerator());
     }
-    IEnumerator IEnumerable.GetEnumerator()=>this.GetEnumerator();
 
     private IEnumerable<TKey> EnumerateKeys() {
+        if(this.database.TryGetImplicitCollection(this,out var implicitRows)){foreach(var row in implicitRows){yield return this.keySelector(row);}yield break;}
         if(this.database.TryGatewayVersionedCollection(this,false,out var native)){foreach(var row in native.Rows){yield return this.keySelector(row);}yield break;}
         var overlay=this.database.GetTransactionOverlay(this,create:false);
         if(overlay is not null){

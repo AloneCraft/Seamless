@@ -1,4 +1,53 @@
 <Solution>
+  <Folder Name="/Main/">
+    <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+    <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+    <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
+    <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
+    <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+    <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+    <Project Path="Seamless.Database/Seamless.Database.csproj" />
+    <Project Path="Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
+    <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+    <Project Path="Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
+    <Project Path="Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
+    <Project Path="Seamless.Database.Server/Seamless.Database.Server.csproj" />
+    <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+    <Project Path="Seamless.Database.SqlServer.Functions/Seamless.Database.SqlServer.Functions.csproj" />
+    <Project Path="Seamless.Database.SqlTranslation/Seamless.Database.SqlTranslation.csproj" />
+    <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
+    <Project Path="Seamless/Seamless.csproj" />
+    <Project Path="Seamless.Database.Query/Seamless.Database.Query.csproj" />
+    <Project Path="Seamless.Database.Client/Seamless.Database.Client.csproj" />
+    <Project Path="Seamless.Database.Client.Results/Seamless.Database.Client.Results.csproj" />
+    <Project Path="Seamless.Transport.Kestrel/Seamless.Transport.Kestrel.csproj" />
+    <Project Path="Seamless.Security/Seamless.Security.csproj" />
+    <Project Path="Seamless.Authentication/Seamless.Authentication.csproj" />
+    <Project Path="Seamless.Management/Seamless.Management.csproj" />
+    <Project Path="Seamless.Management.Components/Seamless.Management.Components.csproj" />
+    <Project Path="Seamless.Management.Server/WindowsServer.csproj" />
+    <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+  </Folder>
+  <Folder Name="/Main/SourceGenerator/">
+    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
+    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Management.Tests/Management.Tests.csproj" />
+    <Project Path="Tests/Database.Compilation.Tests/Database.Compilation.Tests.csproj" />
+    <Project Path="Tests/Database.Verification.Tests/Database.Verification.Tests.csproj" />
+    <Project Path="Tests/Database.Query.Tests/Database.Query.Tests.csproj" />
+    <Project Path="Tests/Database.SqlServer.Functions.Tests/Database.SqlServer.Functions.Tests.csproj" />
+    <Project Path="Tests/Database.SqlTranslation.Tests/Database.SqlTranslation.Tests.csproj" />
+    <Project Path="Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj" />
+    <Project Path="Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj" />
+    <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
+    <Project Path="Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
+    <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
+    <Project Path="Tests/Seamless.Core.Tests/Seamless.Core.Tests.csproj" />
+    <Project Path="Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj" />
+  </Folder>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
@@ -60,8 +109,19 @@
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
     <File Path="Benchmark/Shared/UI/UI.projitems" />
   </Folder>
+  <Folder Name="/Benchmark/Tests/">
+    <Project Path="Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj" />
+    <Project Path="Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj" />
+  </Folder>
   <Folder Name="/Samples/">
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
+    <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
@@ -100,57 +160,6 @@
     <Project Path="Shared/TpcC.Transactions/TpcC.Transactions.shproj" />
     <File Path="Shared/TpcC.Transactions/TpcC.Transactions.projitems" />
   </Folder>
-  <Folder Name="/SourceGenerator/">
-    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
-    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
-    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
-  </Folder>
-  <Folder Name="/Tests/">
-    <Project Path="Tests/Management.Tests/Management.Tests.csproj" />
-    <Project Path="Tests/Database.Compilation.Tests/Database.Compilation.Tests.csproj" />
-    <Project Path="Tests/Database.Verification.Tests/Database.Verification.Tests.csproj" />
-    <Project Path="Tests/Database.Query.Tests/Database.Query.Tests.csproj" />
-    <Project Path="Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj" />
-    <Project Path="Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj" />
-    <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
-    <Project Path="Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
-    <Project Path="Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj" />
-    <Project Path="Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj" />
-    <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
-    <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
-    <Project Path="Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj" />
-    <Project Path="Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj" />
-    <Project Path="Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj" />
-    <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
-    <Project Path="Tests/Seamless.Core.Tests/Seamless.Core.Tests.csproj" />
-    <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
-    <Project Path="Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj" />
-    <Project Path="Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj" />
-  </Folder>
-  <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
-  <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
-  <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
-  <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
-  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
-  <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
-  <Project Path="Seamless.Database/Seamless.Database.csproj" />
-  <Project Path="Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
-  <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
-  <Project Path="Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
-  <Project Path="Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
-  <Project Path="Seamless.Database.Server/Seamless.Database.Server.csproj" />
-  <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
-  <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
-  <Project Path="Seamless/Seamless.csproj" />
-  <Project Path="Seamless.Database.Query/Seamless.Database.Query.csproj" />
-  <Project Path="Seamless.Database.Client/Seamless.Database.Client.csproj" />
-  <Project Path="Seamless.Database.Client.Results/Seamless.Database.Client.Results.csproj" />
-  <Project Path="Seamless.Transport.Kestrel/Seamless.Transport.Kestrel.csproj" />
-  <Project Path="Seamless.Security/Seamless.Security.csproj" />
-  <Project Path="Seamless.Authentication/Seamless.Authentication.csproj" />
-  <Project Path="Seamless.Management/Seamless.Management.csproj" />
-  <Project Path="Seamless.Management.Components/Seamless.Management.Components.csproj" />
-  <Project Path="Seamless.Management.Server/WindowsServer.csproj" />
   <Folder Name="/TestSeamless/">
     <Project Path="TestSeamless/TestSeamless.csproj" />
     <Project Path="TestSeamless/Schema/TestSeamless.Schema.csproj" />
@@ -160,5 +169,4 @@
   <Folder Name="/Tools/">
     <Project Path="tools/Database.Verification/Database.Verification.csproj" />
   </Folder>
-  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>

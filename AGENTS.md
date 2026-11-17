@@ -26,13 +26,15 @@ You are a professional assistant. You must conduct all interactions, explanation
 - When changing local database schema or persisted data such as `Work\UI\runs.db`, apply the database change directly to the target database with an explicit backup.
 - Do not rely on application startup, schema version bumps, automatic deletion, or automatic migration code to perform local DB changes unless the user explicitly requests that approach.
 ## Shared Project Visibility Policy
-- Every `.projitems` file that owns shared source files must have a corresponding `.shproj` in the same directory and that `.shproj` must be registered in `Seamless.slnx`, so all managed source files are visible in Solution Explorer.
+- Every `.projitems` file that owns shared source files must have a corresponding `.shproj` in the same directory and that `.shproj` must be registered in `All.slnx` (the registry of every project), so all managed source files are visible in Solution Explorer.
 - The `.shproj` `ProjectGuid` must exactly match the `.projitems` `SharedGUID`, and its `Label="Shared"` import must reference the exact existing `.projitems` file name.
-- When adding, renaming, or moving shared source files, update the owning `.projitems`, its `.shproj`, and `Seamless.slnx` together. Do not expose shared source files only as loose solution files when they belong to a shared project.
+- When adding, renaming, or moving shared source files, update the owning `.projitems`, its `.shproj`, and `All.slnx` together. Do not expose shared source files only as loose solution files when they belong to a shared project.
 ## VS / VS Code の設定を構成に合わせる
-- プロジェクト (`.csproj` / `.shproj` / `.projitems`) を追加・移動・改名・削除したら、`tools/dev-env/Sync-DevEnvironment.ps1` で `Seamless.slnx`・絞り込み `*.slnx`・`.vscode/launch.json`・`.vscode/tasks.json`・`Seamless.slnLaunch`・プロジェクト間の参照を直す。git の pre-commit フック (`.githooks/pre-commit`) が自動で実行し、直した設定をそのコミットに含める。
+- プロジェクト (`.csproj` / `.shproj` / `.projitems`) を追加・移動・改名・削除したら、`tools/dev-env/Sync-DevEnvironment.ps1` で `All.slnx`・絞り込み `*.slnx`・`.vscode/launch.json`・`.vscode/tasks.json`・`Seamless.slnLaunch`・プロジェクト間の参照を直す。git の pre-commit フック (`.githooks/pre-commit`) が自動で実行し、直した設定をそのコミットに含める。
 - フックはクローンごとに `tools/dev-env/Install-GitHooks.ps1` で 1 回有効にする。フックを飛ばしたときの漏れは CI の `-Check` が見つける。
-- 絞り込みソリューションの起点は `tools/dev-env/focused-solutions.json` に書く。`Tests.slnx` は `IsTestProject=true` の全プロジェクトを自動で含めるので、テストプロジェクトを足すときに一覧を直す必要はない。
+- 全プロジェクトの台帳は `All.slnx`。普段開く `Seamless.slnx` は、台帳の `/Main/` (製品と管理画面)・`/Tests/` (製品の試験)・`/Template/` (正式なテンプレート) と、それらが参照するものだけを見せる絞り込み版である。ベンチマーク・サンプル・ツール・実験は `All.slnx` か専用の `*.slnx` で開く。
+- 新しいプロジェクトは、台帳でディレクトリが近い項目の隣に自動で置かれる。近いものが無いとき、一番上の階層の製品プロジェクトは `/Main/`、試験は `/Tests/` に入る。ベンチマークやサンプルの試験は、それぞれの試験の隣に入り、`Seamless.slnx` には出ない。
+- 絞り込みソリューションの起点は `tools/dev-env/focused-solutions.json` に書く。`@folder:/名前/` は台帳のフォルダの中身すべてを起点にする。`Tests.slnx` は `IsTestProject=true` の全プロジェクトを自動で含めるので、テストプロジェクトを足すときに一覧を直す必要はない。
 - 起動構成のうち `▶ ` で始まるものは自動生成なので手で直さない。引数付きなどの手書きの構成は残り、`program` と `cwd` は前処理タスクがビルドするプロジェクトの出力先に合わせて自動で直る。
 ## コミットメッセージ
 - 件名と本文は平易な日本語で書く。件名は「何をしたか」が分かる一文にし、英語の型名・略語・専門用語はできるだけ言い換える。

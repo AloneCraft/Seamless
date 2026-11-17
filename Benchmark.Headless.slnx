@@ -1,4 +1,26 @@
 <Solution>
+  <Folder Name="/Main/">
+    <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+    <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+    <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
+    <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
+    <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+    <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+    <Project Path="Seamless.Database/Seamless.Database.csproj" />
+    <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+    <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+    <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
+    <Project Path="Seamless/Seamless.csproj" />
+    <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+  </Folder>
+  <Folder Name="/Main/SourceGenerator/">
+    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
+    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
+  </Folder>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
@@ -62,24 +84,4 @@
     <File Path="Shared/UI.Core/UI.Core.projitems" />
     <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
   </Folder>
-  <Folder Name="/SourceGenerator/">
-    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
-    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
-    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
-  </Folder>
-  <Folder Name="/Tests/">
-    <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
-  </Folder>
-  <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
-  <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
-  <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
-  <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
-  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
-  <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
-  <Project Path="Seamless.Database/Seamless.Database.csproj" />
-  <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
-  <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
-  <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
-  <Project Path="Seamless/Seamless.csproj" />
-  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>

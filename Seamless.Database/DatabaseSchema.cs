@@ -1,4 +1,4 @@
-﻿namespace Seamless.Database;
+namespace Seamless.Database;
 
 public abstract class DatabaseSchema {
     private readonly DatabaseContainer database;
@@ -13,11 +13,11 @@ public abstract class DatabaseSchema {
     public string Name { get; }
     protected DatabaseContainer Database=>this.database;
 
-    protected Table<TRecord> Table<TRecord>([CallerMemberName] string name="")
+    protected StoredTable<TRecord> Table<TRecord>([CallerMemberName] string name="")
         where TRecord:notnull=>
         this.database.GetTable<TRecord>($"{this.Name}.{name}");
 
-    protected Table<TKey,TRecord> Table<TKey,TRecord>(
+    protected StoredTable<TKey,TRecord> Table<TKey,TRecord>(
         Func<TRecord,TKey> keySelector,
         [CallerMemberName] string name="")
         where TKey:struct

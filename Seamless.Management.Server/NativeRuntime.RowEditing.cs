@@ -101,7 +101,7 @@ internal sealed partial class NativeRuntime{
 
     private static TableRows ReadTypedRows<TKey,TRecord>(object source,TableRowsRequest request,long version,CancellationToken cancellation)
         where TKey:struct where TRecord:struct{
-        var table=(Table<TKey,TRecord>)source;
+        var table=(StoredTable<TKey,TRecord>)source;
         TRecord[]? keyed=null;
         if(request.Key is{} key){cancellation.ThrowIfCancellationRequested();keyed=table.TryGetValue((TKey)Materialize(key,typeof(TKey)),out var record)?[record]:[];}
         return ReadRows(table,record=>table.RecordKey(record),keyed,typeof(TKey),request,version,cancellation);
@@ -178,7 +178,7 @@ internal sealed partial class NativeRuntime{
 
     private static void ApplyTypedRows<TKey,TRecord>(object source,IEnumerable<TableRowChange> changes,CancellationToken cancellation)
         where TKey:struct where TRecord:struct{
-        var table=(Table<TKey,TRecord>)source;
+        var table=(StoredTable<TKey,TRecord>)source;
         var removals=new HashSet<TKey>(table.GatewayKeyComparer);
         var additions=new List<TRecord>();
         foreach(var change in changes){

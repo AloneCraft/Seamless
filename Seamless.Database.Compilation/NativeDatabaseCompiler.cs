@@ -225,10 +225,12 @@ public sealed class NativeDatabaseCompiler{
             var owner=(method.ReducedFrom??method).ContainingType.ToDisplayString();
             // Seamless.Linq.Set は集合の演算で、Select は結果の重複を除く(SELECT DISTINCT)。それ以外は System.Linq と同じ。
             var setOperation=owner=="Seamless.Linq.Set";
-            if(owner is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable"||setOperation&&method.Name is "Where" or "Select" or "Distinct"){
+            // [関係代入] 表の型(Seamless.Database.Table)が自分で持つ Where は、System.Linq の Where と同じ結果になる。
+            var tableOperation=method is{IsStatic:false,ReducedFrom:null,Name:"Where"}&&method.ContainingType.OriginalDefinition.Name=="Table"&&method.ContainingType.OriginalDefinition.ContainingNamespace.ToDisplayString()=="Seamless.Database";
+            if(owner is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable"||setOperation&&method.Name is "Where" or "Select" or "Distinct"||tableOperation){
                 var arguments=invocation.ArgumentList.Arguments.Select(a=>a.Expression).ToArray();
                 ExpressionSyntax input;
-                if(method.ReducedFrom is not null&&invocation.Expression is MemberAccessExpressionSyntax member){input=member.Expression;}
+                if((method.ReducedFrom is not null||tableOperation)&&invocation.Expression is MemberAccessExpressionSyntax member){input=member.Expression;}
                 else{if(arguments.Length==0){throw new Unsupported("NATIVE_UNSUPPORTED_QUERY","LINQ input is missing.",invocation);}input=arguments[0];arguments=arguments[1..];}
                 var query=this.Query(input,stack);
                 NativeQueryStage stage;

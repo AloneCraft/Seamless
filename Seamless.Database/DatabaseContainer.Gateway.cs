@@ -12,7 +12,10 @@ public abstract partial class DatabaseContainer{
     private long gatewayReplayFloor;
     private long gatewayLastAppliedLsn;
     private bool gatewayCheckpointVerified;
-    public void ConfigureGatewayTableChanges<TKey,TRecord>(Table<TKey,TRecord> table,Func<TRecord,TRecord>? normalize,Action<TRecord?,TRecord?> changed) where TKey:struct where TRecord:struct{
+    // [関係代入] 表のプロパティの型は基底の Table。中身はこのDBの保存された表でなければならない。
+    public void ConfigureGatewayTableChanges<TKey,TRecord>(Table<TKey,TRecord> table,Func<TRecord,TRecord>? normalize,Action<TRecord?,TRecord?> changed) where TKey:struct where TRecord:struct=>
+        this.ConfigureGatewayTableChanges(table as StoredTable<TKey,TRecord>??throw new InvalidOperationException("Only a stored table of this database can be configured."),normalize,changed);
+    public void ConfigureGatewayTableChanges<TKey,TRecord>(StoredTable<TKey,TRecord> table,Func<TRecord,TRecord>? normalize,Action<TRecord?,TRecord?> changed) where TKey:struct where TRecord:struct{
         if(this.Options.GatewayVersionedBinding is null){this.RequireGatewayProfile();}ArgumentNullException.ThrowIfNull(changed);lock(this.gate){if(!this.tables.TryGetValue(table.Name,out var actual)||!ReferenceEquals(actual,table)){throw new ArgumentException("The table belongs to a different database.",nameof(table));}table.GatewayNormalize=normalize;table.GatewayChanged=changed;table.GatewayKeyComparer=new CanonicalKeyComparer<TKey>(this.executionResources);}
     }
     private void ValidateOverlayWrite(bool create){

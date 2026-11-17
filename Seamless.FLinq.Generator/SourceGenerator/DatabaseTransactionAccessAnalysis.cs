@@ -70,7 +70,8 @@ internal sealed class DatabaseTransactionAccessAnalysis{
         for(;type is not null;type=type.BaseType){if(type.Name=="DatabaseContainer"&&type.ContainingNamespace.ToDisplayString()=="Seamless.Database"){return true;}}return false;
     }
     private static bool IsView(ITypeSymbol? type)=>type is INamedTypeSymbol named&&named.ContainingNamespace.ToDisplayString()=="Seamless.Transactions.Collections"
-        &&named.Name is "TransactionCollection" or "ReadOnlyTransactionCollection" or "TransactionRows";
+        &&named.Name is "TransactionCollection" or "ReadOnlyTransactionCollection" or "TransactionRows"
+        ||type is INamedTypeSymbol table&&table.ContainingNamespace.ToDisplayString()=="Seamless.Database"&&table.Name=="Table";
     private static bool IsScope(ITypeSymbol? type)=>type is INamedTypeSymbol named&&(named.Name=="TransactionScope"&&named.ContainingNamespace.ToDisplayString()=="Seamless.Transactions"
         ||named.Name=="TypedTransaction"&&IsDatabase(named.ContainingType)||named.Name.StartsWith("SchemaView",StringComparison.Ordinal)&&IsScope(named.ContainingType));
     private static bool IsScalar(ITypeSymbol? type)=>type is not null&&(type.SpecialType is not SpecialType.None and not SpecialType.System_Object
@@ -88,6 +89,8 @@ internal sealed class DatabaseTransactionAccessAnalysis{
                 if(IsView(property.Instance?.Type)||IsScope(property.Instance?.Type)){this.Note(property.Syntax,"行/取引ビュー参照: "+property.Syntax+"。この参照だけでは物理走査しない");}
                 else if(property.Property.GetMethod is { } getter){this.Method(getter);}break;
             case IAssignmentOperation assignment:
+                // [関係代入] 表のプロパティへの代入(tx.dbo.T = …)は、差分を書く書き込み。
+                if(assignment.Target is IPropertyReferenceOperation{Type:var assigned}&&IsView(assigned)){this.Unsafe(assignment.Syntax,"書込み: 関係代入 "+assignment.Target.Syntax+"。差分を確定まで私有化");}
                 if(assignment.Target is IPropertyReferenceOperation target&&IsView(target.Instance?.Type)){this.Unsafe(assignment.Syntax,"書込み: "+assignment.Target.Syntax+"。キーは実行時に依存記録し、変更を確定まで私有化");}
                 if(assignment.Target is not ILocalReferenceOperation&&(IsView(assignment.Value.Type)||IsScope(assignment.Value.Type))){this.Unsafe(assignment.Syntax,"不明: 取引または行ビューがローカル変数の外へ渡る");}break;
             case IIncrementOrDecrementOperation increment:
@@ -111,7 +114,7 @@ internal sealed class DatabaseTransactionAccessAnalysis{
                 if(method.TypeArguments.FirstOrDefault() is not INamedTypeSymbol strategy){this.unsafeAccess=true;return;}
                 var invoke=strategy.GetMembers("Invoke").OfType<IMethodSymbol>().FirstOrDefault();if(invoke is null){this.unsafeAccess=true;}else{this.Method(invoke);}return;
             }
-            if(method.Name is not("TryGetValue" or "ContainsKey" or "GetEnumerator")){this.Unsafe(operation.Syntax,"書込み/不明: 行ビューの"+method.Name);}
+            if(method.Name is not("TryGetValue" or "ContainsKey" or "Contains" or "GetEnumerator" or "Where" or "Union" or "Except" or "Intersect")){this.Unsafe(operation.Syntax,"書込み/不明: 行ビューの"+method.Name);}
             else{this.Note(operation.Syntax,"読取り: "+operation.Syntax+"。点検索はキー依存、列挙は表依存でsnapshotを選ぶ");}return;
         }
         if(IsScope(operation.Instance?.Type)){

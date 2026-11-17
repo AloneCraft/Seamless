@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 
 using DatabaseObjectKind = Seamless.Database.System.DatabaseObjectKind;
 
@@ -30,14 +30,14 @@ namespace Test.Seamless.Database.TPC_H {
                 MemorySize=1L<<24,
             };
 
-        public global::Seamless.Database.Table<Rows.region> regions => this.Table<Rows.region>();
-        public global::Seamless.Database.Table<Rows.nation> nations => this.Table<Rows.nation>();
-        public global::Seamless.Database.Table<Rows.supplier> suppliers => this.Table<Rows.supplier>();
-        public global::Seamless.Database.Table<Rows.customer> customers => this.Table<Rows.customer>();
-        public global::Seamless.Database.Table<Rows.part> parts => this.Table<Rows.part>();
-        public global::Seamless.Database.Table<Rows.partsupp> partsupps => this.Table<Rows.partsupp>();
-        public global::Seamless.Database.Table<Rows.orders> orders => this.Table<Rows.orders>();
-        public global::Seamless.Database.Table<Rows.lineitem> lineitems => this.Table<Rows.lineitem>();
+        public partial global::Seamless.Database.Table<Rows.region> regions{get;set;}
+        public partial global::Seamless.Database.Table<Rows.nation> nations{get;set;}
+        public partial global::Seamless.Database.Table<Rows.supplier> suppliers{get;set;}
+        public partial global::Seamless.Database.Table<Rows.customer> customers{get;set;}
+        public partial global::Seamless.Database.Table<Rows.part> parts{get;set;}
+        public partial global::Seamless.Database.Table<Rows.partsupp> partsupps{get;set;}
+        public partial global::Seamless.Database.Table<Rows.orders> orders{get;set;}
+        public partial global::Seamless.Database.Table<Rows.lineitem> lineitems{get;set;}
 
         public static string Row(int query,params object?[] values) =>
             $"Q{query:D2}|"+string.Join("|",values.Select(FormatValue));
@@ -453,7 +453,7 @@ namespace Test.Seamless.Database.TPC_H {
             // 初期データは取引で登録する(取引の外からは表へ書けない)。取引1つのWALには上限(既定4MB)があるため、一定件数ごとに確定する。
             var tx = container.BeginTransaction();
             var pending = 0;
-            void Add<TRow>(Func<Container.TypedTransaction,global::Seamless.Transactions.Collections.TransactionCollection<TRow,TRow>> table,TRow row) where TRow:notnull {
+            void Add<TRow>(Func<Container.TypedTransaction,global::Seamless.Database.Table<TRow,TRow>> table,TRow row) where TRow:notnull {
                 table(tx).Add(row);
                 if(++pending<2000) {
                     return;

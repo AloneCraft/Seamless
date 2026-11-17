@@ -68,15 +68,15 @@ public sealed partial class DatabaseTransactionExpansionTests{
                 private int OuterKey(Row row){this.calls++;return row.Value;}
                 [LinqIntercept(true)]
                 private (int,int)[] Query(Database.TypedTransaction tx,int limit)=>
-                    tx.Outer.Rows.Where(row=>row.Id<limit).Join(tx.Inner.Rows,row=>this.OuterKey(row),static row=>row.Id,
+                    tx.Outer.Where(row=>row.Id<limit).Join(tx.Inner,row=>this.OuterKey(row),static row=>row.Id,
                         static (outer,inner)=>(outer.Id,inner.Value)).ToArray();
                 [LinqIntercept(true)]
                 private (int,int)[] QueryEmpty(Database.TypedTransaction tx)=>
-                    tx.Outer.Rows.Join(tx.Empty.Rows,row=>this.OuterKey(row),Database.ReadId,
+                    tx.Outer.Join(tx.Empty,row=>this.OuterKey(row),Database.ReadId,
                         static (outer,inner)=>(outer.Id,inner.Value)).ToArray();
                 [LinqIntercept(true)]
                 private (int,int)[] QueryAnchored(Database.TypedTransaction tx)=>
-                    tx.Outer.Rows.Join(tx.Inner.Rows.Anchor,row=>this.OuterKey(row),Database.ReadId,
+                    tx.Outer.Join(tx.Inner.Anchor,row=>this.OuterKey(row),Database.ReadId,
                         static (outer,inner)=>(outer.Id,inner.Value)).ToArray();
                 public static async Task<bool> Run(){
                     var generatedKey=typeof(Database).Assembly.GetTypes().Single(type=>type.Name.StartsWith("DatabaseJoinKey_",StringComparison.Ordinal));
@@ -97,16 +97,16 @@ public sealed partial class DatabaseTransactionExpansionTests{
                             await seed.CommitAsync();
                         }
                         await using var read=await db.BeginReadOnlyTransactionAsync();
-                        if(read.Inner.Rows.TryGetJoinIndex(key,out _)==aliasFirst)return false;
+                        if(((global::Seamless.Transactions.Collections.TransactionCollection<int,Row>)read.Inner).Rows.TryGetJoinIndex(key,out _)==aliasFirst)return false;
                         var entry=new Entry();
                         if(entry.QueryEmpty(read).Length!=0||entry.calls!=0)return false;
                         foreach(var limit in new[]{0,64,65}){
-                            var expected=read.Outer.Rows.Where(row=>row.Id<limit&&row.Value==7).Select(row=>(row.Id,31)).ToArray();
+                            var expected=read.Outer.Where(row=>row.Id<limit&&row.Value==7).Select(row=>(row.Id,31)).ToArray();
                             entry.calls=0;
                             if(!entry.Query(read,limit).SequenceEqual(expected)||entry.calls!=limit)return false;
                         }
                         entry.calls=0;
-                        var anchored=read.Outer.Rows.Where(row=>row.Value==7).Select(row=>(row.Id,31)).ToArray();
+                        var anchored=read.Outer.Where(row=>row.Value==7).Select(row=>(row.Id,31)).ToArray();
                         if(!entry.QueryAnchored(read).SequenceEqual(anchored)||entry.calls!=65)return false;
                         await read.CommitAsync();
                     }
@@ -187,11 +187,11 @@ public sealed partial class DatabaseTransactionExpansionTests{
             public sealed class Report{
                 public decimal Total(Database.TypedTransaction tx){
                     using var probe=new ScopeProbe();
-                    var array=tx.Accounts.Rows.ToArray();
-                    var list=tx.Accounts.Rows.Select(static row=>row.Balance).ToList();
-                    var dictionary=tx.Accounts.Rows.ToDictionary(static row=>row.Id);
+                    var array=tx.Accounts.ToArray();
+                    var list=tx.Accounts.Select(static row=>row.Balance).ToList();
+                    var dictionary=tx.Accounts.ToDictionary(static row=>row.Id);
                     if(array.Length!=1||list.Count!=1||dictionary[1].Balance!=array[0].Balance){throw new InvalidOperationException("Materialized results disagree.");}
-                    if(tx.Accounts.Rows.Count()!=1||!tx.Accounts.Rows.Any()||!tx.Accounts.Rows.Contains(tx.Accounts[1])){throw new InvalidOperationException("Snapshot membership is inconsistent.");}
+                    if(tx.Accounts.Count()!=1||!tx.Accounts.Any()||!tx.Accounts.Contains(tx.Accounts[1])){throw new InvalidOperationException("Snapshot membership is inconsistent.");}
                     return tx.Accounts.Sum(static row=>row.Balance);
                 }
             }
@@ -372,18 +372,18 @@ public sealed partial class DatabaseTransactionExpansionTests{
                 private static int ThrowInner()=>throw new InvalidOperationException("Empty outer evaluated the inner selector.");
                 public async Task<int> Condition(Database db,bool skip){
                     await using var tx=await db.BeginTransactionAsync();var hits=0;
-                    if(skip||tx.Accounts.Rows.Any(row=>++hits==1)){}
-                    if(!skip&&tx.Accounts.Rows.Count()!=128){throw new InvalidOperationException("Condition count changed.");}
+                    if(skip||tx.Accounts.Any(row=>++hits==1)){}
+                    if(!skip&&tx.Accounts.Count()!=128){throw new InvalidOperationException("Condition count changed.");}
                     var steps=0;
-                    while(steps<2&&tx.Accounts.Rows.Any()){steps++;}
-                    do{steps--;}while(steps>0&&tx.Accounts.Rows.Any());
+                    while(steps<2&&tx.Accounts.Any()){steps++;}
+                    do{steps--;}while(steps>0&&tx.Accounts.Any());
                     if(steps!=0){throw new InvalidOperationException("Loop condition changed.");}
                     await tx.CommitAsync();return hits;
                 }
                 public async Task<long> Count(Database db){
                     await using var tx=await db.BeginTransactionAsync();
-                    var count=tx.Accounts.Rows.LongCount();
-                    var count32=tx.Accounts.Rows.Count();
+                    var count=tx.Accounts.LongCount();
+                    var count32=tx.Accounts.Count();
                     if(count!=count32){throw new InvalidOperationException("Count and LongCount disagree.");}
                     var readOnly=tx.IsReadOnly;
                     await Task.Yield();
@@ -404,26 +404,26 @@ public sealed partial class DatabaseTransactionExpansionTests{
                     var skipped=await new Reader().Condition(db,true);var evaluated=await new Reader().Condition(db,false);
                     if(skipped!=0||evaluated!=1){throw new InvalidOperationException($"Short-circuit or callback effects changed: {skipped},{evaluated}.");}
                     await using(var read=await db.BeginReadOnlyTransactionAsync()){
-                        var expected=read.Accounts.Rows.GroupBy(static row=>row.Id%3,static row=>row.Balance).Select(static group=>group.Sum()).ToArray();
+                        var expected=read.Accounts.GroupBy(static row=>row.Id%3,static row=>row.Balance).Select(static group=>group.Sum()).ToArray();
                         var actual=new Reader().Group(read);if(!expected.SequenceEqual(actual)){throw new InvalidOperationException("Partitioned grouping changed order or sums.");}
                         var expectedTrace=new global::System.Collections.Generic.List<int>();var actualTrace=new global::System.Collections.Generic.List<int>();
-                        var traced=read.Accounts.Rows.GroupBy(static row=>0).Select(group=>(group.Sum(row=>{expectedTrace.Add(1000+row.Id);return row.Id;}),group.Sum(row=>{expectedTrace.Add(2000+row.Id);return row.Id;}))).ToArray();
+                        var traced=read.Accounts.GroupBy(static row=>0).Select(group=>(group.Sum(row=>{expectedTrace.Add(1000+row.Id);return row.Id;}),group.Sum(row=>{expectedTrace.Add(2000+row.Id);return row.Id;}))).ToArray();
                         if(!traced.SequenceEqual(new Reader().GroupTrace(read,actualTrace))||!expectedTrace.SequenceEqual(actualTrace)){throw new InvalidOperationException("Grouping reordered aggregate callbacks.");}
                         actualTrace.Clear();if(new Reader().SkipAggregate(read,actualTrace,true).Single()!=0||actualTrace.Count!=0){throw new InvalidOperationException("Grouping evaluated a short-circuited aggregate.");}
                         foreach(var take in new[]{-1,0,1,2,5}){
                             expectedTrace.Clear();actualTrace.Clear();
-                            var limited=read.Accounts.Rows.GroupBy(row=>{expectedTrace.Add(4000+row.Id%3);return row.Id%3;}).Select(group=>group.Sum(row=>{expectedTrace.Add(5000+row.Id);return row.Id;})).Take(take).ToArray();
+                            var limited=read.Accounts.GroupBy(row=>{expectedTrace.Add(4000+row.Id%3);return row.Id%3;}).Select(group=>group.Sum(row=>{expectedTrace.Add(5000+row.Id);return row.Id;})).Take(take).ToArray();
                             if(!limited.SequenceEqual(new Reader().TakeGroups(read,actualTrace,take))||!expectedTrace.SequenceEqual(actualTrace)){throw new InvalidOperationException("Take changed grouping evaluation or callback order.");}
                         }
-                        var nullJoin=read.Accounts.Rows.Where(static row=>row.Id<4).Join(read.Accounts.Rows.Where(static row=>row.Id<6),static row=>row.Id==0?null:"key",static row=>row.Id==0?null:"key",static(outer,inner)=>outer.Id*100+inner.Id).ToArray();
+                        var nullJoin=read.Accounts.Where(static row=>row.Id<4).Join(read.Accounts.Where(static row=>row.Id<6),static row=>row.Id==0?null:"key",static row=>row.Id==0?null:"key",static(outer,inner)=>outer.Id*100+inner.Id).ToArray();
                         if(!nullJoin.SequenceEqual(new Reader().NullJoin(read))){throw new InvalidOperationException("Join matched null keys or reordered matches.");}
                         if(new Reader().EmptyJoin(read).Length!=0){throw new InvalidOperationException("Empty Join returned rows.");}await read.CommitAsync();
                     }
                     await using(var own=await db.BeginTransactionAsync()){
                         own.Accounts[1]=new Account(1,123);own.Accounts.Remove(2);own.Accounts.Add(new Account(1000,7));
-                        var expected=own.Accounts.Rows.GroupBy(static row=>row.Id%3).Select(static group=>(group.Key,group.Count(),group.Sum(static row=>row.Balance))).ToArray();
+                        var expected=own.Accounts.GroupBy(static row=>row.Id%3).Select(static group=>(group.Key,group.Count(),group.Sum(static row=>row.Balance))).ToArray();
                         if(!expected.SequenceEqual(new Reader().GroupRows(own))){throw new InvalidOperationException("Grouped own changes disagree.");}
-                        var joined=own.Accounts.Rows.Where(static row=>row.Id<6).Join(own.Accounts.Rows.Where(static row=>row.Id<12),static row=>row.Id%3,static row=>row.Id%3,static(outer,inner)=>(outer.Id,inner.Id,outer.Balance+inner.Balance)).ToArray();
+                        var joined=own.Accounts.Where(static row=>row.Id<6).Join(own.Accounts.Where(static row=>row.Id<12),static row=>row.Id%3,static row=>row.Id%3,static(outer,inner)=>(outer.Id,inner.Id,outer.Balance+inner.Balance)).ToArray();
                         if(!joined.SequenceEqual(new Reader().Joined(own))){throw new InvalidOperationException("Joined own changes disagree.");}await own.RollbackAsync();
                     }
                     await using var write=await db.BeginTransactionAsync();write.Accounts[1]=new Account(1,200);await write.CommitAsync();
@@ -473,14 +473,14 @@ public sealed partial class DatabaseTransactionExpansionTests{
             public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options){public Table<int,Account> Accounts=>this.Table<int,Account>(static row=>row.Id);public Table<int,Account> Orders=>this.Table<int,Account>(static row=>row.Id);}
             [LinqIntercept(true)]
             public sealed class Reader{
-                private static int CountRows(Database.TypedTransaction tx)=>checked((int)tx.Accounts.Rows.LongCount());
+                private static int CountRows(Database.TypedTransaction tx)=>checked((int)tx.Accounts.LongCount());
                 public async Task<int> ReadOnly(Database db){await using var tx=await db.BeginTransactionAsync();var count=CountRows(tx);await tx.CommitAsync();return count;}
-                public async Task<int> Alias(Database db){await using var tx=await db.BeginTransactionAsync();var rows=tx.Accounts;var count=rows.Rows.Count();await tx.CommitAsync();return count;}
+                public async Task<int> Alias(Database db){await using var tx=await db.BeginTransactionAsync();var rows=tx.Accounts;var count=rows.Count();await tx.CommitAsync();return count;}
                 public async Task<int> Block(Database db){await using(var tx=await db.BeginTransactionAsync()){var count=CountRows(tx);await tx.CommitAsync();return count;}}
                 public async Task<int> Nested(Database db){await using var tx=await db.BeginTransactionAsync();int count;await using(var child=await tx.BeginTransactionAsync()){count=CountRows(child);await child.CommitAsync();}await tx.CommitAsync();return count;}
                 public async Task SlowRead(Database db){await using var tx=await db.BeginTransactionAsync();var count=CountRows(tx);Entry.ReadReady=1;await Task.Delay(1000);await tx.CommitAsync();}
                 public async Task ReadOneTableAndWriteAnother(Database db){await using var tx=await db.BeginTransactionAsync();var count=CountRows(tx);tx.Orders[1]=new Account(1,count);Entry.WriterReady=1;await Task.Delay(1000);if(tx.Accounts[1].Balance!=100){throw new Exception("Writer lost its original snapshot.");}await tx.CommitAsync();}
-                private static void Set(Database.TypedTransaction tx){if(tx.Accounts.Rows.Any()){var rows=tx.Accounts;rows[1]=new Account(1,90);}}
+                private static void Set(Database.TypedTransaction tx){if(tx.Accounts.Any()){var rows=tx.Accounts;rows[1]=new Account(1,90);}}
                 public async Task Write(Database db){await using var tx=await db.BeginTransactionAsync();Set(tx);await tx.CommitAsync();}
                 public async Task Unknown(Database db,Action<Database.TypedTransaction> action){await using var tx=await db.BeginTransactionAsync();action(tx);await tx.CommitAsync();}
                 public int ExternalReader(Database.TypedTransaction tx)=>CountRows(tx);

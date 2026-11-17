@@ -27,7 +27,7 @@ public abstract partial class DatabaseContainer{
         this.ValidateOverlayWrite(write);this.CheckGatewayVersionedAdmission();var state=this.gatewayVersionedExecution.Value??throw new InvalidOperationException("Use the owning Gateway scope to access versioned database tables.");
         ObjectDisposedException.ThrowIf(state.Disposed,state);state.Scope.ValidateOwner(this.sharedCoordinator!);if(write&&state.Scope.IsReadOnly){throw new InvalidOperationException("The Gateway scope is read-only.");}return state;
     }
-    internal bool TryGatewayVersionedCollection<TKey,TRecord>(Table<TKey,TRecord> table,bool write,[global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)]out TransactionCollection<TKey,TRecord>? collection) where TKey:struct where TRecord:struct{
+    internal bool TryGatewayVersionedCollection<TKey,TRecord>(StoredTable<TKey,TRecord> table,bool write,[global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)]out TransactionCollection<TKey,TRecord>? collection) where TKey:struct where TRecord:struct{
         if(this.Options.GatewayVersionedBinding is null&&this.Options.GatewayVersionedSeed is null){collection=null;return false;}var state=this.CurrentGatewayVersionedExecution(write);collection=this.GetTransactionCollection(state.Scope,table);return true;
     }
     internal bool TryGatewayVersionedCollection<TKey,TRecord>(MaterializedView<TKey,TRecord> view,bool write,[global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)]out TransactionCollection<TKey,TRecord>? collection) where TKey:struct where TRecord:struct{

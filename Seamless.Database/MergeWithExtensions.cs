@@ -23,6 +23,15 @@ public static class SetMergeWithExtensions {
         ArgumentNullException.ThrowIfNull(innerKeySelector);
         ArgumentNullException.ThrowIfNull(create);
         ArgumentNullException.ThrowIfNull(update);
+        // [暗黙の取引] db 側の表を取引の外で使うときは、照合から反映までを1つの暗黙の取引で行う。
+        if(outer is StoredTable<TKey,TRecord> stored){return stored.Database.InImplicitTransaction(()=>MergeWithCore(outer,inner,outerKeySelector,innerKeySelector,create,update));}
+        return MergeWithCore(outer,inner,outerKeySelector,innerKeySelector,create,update);
+    }
+
+    private static (long Updated, long Changed, long Added) MergeWithCore<TKey, TRecord, TInner, TMatchKey>(
+        Table<TKey, TRecord> outer,IEnumerable<TInner> inner,Func<TRecord, TMatchKey> outerKeySelector,Func<TInner, TMatchKey> innerKeySelector,
+        Func<TMatchKey, TInner, TRecord> create,Func<TRecord, TInner, TRecord> update)
+        where TKey : struct where TRecord : struct where TMatchKey : notnull {
 
         // 1. 開始時可視状態のスナップショット取得
         // outer 内で同一 matchKey に同一レコードがある場合は重複除去、異なるレコードがある場合はエラー
@@ -32,7 +41,7 @@ public static class SetMergeWithExtensions {
 
         foreach (var row in outer) {
             var mKey = outerKeySelector(row);
-            var rowKey = outer.RecordKey(row);
+            var rowKey = outer.GetKey(row);
             untouchedOriginalKeys.Add(rowKey);
 
             if (outerSnapshot.TryGetValue(mKey, out var existing)) {
@@ -73,11 +82,11 @@ public static class SetMergeWithExtensions {
                 // Update
                 var oldKey = outerKeys[mKey];
                 var nextRecord = update(existingRecord, input);
-                var newKey = outer.RecordKey(nextRecord);
+                var newKey = outer.GetKey(nextRecord);
 
                 updatedCount++;
                 var isChanged = !EqualityComparer<TRecord>.Default.Equals(existingRecord, nextRecord);
-                if (isChanged || !outer.KeysEqual(oldKey, newKey)) {
+                if (isChanged || !KeysEqual(outer,oldKey, newKey)) {
                     changedCount++;
                 }
 
@@ -87,7 +96,7 @@ public static class SetMergeWithExtensions {
             } else {
                 // Create
                 var createdRecord = create(mKey, input);
-                var newKey = outer.RecordKey(createdRecord);
+                var newKey = outer.GetKey(createdRecord);
 
                 addedCount++;
                 plannedAdds.Add((newKey, createdRecord));
@@ -123,4 +132,7 @@ public static class SetMergeWithExtensions {
 
         return (updatedCount, changedCount, addedCount);
     }
+
+    private static bool KeysEqual<TKey,TRecord>(Table<TKey,TRecord> table,TKey first,TKey second) where TKey:struct where TRecord:struct=>
+        table is StoredTable<TKey,TRecord> stored?stored.KeysEqual(first,second):EqualityComparer<TKey>.Default.Equals(first,second);
 }

@@ -187,7 +187,7 @@ internal static class DatabaseWalOperationFactory {
 }
 
 internal sealed class UnkeyedTableTransactionOverlay<TRecord>(
-    Table<TRecord> table,
+    StoredTable<TRecord> table,
     global::Seamless.Execution.ExecutionScope resources,
     long memoryLimit):ITransactionOverlay
     where TRecord:notnull {
@@ -277,7 +277,7 @@ internal sealed class UnkeyedTableTransactionOverlay<TRecord>(
 }
 
 internal sealed class TableTransactionOverlay<TKey,TRecord>(
-    Table<TKey,TRecord> table,
+    StoredTable<TKey,TRecord> table,
     global::Seamless.Execution.ExecutionScope resources,
     long memoryLimit):ITransactionOverlay
     where TKey:struct

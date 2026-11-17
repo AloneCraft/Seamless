@@ -35,7 +35,7 @@ public sealed class NativeQueryExecutionSnapshots{
                     public IEnumerable<byte[]> Execute(string id, ReadOnlyMemory<byte> args, INativeQueryContext context) {
                         var db=(global::{{type}})context.Database;
                         var sum={{offset}};
-                        foreach (var row in db.dbo.Items.GetGatewayTransactionRows()) { sum=checked(sum+row.N); }
+                        foreach (var row in global::Seamless.Database.StoredTableExtensions.GetGatewayTransactionRows(db.dbo.Items)) { sum=checked(sum+row.N); }
                         yield return MemoryPackSerializer.Serialize({{resultExpression}});
                     }
                 }

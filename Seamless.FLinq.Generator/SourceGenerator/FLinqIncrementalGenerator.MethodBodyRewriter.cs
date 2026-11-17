@@ -58,6 +58,14 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         // [集合] Seamless.Linq.Set の呼び出し(ビュー・関数の本体の書き方)は、System.Linq の同じ演算へ下げてから展開する。
         // 重複を除く演算(Select・SelectMany・Join)の後には Distinct を足すので、結果は Set と同じ。
+        // [関係代入] 表のプロパティへの代入は、形の分かった差分の処理の呼び出しへ書き換える。書き換えた数は展開した LINQ と同じく数える。
+        var 関係代入の数=0;
+        if(RelationalAssignmentLowering.TryLower(メソッド構文,セマンティックモデル,out var 代入を書き換えたメソッド,out var 代入を書き換えたモデル,out 関係代入の数)
+            &&代入を書き換えたモデル.GetDeclaredSymbol(代入を書き換えたメソッド)?.ContainingType is {} 代入を書き換えた包含型){
+            メソッド構文=代入を書き換えたメソッド;
+            セマンティックモデル=代入を書き換えたモデル;
+            包含型=代入を書き換えた包含型;
+        }else{関係代入の数=0;}
         if(SetCallLowering.TryLower(メソッド構文,セマンティックモデル,out var 下げたメソッド,out var 下げたモデル)
             &&下げたモデル.GetDeclaredSymbol(下げたメソッド)?.ContainingType is {} 下げた包含型){
             メソッド構文=下げたメソッド;
@@ -109,6 +117,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
+        this.state.LinqInvocationCount+=関係代入の数;
         if(this.state.LinqInvocationCount==0) {
             return false;
         }

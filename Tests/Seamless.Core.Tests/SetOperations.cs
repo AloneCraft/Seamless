@@ -69,6 +69,84 @@ public sealed class SetOperations {
     }
 
     [Fact]
+    public void LeftJoinKeepsUnmatchedOuterRowsWithNullInner() {
+        var customers = new CountingSet<(int Id, string Name)>((1,"A"),(2,"B"),(3,"C"));
+        var orders = new (int? Customer, int Amount)?[] { (1,10),(1,20),(2,30),(null,40),(1,20) };
+        var joined = customers.LeftJoin(orders,c => (int?)c.Id,o => o!.Value.Customer,(c,o) => (c.Name,o?.Amount));
+        // 対応のある組、対応の無い C は内側が null。重複した組は1回だけ。
+        Assert.Equal([("A",(int?)10),("A",20),("B",30),("C",null)],joined.Order());
+        Assert.True(joined.Contains(("C",null)));
+
+        // null のキーの外側は、どれとも結ばずに内側を null にする。
+        var nullable = new CountingSet<string?>("x",null);
+        var keyed = nullable.LeftJoin(new string?[] { "x",null },x => x,y => y,(x,y) => (x,y));
+        Assert.Equal([((string?)null,(string?)null),("x","x")],keyed.OrderBy(static pair => pair.x));
+    }
+
+    [Fact]
+    public void OfHasExactlyOneElement() {
+        var single = Set.Of(0);
+        Assert.Equal(0,Assert.Single(single));
+        Assert.Equal(1L,single.GetLongCount());
+        Assert.True(single.Contains(0));
+        Assert.False(single.Contains(1));
+
+        // 元の集合が空でも、1つの要素から集約した値の集合は1行になる。
+        var empty = new CountingSet<int>();
+        Assert.Equal([0],Set.Of(0).Select(_ => empty.Count()));
+    }
+
+    [Fact]
+    public void RightJoinKeepsUnmatchedInnerRowsWithNullOuter() {
+        // 外側が構造体なので Nullable の集合で渡し、対応の無い内側には null が来る。
+        var orders = new CountingSet<(int Id, int? Customer)?>((1,10),(2,20),(3,null));
+        var customers = new (int Id, string Name)[] { (10,"A"),(30,"C") };
+        var joined = orders.RightJoin(customers,o => o!.Value.Customer,c => (int?)c.Id,(o,c) => (o?.Id,c.Name));
+        // 対応のある組と、対応の無い C(外側が null)。キーが null の外側(注文3)は出ない。
+        Assert.Equal([((int?)null,"C"),(1,"A")],joined.OrderBy(static pair => pair.Item1??0));
+    }
+
+    [Fact]
+    public void GroupJoinPassesAllInnerRowsIncludingDuplicates() {
+        var customers = new CountingSet<int>(1,2);
+        var amounts = new (int Customer, int Amount)[] { (1,10),(1,10),(1,5) };
+        var totals = customers.GroupJoin(amounts,c => c,a => a.Customer,(c,rows) => (c,rows.Sum(static row => row.Amount)));
+        // 同じ値の内側の行も別々に渡すので、1 の合計は 25。内側の無い 2 は空の並び。
+        Assert.Equal([(1,25),(2,0)],totals.Order());
+    }
+
+    [Fact]
+    public void GroupByMakesOneGroupPerKeyAndKeepsDuplicatedElements() {
+        var rows = new CountingSet<(int Id, int? Key, int Amount)>((1,1,10),(2,1,10),(3,2,5),(4,null,7),(5,null,3));
+        var groups = rows.GroupBy(row => row.Key);
+        Assert.Equal(3,groups.Count);
+        Assert.Equal(1,rows.Enumerations);
+        // 組の中は同じ値でも別の要素として残る。null のキーは1つの組。
+        var sums = rows.GroupBy(row => row.Key,row => row.Amount,(key,amounts) => (key,amounts.Sum()));
+        Assert.Equal([((int?)null,10),(1,20),(2,5)],sums.OrderBy(static pair => pair.key??0));
+        var elements = rows.GroupBy(row => row.Key,row => row.Amount);
+        Assert.Equal([10,10],elements.Single(static group => group.Key==1).Order());
+        // 組の等しさはキーで決まる。
+        Assert.True(groups.Contains(groups.First(static group => group.Key==2)));
+        Assert.Equal([new KeyValuePair<int?,int>(null,2),new(1,2),new(2,1)],rows.CountBy(row => row.Key).OrderBy(static pair => pair.Key??0));
+    }
+
+    [Fact]
+    public void KeyFiltersAndDefaultsAnswerAsSets() {
+        var rows = new CountingSet<(int Id, int Key)>((1,1),(2,2),(3,3));
+        Assert.Equal([1,3],rows.IntersectBy([1,3,5],row => row.Key).Select(static row => row.Id).Order());
+        Assert.Equal([2],rows.ExceptBy([1,3],row => row.Key).Select(static row => row.Id).Order());
+        Assert.True(rows.ExceptBy([1,3],row => row.Key).Contains((2,2)));
+
+        var empty = new CountingSet<int>();
+        Assert.Equal([7],empty.DefaultIfEmpty(7));
+        Assert.True(empty.DefaultIfEmpty(7).Contains(7));
+        Assert.Equal([1,2],new CountingSet<int>(1,2).DefaultIfEmpty(7).Order());
+        Assert.Empty(Set.Empty<int>());
+        Assert.False(Set.Empty<int>().Contains(0));
+    }
+
+    [Fact]
     public void SetOperationsAnswerFromBothSets() {
         var first = new CountingSet<int>(1,2,3,4);
         var second = new CountingSet<int>(3,4,5);

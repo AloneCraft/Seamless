@@ -132,7 +132,7 @@ public abstract partial class DatabaseContainer{
             throw;
         }
     }
-    private Table<TKey,TRecord> CreateSharedTable<TKey,TRecord>(Func<TRecord,TKey> keySelector,string name) where TKey:struct where TRecord:struct{
+    private StoredTable<TKey,TRecord> CreateSharedTable<TKey,TRecord>(Func<TRecord,TKey> keySelector,string name) where TKey:struct where TRecord:struct{
         if(this.Options.TransactionHistory is not null){var versioned=this.CreateVersionedParticipant(keySelector,name);return new(this,keySelector,versioned,name);}
         this.EnsureSharedStorage();var sizing=this.ResolveTableStorage(name);
         var identity=this.TransactionCodecIdentity<TKey,TRecord>(name);this.CheckRecordGraphContract(name,identity);
@@ -149,12 +149,12 @@ public abstract partial class DatabaseContainer{
         // 使う表だけを開く(設計 20261116-使う表だけを開く.md)：条件に合えば、保存の仕組み(メモリを取り置く)は初めて使うときに開き、
         // そのときに、この表の分の変更の記録だけを当て直す。登録(取引の調停への参加)は今までどおり最初の取引の前に行う。
         TransactionalTable<TKey,TRecord>? participant=null;
-        Table<TKey,TRecord> table;
+        StoredTable<TKey,TRecord> table;
         if(this.CanOpenTablesLazily){
-            table=new Table<TKey,TRecord>(this,keySelector,new SharedEmptyLease(),name,Create,()=>this.sharedCoordinator!.OpenDeferred(participant!),Create);
+            table=new StoredTable<TKey,TRecord>(this,keySelector,new SharedEmptyLease(),name,Create,()=>this.sharedCoordinator!.OpenDeferred(participant!),Create);
             this.sharedStore!.KeepUnopened([name]);this.lazyTables.Add(name,()=>table.IsStorageOpen);
         }else{
-            table=new Table<TKey,TRecord>(this,Create(),keySelector,new SharedEmptyLease(),name,Create);
+            table=new StoredTable<TKey,TRecord>(this,Create(),keySelector,new SharedEmptyLease(),name,Create);
         }
         participant=new TransactionalTable<TKey,TRecord>(0,id,identity,this.executionResources,this.Options.TransactionMemoryLimit,
             key=>{var found=table.DirectTryGetValue(key,out var row);return(found,row);},table.DirectSet,key=>table.DirectRemove(key),keySelector,()=>table.DirectRows);
@@ -162,7 +162,7 @@ public abstract partial class DatabaseContainer{
         if(this.lazyTables.ContainsKey(name)){this.sharedCoordinator.DeferReplay(participant,this.TableCheckpointLsn(name));}
         this.sharedHandles.Add((table.ReleaseSharedHandle,table.AcquireSharedHandle));return table;
     }
-    public TransactionCollection<TKey,TRecord> GetTransactionCollection<TKey,TRecord>(TransactionScope scope,Table<TKey,TRecord> table) where TKey:struct where TRecord:struct{
+    public TransactionCollection<TKey,TRecord> GetTransactionCollection<TKey,TRecord>(TransactionScope scope,StoredTable<TKey,TRecord> table) where TKey:struct where TRecord:struct{
         this.EnsureAvailable();
         this.CheckGatewayVersionedAdmission();
         if(!this.tables.TryGetValue(table.Name,out var own)||!ReferenceEquals(own,table)||!this.sharedParticipants.TryGetValue(table.Name,out var participant)||participant is not ITransactionalTable<TKey,TRecord> typed){throw new InvalidOperationException("Table is not part of this typed transaction schema.");}
@@ -197,19 +197,24 @@ public abstract partial class DatabaseContainer{
         if(!this.tables.TryGetValue(view.Name,out var own)||!ReferenceEquals(own,view)||!this.sharedParticipants.TryGetValue(view.Name,out var participant)||participant is not ITransactionalTable<TKey,TRecord> typed){throw new InvalidOperationException("View is not part of this typed transaction schema.");}
         return typed.For(scope);
     }
-    private Table<TRecord> CreateSharedTable<TRecord>(string name) where TRecord:notnull{
+    private StoredTable<TRecord> CreateSharedTable<TRecord>(string name) where TRecord:notnull{
         if(this.Options.GatewayVersionedBinding is not null||this.Options.GatewayVersionedSeed is not null){throw new NotSupportedException("Gateway tables require stable keys; generate an internal row ID for SQL tables without primary keys.");}
         if(this.Options.TransactionHistory is not null){var versioned=this.CreateVersionedParticipant<TRecord,TRecord>(static row=>row,name);return new(this,versioned,name);}
         if(this.Options.RecordSerialization!=DatabaseRecordSerialization.Default){throw new NotSupportedException("Explicit typed storage requires a stable key; generate an internal row ID for keyless SQL tables.");}
         this.EnsureSharedStorage();var sizing=this.ResolveTableStorage(name);
         var data=this.sharedStore!.CreateTsavoriteHashSet<TRecord>(name,new TsavoriteTuning{IndexSize=checked(sizing.IndexSize*64),PageSize=sizing.PageSize,SegmentSize=sizing.SegmentSize,LogMemorySize=sizing.MemorySize});
-        var table=new Table<TRecord>(this,data.Create(),name,data.Create);
+        var table=new StoredTable<TRecord>(this,data.Create(),name,data.Create);
         var id=BinaryPrimitives.ReadInt32LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(name)))&int.MaxValue;if(id==0){id=1;}
         var participant=new TransactionalTable<TRecord,TRecord>(0,id,this.TransactionCodecIdentity<TRecord,TRecord>(name),this.executionResources,this.Options.TransactionMemoryLimit,
             key=>(table.DirectContains(key),key),(key,row)=>table.DirectAdd(row),key=>table.DirectRemove(key),static row=>row,()=>table.DirectRows.Select(static row=>new KeyValuePair<TRecord,TRecord>(row,row)));
         this.sharedCoordinator!.Register(participant);this.sharedParticipants.Add(name,participant);this.sharedHandles.Add((table.ReleaseSharedHandle,table.AcquireSharedHandle));return table;
     }
-    public TransactionCollection<TRecord,TRecord> GetTransactionCollection<TRecord>(TransactionScope scope,Table<TRecord> table) where TRecord:notnull{
+    // [関係代入] 表のプロパティの型は基底の Table。中身がこのDBの保存された表のときだけ取引の表にできる(式は不可)。
+    public TransactionCollection<TKey,TRecord> GetTransactionCollection<TKey,TRecord>(TransactionScope scope,Table<TKey,TRecord> table) where TKey:struct where TRecord:struct=>
+        this.GetTransactionCollection(scope,table as StoredTable<TKey,TRecord>??throw new InvalidOperationException("Only a stored table of this database can be opened in a transaction."));
+    public TransactionCollection<TRecord,TRecord> GetTransactionCollection<TRecord>(TransactionScope scope,Table<TRecord> table) where TRecord:notnull=>
+        this.GetTransactionCollection(scope,table as StoredTable<TRecord>??throw new InvalidOperationException("Only a stored table of this database can be opened in a transaction."));
+    public TransactionCollection<TRecord,TRecord> GetTransactionCollection<TRecord>(TransactionScope scope,StoredTable<TRecord> table) where TRecord:notnull{
         this.EnsureAvailable();
         this.CheckGatewayVersionedAdmission();
         if(!this.tables.TryGetValue(table.Name,out var own)||!ReferenceEquals(own,table)||!this.sharedParticipants.TryGetValue(table.Name,out var participant)||participant is not ITransactionalTable<TRecord,TRecord> typed){throw new InvalidOperationException("Table is not part of this typed transaction schema.");}

@@ -1,6 +1,7 @@
 ﻿# VS と VS Code の設定を、ディスク上のプロジェクトに合わせて作り直す。
-#   - Seamless.slnx : 未登録のプロジェクトを足し、消えたものを外し、移動したものを付け替える
-#   - 絞り込み *.slnx : focused-solutions.json の起点から参照をたどって作り直す (Tests.slnx はテスト全部)
+#   - All.slnx (全プロジェクトの台帳) : 未登録のプロジェクトを足し、消えたものを外し、移動したものを付け替える
+#   - 絞り込み *.slnx : focused-solutions.json の起点から参照をたどって作り直す
+#       Seamless.slnx は台帳の /Main/・/Tests/・/Template/ だけを見せる絞り込み版。Tests.slnx はテスト全部
 #   - .vscode/launch.json : 実行できるプロジェクトごとに「▶ 名前」の起動構成を作る。手書きの構成は残し、参照先だけ直す
 #   - .vscode/tasks.json / Seamless.slnLaunch : 移動したプロジェクトの参照先を直す
 #   - 共有プロジェクト (.projitems/.shproj) の規則を検査する
@@ -17,7 +18,7 @@ Set-Location -LiteralPath $Root
 # git のフックから呼ばれたとき日本語が文字化けしないように
 try { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false } catch { }
 $ConfigPath = Join-Path $PSScriptRoot 'focused-solutions.json'
-$MasterName = 'Seamless.slnx'
+$MasterName = 'All.slnx'
 $LaunchPrefix = [string][char]0x25B6 + ' '
 
 $Errors = New-Object System.Collections.Generic.List[string]
@@ -234,21 +235,21 @@ function Get-DirSegments([string]$rel) {
 }
 
 $AddedNodes = New-Object 'System.Collections.Generic.HashSet[object]'
-# 置き場所: テストは /Tests/ フォルダ。それ以外はディレクトリが最も近い登録済みの項目 (Project / File) の隣。無ければ直下。
+# 置き場所: ディレクトリが最も近い登録済みの項目 (Project / File) の隣。テストはテストの隣を探す。
+# 近いものが無いとき、テストは /Tests/、一番上の階層のプロジェクトは /Main/、それ以外は直下。
+# (/Main/・/Tests/ は Seamless.slnx に見せるフォルダ。ベンチマークやサンプルのテストがそこへ混ざらないようにする)
 function Add-SolutionEntry([string]$kind, [string]$path, $preferredAnchor) {
     $anchor = $preferredAnchor
     $parent = if ($anchor) { $anchor.ParentNode } else { $null }
-    $testsFolder = $solution.SelectSingleNode("Folder[@Name='/Tests/']")
-    if (-not $anchor -and $kind -eq 'Project' -and (Test-TestProject $path) -and $testsFolder) {
-        $anchor = @($testsFolder.SelectNodes('Project')) | Select-Object -Last 1
-        $parent = $testsFolder
-    }
+    $isTest = $kind -eq 'Project' -and (Test-TestProject $path)
     if (-not $anchor) {
         # 共通するディレクトリが最も深い項目を集め、その項目が一番多く入っているフォルダの最後の項目の隣に置く
         $mine = Get-DirSegments $path
         $best = 0
         $nearest = @()
-        foreach ($node in @($solution.SelectNodes('//Project|//File'))) {
+        $candidates = @($solution.SelectNodes('//Project|//File'))
+        if ($isTest) { $candidates = @($candidates | Where-Object { $_.LocalName -eq 'Project' -and (Test-RelExists $_.GetAttribute('Path')) -and (Test-TestProject $_.GetAttribute('Path')) }) }
+        foreach ($node in $candidates) {
             $theirs = Get-DirSegments $node.GetAttribute('Path')
             $common = 0
             while ($common -lt $mine.Count -and $common -lt $theirs.Count -and $mine[$common] -ieq $theirs[$common]) { $common++ }
@@ -258,6 +259,11 @@ function Add-SolutionEntry([string]$kind, [string]$path, $preferredAnchor) {
         if ($nearest.Count -gt 0) {
             $group = $nearest | Group-Object { $_.ParentNode.GetHashCode() } | Sort-Object Count -Descending | Select-Object -First 1
             $anchor = @($group.Group) | Select-Object -Last 1
+        }
+        else {
+            $fallbackName = if ($isTest) { '/Tests/' } elseif ($kind -eq 'Project' -and $path.Split('/').Length -eq 2) { '/Main/' } else { $null }
+            $fallback = if ($fallbackName) { $solution.SelectSingleNode("Folder[@Name='$fallbackName']") } else { $null }
+            if ($fallback) { $anchor = @($fallback.SelectNodes('Project')) | Select-Object -Last 1 }
         }
         $parent = if ($anchor) { $anchor.ParentNode } else { $solution }
     }
@@ -426,7 +432,8 @@ function Get-Closure([string[]]$roots) {
     foreach ($r in $roots) { if ($visited.Add($r)) { $queue.Enqueue($r) } }
     while ($queue.Count -gt 0) {
         $current = $queue.Dequeue()
-        if ($current.EndsWith('.shproj', [StringComparison]::OrdinalIgnoreCase)) { continue }
+        # 参照を持つのは csproj と projitems だけ (.shproj や @folder: で起点にした文書はたどらない)
+        if ($current -notmatch '\.(csproj|projitems)$') { continue }
         if (-not $EdgeCache.ContainsKey($current)) { $EdgeCache[$current] = @(Get-Edges $current) }
         foreach ($next in $EdgeCache[$current]) { if ($visited.Add($next)) { $queue.Enqueue($next) } }
     }
@@ -445,6 +452,15 @@ foreach ($property in @($Config.solutions.PSObject.Properties)) {
     $newDefinition = New-Object System.Collections.Generic.List[string]
     foreach ($entry in @($property.Value)) {
         if ($entry -eq '@tests') { $newDefinition.Add($entry); foreach ($t in $allTests) { $roots.Add($t) }; continue }
+        # @folder:/名前/ は、台帳でその名前から始まるフォルダ (入れ子も含む) にある Project と File をすべて起点にする
+        if ($entry.StartsWith('@folder:')) {
+            $newDefinition.Add($entry)
+            $prefix = $entry.Substring('@folder:'.Length)
+            $folders = @($solution.SelectNodes('Folder') | Where-Object { $_.GetAttribute('Name').StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) })
+            if ($folders.Count -eq 0) { $Errors.Add("focused-solutions.json: ${MasterName} にフォルダが無い $prefix ($name)"); continue }
+            foreach ($folder in $folders) { foreach ($node in @($folder.SelectNodes('Project|File'))) { $roots.Add($node.GetAttribute('Path')) } }
+            continue
+        }
         $resolved = $entry
         if (-not (Test-RelExists $entry)) {
             $resolved = Find-MovedProject $entry $null
@@ -454,7 +470,7 @@ foreach ($property in @($Config.solutions.PSObject.Properties)) {
         $newDefinition.Add($resolved)
         $roots.Add($resolved)
     }
-    if ($roots.Count -eq 0 -and -not ($newDefinition -contains '@tests')) {
+    if ($roots.Count -eq 0 -and @($newDefinition | Where-Object { $_.StartsWith('@') }).Count -eq 0) {
         # 起点が全部消えた絞り込みソリューションは、定義ごと消す (生成物なので中身は失われない)
         $Notes.Add("focused-solutions.json: 起点が無くなったので $name を消した")
         $SolutionsToRemove.Add($name)

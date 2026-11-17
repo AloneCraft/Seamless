@@ -1,6 +1,7 @@
 {
-  "comment": "絞り込みソリューションの起点。起点から参照をたどって必要なプロジェクトだけを残す。@tests は IsTestProject=true の全プロジェクト。起点を移動すると同期スクリプトがファイル名で探して書き換える。",
+  "comment": "絞り込みソリューションの起点。全プロジェクトの台帳は All.slnx。起点から参照をたどって必要なプロジェクトだけを残す。@tests は IsTestProject=true の全プロジェクト。@folder:/名前/ は台帳でその名前から始まるフォルダの中身すべて。起点を移動すると同期スクリプトがファイル名で探して書き換える。",
   "solutions": {
+    "Seamless.slnx": ["@folder:/Main/", "@folder:/Tests/", "@folder:/Template/", "@folder:/solution/"],
     "Seamless.Management.slnx": [
       "Seamless.Management.Server/WindowsServer.csproj",
       "Tests/Management.Tests/Management.Tests.csproj"
