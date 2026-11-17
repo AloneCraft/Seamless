@@ -9,13 +9,16 @@ namespace Seamless.Database;
 public sealed record DatabaseTableDeclaration(string Path,PropertyInfo[] Access){
     public PropertyInfo Property=>this.Access[^1];
     public object GetTable(DatabaseContainer database){object current=database;foreach(var property in this.Access){current=property.GetValue(current)??throw new InvalidOperationException("Null schema/table: "+this.Path);}return current;}
-    public static DatabaseTableDeclaration[] Read(Type type){var result=new List<DatabaseTableDeclaration>();Walk(type,"",[],new global::System.Collections.Generic.HashSet<Type>());return result.ToArray();
+    public static DatabaseTableDeclaration[] Read(Type type)=>ReadMatching(type,static definition=>definition==typeof(Table<,>)||definition==typeof(Table<>));
+    /// <summary>取引を通さない表(db.X、<see cref="Set{TKey,TRecord}"/>・<see cref="Set{TRecord}"/>)の宣言の経路。</summary>
+    public static DatabaseTableDeclaration[] ReadDirectSets(Type type)=>ReadMatching(type,static definition=>definition==typeof(Set<,>)||definition==typeof(Set<>));
+    private static DatabaseTableDeclaration[] ReadMatching(Type type,Func<Type,bool> matches){var result=new List<DatabaseTableDeclaration>();Walk(type,"",[],new global::System.Collections.Generic.HashSet<Type>());return result.ToArray();
         void Walk(Type owner,string prefix,PropertyInfo[] access,global::System.Collections.Generic.HashSet<Type> ancestors){
             if(!ancestors.Add(owner)){throw new InvalidOperationException("Recursive schema type: "+owner.FullName);}
             try{foreach(var property in owner.GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.GetIndexParameters().Length==0)){
                 var path=prefix+property.Name;var chain=access.Append(property).ToArray();var value=property.PropertyType;
                 if(typeof(DatabaseSchema).IsAssignableFrom(value)){Walk(value,path+".",chain,ancestors);}
-                else if(value.IsGenericType&&(value.GetGenericTypeDefinition()==typeof(Table<,>)||value.GetGenericTypeDefinition()==typeof(Table<>))){result.Add(new(path,chain));}
+                else if(value.IsGenericType&&matches(value.GetGenericTypeDefinition())){result.Add(new(path,chain));}
             }}finally{ancestors.Remove(owner);}
         }
     }

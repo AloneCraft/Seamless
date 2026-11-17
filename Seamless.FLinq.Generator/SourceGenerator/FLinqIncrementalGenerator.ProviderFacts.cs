@@ -122,6 +122,21 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
+    // DB の取引を通さない表(db.X、Seamless.Database.Set<TKey,TRecord>・Set<TRecord>)。中で並列区間とスレッドごとのマルチ用を使う。
+    private static bool IsDatabaseDirectSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
+        if(TryMatchGenericNamedType(type,"Seamless.Database","Set`2",2,out var keyed)) {
+            elementType=keyed.TypeArguments[1];
+            return true;
+        }
+        if(TryMatchGenericNamedType(type,"Seamless.Database","Set`1",out var keyless)) {
+            elementType=keyless.TypeArguments[0];
+            return true;
+        }
+
+        elementType=null!;
+        return false;
+    }
+
     private static bool IsTsavoriteParallelSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
         if(TryMatchGenericNamedType(type,"Seamless.Collections.Tsavorite","ParallelSet`2",2,out var named)) {
             elementType=named.TypeArguments[1];

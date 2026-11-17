@@ -6,7 +6,28 @@ public sealed class StoredTable<TKey,TRecord>:Table<TKey,TRecord>,global::System
     where TRecord:struct {
     private readonly DatabaseContainer database;
     private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>? legacyRows;
-    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows{get=>this.legacyRows??throw new InvalidOperationException("Use the generated versioned transaction collection.");set=>this.legacyRows=value;}
+    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows{get=>this.legacyRows??this.OpenRows();set=>this.legacyRows=value;}
+    // 使う表だけを開く(設計 20261116-使う表だけを開く.md)：保存の仕組みを初めて使うときに開く処理。開いた後に onOpened(当て直し)を呼ぶ。
+    private Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>>? opener;
+    private Action? onOpened;
+    private readonly object openGate=new();
+    internal bool IsStorageOpen=>this.legacyRows is not null;
+    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> OpenRows(){
+        if(this.opener is null){throw new InvalidOperationException("Use the generated versioned transaction collection.");}
+        lock(this.openGate){
+            if(this.legacyRows is{} opened){return opened;}
+            ObjectDisposedException.ThrowIf(this.disposed,this);
+            // 当て直しは行を書き込むので、先に開いた行の入れ物を置いてから呼ぶ。
+            this.legacyRows=this.opener();var after=this.onOpened;this.opener=null;this.onOpened=null;
+            after?.Invoke();
+            return this.legacyRows;
+        }
+    }
+    // 保存の仕組みを開かずに作る(使う表だけを開く)。sharedFactory は開いた後の取り直しに使う。
+    internal StoredTable(DatabaseContainer database,Func<TRecord,TKey> keySelector,IDisposable ownedResources,string name,
+        Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>> opener,Action onOpened,Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>> sharedFactory){
+        this.database=database;this.keySelector=keySelector;this.ownedResources=ownedResources;this.Name=name;this.opener=opener;this.onOpened=onOpened;this.sharedFactory=sharedFactory;
+    }
     private readonly Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>>? sharedFactory;
     private readonly Func<TRecord,TKey> keySelector;
     private readonly IDisposable ownedResources;
@@ -235,9 +256,10 @@ public sealed class StoredTable<TKey,TRecord>:Table<TKey,TRecord>,global::System
             return;
         }
         this.disposed=true;
-        if(this.sharedFactory is not null){this.rows.Dispose();}
+        if(this.sharedFactory is not null){this.legacyRows?.Dispose();}
         this.ownedResources.Dispose();
     }
-    internal void ReleaseSharedHandle()=>this.rows.Dispose();
-    internal void AcquireSharedHandle(){this.rows=this.sharedFactory!();}
+    // 開いていない表は、保存のときに手放す・取り直すものが無い。
+    internal void ReleaseSharedHandle(){this.legacyRows?.Dispose();}
+    internal void AcquireSharedHandle(){if(this.legacyRows is not null){this.rows=this.sharedFactory!();}}
 }

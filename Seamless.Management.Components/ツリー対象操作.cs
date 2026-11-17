@@ -13,4 +13,6 @@ public sealed class ツリー対象操作{
     public required Func<CatalogObject,string,Task<ツリー操作結果>> 名前変更{get;init;}
     public required Func<CatalogObject,Task<ツリー操作結果>> コピー{get;init;}
     public required Func<CatalogObject,Task<ツリー操作結果>> 削除{get;init;}
+    /// <summary>空のスキーマを下書きから消す。中身のあるスキーマは理由を返して消さない。</summary>
+    public Func<string,Task<ツリー操作結果>>? スキーマ削除{get;init;}
 }

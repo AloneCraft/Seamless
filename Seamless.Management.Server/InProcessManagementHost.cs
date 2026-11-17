@@ -41,7 +41,7 @@ public sealed partial class InProcessManagementHost:IDisposable,IManagementOpera
     public ServerInfo Info=>this.Invoke(static(service,_)=>OwnerInfo(service.Info));
     public Task<ServerInfo> InfoAsync(CancellationToken cancellationToken=default)=>
         this.InvokeAsync(static(service,_)=>OwnerInfo(service.Info),cancellationToken).AsTask();
-    private static ServerInfo OwnerInfo(ServerInfo info)=>info with{Capabilities=[..info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]};
+    private static ServerInfo OwnerInfo(ServerInfo info)=>info with{Capabilities=[..info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceSdkBuildV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]};
     public CatalogPage<CatalogDatabase> Databases(long cursor=0,string versionToken="")=>this.Invoke((service,user)=>service.Databases(user,cursor,versionToken));
     public Task<CatalogPage<CatalogDatabase>> DatabasesAsync(long cursor=0,string versionToken="",CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.Databases(user,cursor,versionToken),cancellationToken).AsTask();

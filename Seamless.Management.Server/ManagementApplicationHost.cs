@@ -49,7 +49,10 @@ public sealed class ManagementApplicationHost:IAsyncDisposable{
                 host.Embedded=InProcessManagementHost.OpenConfigured(options.Root,create,options.Defaults,options.EmbeddedQueueCapacity);
                 host.Operations=host.Embedded;host.RunningSettings=host.Embedded.RunningSettings!;
                 if(host.RunningSettings.ExternalManagerOrigin is not null){throw new ManagementException("ExecutionMode","外部Managerの受付にはサーバー型を指定してください。");}
-                host.Manager=await ManagerWebHost.StartAsync(host.Embedded,host.RunningSettings.ManagerPort,sessionCapacity:1,cancellationToken:cancellation).ConfigureAwait(false);
+                // 組み込み型でも、DB の下書きと生成コードの表示は SDK のビルドを使う(11/12・11/15 の決定)。
+                DraftSdkBuilder? sourceBuilds=null;
+                await host.Embedded.InvokeAsync((service,_)=>{service.UseSdkBuilds=true;sourceBuilds=service.SdkBuilder;return true;},cancellation).ConfigureAwait(false);
+                host.Manager=await ManagerWebHost.StartAsync(host.Embedded,()=>sourceBuilds,host.RunningSettings.ManagerPort,sessionCapacity:1,cancellationToken:cancellation).ConfigureAwait(false);
                 await host.Embedded.InvokeAsync((service,_)=>{
                     service.AttachServerSettings(new(host.Embedded.SettingsDefaults!,host.RunningSettings,[],"",null,0,host.Manager.Origin.AbsoluteUri){Mode=ManagementExecutionMode.Embedded});return true;
                 },cancellation).ConfigureAwait(false);
@@ -75,10 +78,10 @@ public sealed class ManagementApplicationHost:IAsyncDisposable{
         }
     }
     private async Task StartServerAsync(ManagementStore store,ManagementServerSettings defaults,ManagementServerSettings running,string[] overrides,string certificatePath,string? password,string? configuration,int capacity,CancellationToken cancellation){
-        this.RunningSettings=running.Validate();this.service=new(store,ManagementService.AuditOptions(store,running));
+        this.RunningSettings=running.Validate();this.service=new(store,ManagementService.AuditOptions(store,running)){UseSdkBuilds=true};
         this.certificate=X509CertificateLoader.LoadPkcs12FromFile(certificatePath,password);
         this.concurrent=new(this.service,capacity);this.Operations=this.concurrent;
-        this.Manager=await ManagerWebHost.StartAsync(this.concurrent,running.ManagerPort,cancellationToken:cancellation).ConfigureAwait(false);
+        this.Manager=await ManagerWebHost.StartAsync(this.concurrent,()=>this.service.SdkBuilder,running.ManagerPort,cancellationToken:cancellation).ConfigureAwait(false);
         if(running.ExternalManagerOrigin is{} origin){
             var external=new Uri(origin);this.ExternalManager=await ManagerWebHost.StartExternalAsync(this.service,this.concurrent,this.certificate,IPAddress.Parse(running.ExternalManagerAddress),external.Port,external,cancellationToken:cancellation).ConfigureAwait(false);
         }

@@ -85,8 +85,39 @@ public sealed class ObjectDefinitionEditing{
                 {"定義変更時",EventCallback.Factory.Create<Definition>(updates,(Definition value)=>updates.Add(value))},{"未保存変更時",EventCallback.Factory.Create<bool>(dirty,(bool value)=>dirty.Add(value))}
             }));
             await editor!.列を追加Async();Assert.Empty(updates);Assert.Empty(dirty);
-            Assert.Contains("引数は構造画面で編集し、戻り型はC#の処理本体で指定します。",System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString()));
+            Assert.Contains("スカラー関数には結果列がありません。引数と戻り型を編集してください。",System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString()));
         });
+    }
+    // ビュー・関数の行の型は、表の列と同じく画面で足し・名前と型を変えられる(I11)。推論の時代の読み取り専用は無い。
+    [Fact]public async Task ViewRowTypeColumnsAreEditableLikeTableColumns(){
+        var definition=Designer.Empty("db","DB");definition=Designer.ApplyQuery(definition,new("Recent","",DatabaseQueryKind.View,[new("Id","int",false)],[],"","throw new System.NotImplementedException();"));
+        var target=Designer.Objects(definition).Single(item=>item.Name=="Recent");
+        var design=Designer.ReadObjectDefinition(definition,target);Assert.True(design.StructureAvailable,design.StructureUnavailableReason);
+        var edit=Designer.ApplyObjectStructure(definition,design,[new("Id","long",false,"Id"),new("Title","string",false)],[],design.ReturnType);
+        Assert.True(edit.Succeeded,string.Join(Environment.NewLine,edit.Diagnostics.Select(item=>item.Message)));
+        Assert.Equal(new[]{("Id","long"),("Title","string")},Designer.ReadObjectDefinition(edit.Definition!,target).Columns.Select(column=>(column.Name,column.Type)));
+        var updates=new List<Definition>();var dirty=new List<bool>();
+        using var provider=new ServiceCollection().AddLogging().AddSingleton<IJSRuntime,StaticRenderScripts>().BuildServiceProvider();
+        await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async()=>{
+            TestEditor? editor=null;
+            var rendered=await renderer.RenderComponentAsync<TestEditor>(ParameterView.FromDictionary(new Dictionary<string,object?>{
+                {"定義",definition},{"対象",target},{"Capture",(Action<TestEditor>)(value=>editor=value)},
+                {"定義変更時",EventCallback.Factory.Create<Definition>(updates,(Definition value)=>updates.Add(value))},{"未保存変更時",EventCallback.Factory.Create<bool>(dirty,(bool value)=>dirty.Add(value))}
+            }));
+            var html=System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.DoesNotContain("readonly",html);Assert.Contains("aria-label=\"結果列の型\"",html);Assert.Contains("列を追加",html);
+            await editor!.列を追加Async();Assert.True(dirty[^1]);Assert.True(await editor.同期Async());
+            Assert.Contains(Designer.ReadObjectDefinition(updates[^1],target).Columns,column=>column.Name=="Column");
+        });
+    }
+    // 関数の戻り型も画面で変えられる(処理本体からの推論は無い)。
+    [Fact]public void FunctionReturnTypeIsEditedThroughTheStructure(){
+        var definition=Designer.Empty("db","DB");definition=Designer.ApplyQuery(definition,new("Amount","",DatabaseQueryKind.ScalarFunction,[],[],"int","return 1;"));
+        var target=Designer.Objects(definition).Single(item=>item.Name=="Amount");var design=Designer.ReadObjectDefinition(definition,target);
+        var edit=Designer.ApplyObjectStructure(definition,design,design.Columns,design.Parameters,"long");
+        Assert.True(edit.Succeeded,string.Join(Environment.NewLine,edit.Diagnostics.Select(item=>item.Message)));
+        Assert.Equal("long",Designer.ReadObjectDefinition(edit.Definition!,target).ReturnType);
     }
     public sealed class TestEditor:対象定義エディター{
         [Parameter]public Action<TestEditor> Capture{get;set;}=null!;

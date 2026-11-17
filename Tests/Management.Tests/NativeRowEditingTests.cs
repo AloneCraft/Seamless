@@ -124,6 +124,45 @@ public sealed class NativeRowEditingTests{
         Assert.Empty((await service.ReadRowsAsync(legacyAdministrator,new("Native","Rows"))).Rows);
     }
 
+    // 取引を通さない表(Set<T>)も目録に出し、行の一覧と編集ができる。衝突は値の比較だけで見つけ、取引で書く表と一緒には保存できない。
+    // 行の型は固定長の値だけにする(Manager の内蔵のコンパイルは MemoryPack の生成器を使わず、Set<T> の既定の符号化が文字列を含む行を扱えない。段階7の SDK のビルドで解く)。
+    [Fact]public async Task DirectSetRowsAreListedAndEditedWithValueComparison(){
+        var root=Root();
+        using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
+        using var service=new Seamless.Management.Server.ManagementService(store);
+        var user=Admin(service);var definition=NativeWorkflow.Database();
+        var text=definition.Source.Files[0].Text
+            .Replace("public Table<Keys.Row,Tables.Row> Rows=>","public Set<int,Logs.Entry> Logs=>this.Set<int,Logs.Entry>();public Set<string> Tags=>this.Set<string>();public Table<Keys.Row,Tables.Row> Rows=>")
+            .Replace("namespace Tables{","namespace Logs{public readonly record struct Entry(int Key,long Amount):Seamless.Collections.IRecord<int>;} namespace Tables{");
+        NativeWorkflow.Publish(service,user,definition with{Source=definition.Source with{Files=[new("schema.cs",text)]}});
+        var databases=service.Databases(user);var db=databases.Items.Single(item=>!item.IsSystem);
+        var objects=service.Objects(user,new(db.Id,databases.VersionToken)).Items;
+        Assert.Contains(objects,item=>item.Name=="Logs"&&item.Kind=="Set");Assert.Contains(objects,item=>item.Name=="Tags"&&item.Kind=="Set");
+        await service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),Enumerable.Range(1,150).Select(id=>Insert("Logs",new{Key=id,Amount=id*10L})).ToArray()));
+        var page=await service.ReadRowsAsync(user,new("Native","Logs"));
+        Assert.True(page.ValueComparisonOnly);Assert.Equal(100,page.Rows.Length);Assert.True(page.HasMore);
+        var all=page.Rows.ToList();
+        while(page.HasMore){page=await service.ReadRowsAsync(user,new TableRowsRequest("Native","Logs",100,page.Version){Cursor=page.NextCursor});all.AddRange(page.Rows);}
+        Assert.Equal(Enumerable.Range(1,150),all.Select(row=>row.Key.GetInt32()).Order());
+        var first=all.Single(row=>row.Key.GetInt32()==1);
+        await service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[new("Logs",TableRowChangeKind.Replace,first.Key,first.Stamp,ManagementJson.Element(new{Key=1,Amount=-1L}))]));
+        var exact=await service.ReadRowsAsync(user,new("Native","Logs",Key:first.Key));Assert.Equal(-1L,Assert.Single(exact.Rows).Values.GetProperty("amount").GetInt64());
+        // 読んだ後に値が変わった行は、値の比較で衝突になる。
+        Assert.Equal("RowConflict",(await Assert.ThrowsAsync<ManagementException>(()=>service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[new("Logs",TableRowChangeKind.Delete,first.Key,first.Stamp)])))).Code);
+        // 取引で書く表と一緒には保存できない(取り消せる書き込みと取り消せない書き込みを混ぜない)。
+        Assert.Equal("InvalidRequest",(await Assert.ThrowsAsync<ManagementException>(()=>service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[Insert("Logs",new{Key=500,Amount=5L}),Insert("Rows",new{Id=500,Value=1})])))).Code);
+        Assert.Empty((await service.ReadRowsAsync(user,new("Native","Logs",Key:ManagementJson.Element(500)))).Rows);
+        // キー無しの表は行そのものがキー。
+        await service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[Insert("Tags",(object)"a"),Insert("Tags",(object)"b")]));
+        var tags=await service.ReadRowsAsync(user,new("Native","Tags"));Assert.True(tags.ValueComparisonOnly);Assert.Equal(new[]{"a","b"},tags.Rows.Select(row=>row.Key.GetString()).Order());
+        var a=tags.Rows.Single(row=>row.Key.GetString()=="a");
+        await service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[new("Tags",TableRowChangeKind.Delete,a.Key,a.Stamp)]));
+        Assert.Equal(new[]{"b"},(await service.ReadRowsAsync(user,new("Native","Tags"))).Rows.Select(row=>row.Key.GetString()));
+        // 公開し直す(新しい保存先へ写す)と、取引を通さない表の行も写る。
+        NativeWorkflow.Publish(service,user,definition with{Source=definition.Source with{Revision="2",Files=[new("schema.cs",text)]}},1,1);
+        Assert.Equal(150,(await service.ReadRowsAsync(user,new("Native","Logs",Limit:1000))).Rows.Length);
+        Assert.Equal(new[]{"b"},(await service.ReadRowsAsync(user,new("Native","Tags"))).Rows.Select(row=>row.Key.GetString()));
+    }
     private static TableRowChange Insert(string table,object values)=>new(table,TableRowChangeKind.Insert,Values:ManagementJson.Element(values));
     private static UserAccount Admin(Seamless.Management.Server.ManagementService service)=>service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
     private static string Root()=>Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,Guid.NewGuid().ToString("N"));

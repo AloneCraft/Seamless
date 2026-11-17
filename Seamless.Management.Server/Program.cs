@@ -26,6 +26,7 @@ public static class Program{
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("管理RPCの共有受信予算: serve --maximum-buffered-request-bytes <バイト数>。TCP/TLSとローカルIPCに適用します。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("管理RPCの共有送信予算・期限: serve --maximum-pending-write-bytes <バイト数> --response-write-timeout-ms <ミリ秒>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("共通認可の初期登録: initialize-authorization --root <停止中の管理領域> --backup <空の退避先> --policy <ポリシーJSON> --oidc <認証元JSON>。API用アクセストークンは標準入力から受け取ります。");}
+            if(args.Length==0||args[0]=="--help"){Console.WriteLine("復元の手順とプロンプト: recovery-guide --scenario <password|startup|migration|restore> [--root <管理領域>] [--backup <バックアップ>] [--error <エラー文>] [--open-folder] [--open-console]");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("Seamless Management: init --root <directory> --admin <name> / serve --root <directory> --certificate <pfx> [--address 127.0.0.1] [--port 14336] [--ready-file <file>] [--stop-file <file>] / backup --root <stopped root> --destination <empty directory> / restore --backup <directory> --destination <empty directory> / reset-password --root <stopped root> --user <name> --backup <empty directory> / upgrade-audit --root <stopped root> --backup <empty directory> / rollback-audit-upgrade --root <interrupted root>. パスワード: SEAMLESS_MANAGEMENT_PASSWORD、証明書: SEAMLESS_MANAGEMENT_CERT_PASSWORD。");return 0;}
             string? Optional(string name){var index=Array.IndexOf(args,name);if(index<0){return null;}if(index+1>=args.Length){throw new ArgumentException(name+"の値が必要です。");}return args[index+1];}
             string Required(string name)=>Optional(name)??throw new ArgumentException(name+"が必要です。");
@@ -67,6 +68,15 @@ public static class Program{
                 ResetPassword(resetRoot,Required("--user"),Required("--backup"),ReadPassword());Console.WriteLine("バックアップを作成し、パスワードを再設定しました。権限と有効・無効状態は維持されています。");return 0;
             }
             if(args[0]=="init"){using var initialized=ManagementStore.Initialize(Required("--root"),Required("--admin"),Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_PASSWORD")??throw new ArgumentException("SEAMLESS_MANAGEMENT_PASSWORDが必要です。"));Console.WriteLine("管理領域を初期化しました: "+initialized.InstanceId);return 0;}
+            if(args[0]=="recovery-guide"){
+                var guideRoot=Optional("--root")??Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_ROOT");
+                var guide=RecoveryGuideCommand.Create(RecoveryGuide.Parse(Required("--scenario")),guideRoot,Optional("--backup"),Optional("--error"));
+                RecoveryGuideCommand.Write(Console.Out,guide);
+                var folder=RecoveryGuideCommand.Folder(guide,guideRoot);
+                if(args.Contains("--open-folder")){if(folder is null){Console.Error.WriteLine("開くフォルダーがありません。--root を指定してください。");}else{RecoveryGuideCommand.OpenFolder(folder);}}
+                if(args.Contains("--open-console")){RecoveryGuideCommand.OpenConsole(folder??Directory.GetCurrentDirectory());}
+                return 0;
+            }
             if(args[0] is "backup" or "restore"){
                 var source=Optional("--root");if(args[0]=="restore"){source=Required("--backup");}
                 CopyOffline(source??throw new ArgumentException("--rootが必要です。"),Required("--destination"));Console.WriteLine("オフラインコピーが完了しました。");return 0;
@@ -113,7 +123,7 @@ public static class Program{
                 while(!stop.IsCancellationRequested){if(!OwnerAlive()||Optional("--stop-file") is{} stopFile&&File.Exists(stopFile)){break;}try{await Task.Delay(250,stop.Token);}catch(OperationCanceledException){break;}}
             }finally{Console.CancelKeyPress-=cancel;}
             return 0;
-        }catch(Exception error){Console.Error.WriteLine(error.Message);return 1;}
+        }catch(Exception error){Console.Error.WriteLine(error.Message);if(args.Length>0&&args[0]=="serve"){Console.Error.WriteLine(RecoveryGuideCommand.StartupHint(args,error.Message));}return 1;}
     }
     private static async Task<long> InitializeAuthorizationAsync(string root,string backup,string policyPath,string providerPath,string? accessToken){
         if(string.IsNullOrWhiteSpace(accessToken)){throw new ArgumentException("API用アクセストークンが必要です。");}

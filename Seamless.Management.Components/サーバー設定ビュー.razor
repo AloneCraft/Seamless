@@ -31,5 +31,6 @@
             </fieldset></details>
             <div class="設定保存操作"><button type="button" class="控えめボタン" disabled="@処理中か" @onclick="取消時Async"><操作アイコン 種類="編集を取り消す"/>@(表示文言.取得("編集を取り消す"))</button><button type="submit" class="主要ボタン" disabled="@(処理中か||!編集ありか)"><操作アイコン 種類="保存（再起動時に反映）"/>@(表示文言.取得("保存（再起動時に反映）"))</button></div>
         </form>
+        <復元の手順ビュー/>
     }else if(読込中か){<p role="status">@(表示文言.取得("設定を読み込み中…"))</p>}
 </section>

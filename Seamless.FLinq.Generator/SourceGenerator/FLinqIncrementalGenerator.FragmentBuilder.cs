@@ -2625,6 +2625,9 @@ public sealed partial class FLinqIncrementalGenerator {
         if(IsTransactionCollectionType(expressionType)){
             return new TransactionRowsRoot(number,"("+sourceExpression+").Rows",elementTypeName,enumeratorTypeName,((INamedTypeSymbol)expressionType!).TypeArguments[0].ToDisplayString(完全修飾形式));
         }
+        if(IsDatabaseDirectSetType(expressionType,out _)) {
+            return new DatabaseDirectSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
+        }
         if(IsTsavoriteParallelSetType(expressionType,out _)) {
             return new TsavoriteParallelSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
         }

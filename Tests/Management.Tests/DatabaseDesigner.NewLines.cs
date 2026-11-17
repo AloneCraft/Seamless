@@ -20,7 +20,8 @@ public sealed partial class DatabaseDesigner{
         var definition=Designer.Empty("newlines","New lines");
         definition=definition with{Source=definition.Source with{Files=definition.Source.Files.Select(file=>file with{Text=file.Text.Replace("\n","\r\n",StringComparison.Ordinal)}).ToArray()}};
         // 利用者が入力した本文。逐語的文字列の中の改行(LF)は値の一部なので、そのまま残らなければならない。
-        const string body="var text=@\"a\nb\";\nreturn text.Length;";
+        // 本体は return 文1つ(式1つ)。文字列の中の改行も、文の途中の改行も、入力どおりに残る。
+        const string body="return @\"a\nb\"\n    .Length;";
         var design=new QueryDesign("Length","",DatabaseQueryKind.ScalarFunction,[],[],"int",body);
         var applied=Designer.ApplyQuery(definition,design);
         // 関数は新しいファイル(Queries/<名前>.cs)へ書く。新しいファイルは LF で作る。

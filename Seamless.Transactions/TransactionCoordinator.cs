@@ -63,6 +63,52 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
         if(!this.participants.TryAdd((participant.Partition,participant.TableId),participant)){throw new InvalidOperationException("Duplicate transaction participant.");}
         try{this.versioned?.Register((IVersionedTransactionParticipant)participant);}catch{this.participants.Remove((participant.Partition,participant.TableId));throw;}
     }
+    // 使う表だけを開く(設計 20261116-使う表だけを開く.md)：表ごとの当て直しの始まりの位置と、当て直しを保留している表。
+    private readonly Dictionary<ITransactionParticipant,long> replayStarts=new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<ITransactionParticipant> deferredReplays=new(ReferenceEqualityComparer.Instance);
+    /// <summary>当て直しを表ごとに保留できるか(素の WAL・版付きの保存なし)。</summary>
+    public bool SupportsDeferredReplay=>this.journal is not null&&this.preparedJournal is null&&this.versioned is null;
+    /// <summary>
+    /// 表の保存の仕組みがまだ開いていないので、当て直しを保留する。afterLsn はその表が当て直し済みの WAL の位置(前の保存の時点)。
+    /// 開いたら <see cref="OpenDeferred"/> を呼ぶ。保留している表の記録は、開くまで当てない。
+    /// </summary>
+    public void DeferReplay(ITransactionParticipant participant,long afterLsn){
+        ArgumentNullException.ThrowIfNull(participant);ArgumentOutOfRangeException.ThrowIfNegative(afterLsn);
+        if(!this.SupportsDeferredReplay){throw new NotSupportedException("Deferred replay requires the plain non-versioned WAL.");}
+        lock(this.initialization){
+            if(this.started){throw new InvalidOperationException("Defer replay before starting transactions.");}
+            if(!this.Owns(participant)){throw new InvalidOperationException("Register the participant before deferring its replay.");}
+            this.replayStarts[participant]=afterLsn;this.deferredReplays.Add(participant);
+        }
+    }
+    /// <summary>
+    /// 保留していた表の保存の仕組みが開いた。始まった後なら、その表の位置より後で、当て終えた位置までの記録のうち、その表の分だけを当てる。
+    /// 始まる前なら保留だけを外し、当て直しは始まるときに、その表の位置から行う。
+    /// Exclusive の方式では、呼ぶ側は書き込みの門の中にいるので、ほかの取引の確定と重ならない。
+    /// </summary>
+    public void OpenDeferred(ITransactionParticipant participant){
+        ArgumentNullException.ThrowIfNull(participant);
+        lock(this.initialization){
+            if(!this.deferredReplays.Remove(participant)){return;}
+            if(!this.started){return;}
+            var start=this.replayStarts[participant];this.replayStarts.Remove(participant);
+            if(start<this.journal!.Device.FirstAvailableLsn-1){throw new InvalidDataException("The WAL was pruned beyond an unopened table's position.");}
+            var applied=this.AppliedLsn;
+            foreach(var record in this.journal.Device.ReadTransactions(applied)){
+                if(record.Lsn<=start){continue;}if(record.Lsn>applied){break;}
+                foreach(var entry in record.Draft.Entries){
+                    if(entry.Partition!=participant.Partition||entry.TableId!=participant.TableId){continue;}
+                    if(entry.Codec!=participant.CodecIdentity){throw new InvalidDataException("WAL codec does not match the table.");}
+                    participant.Replay(entry);
+                }
+            }
+        }
+    }
+    private bool ShouldReplay(ITransactionParticipant participant,long lsn,long checkpointLsn){
+        if(this.deferredReplays.Contains(participant)){return false;}
+        var start=checkpointLsn;if(this.replayStarts.TryGetValue(participant,out var own)){start=own;}
+        return lsn>start;
+    }
     public void Recover(long checkpointLsn=0){
         lock(this.initialization){this.RecoverCore(checkpointLsn);}
     }
@@ -82,15 +128,26 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
                 },checkpointLsn);
             }
             if(this.journal is not null){
-                if(checkpointLsn>this.journal.Device.RecoveredLsn||checkpointLsn<this.journal.Device.FirstAvailableLsn-1){throw new InvalidDataException("Checkpoint is outside retained WAL coverage.");}
+                // 表ごとの当て直しの始まり(使う表だけを開く)：前の保存のときに開いていなかった表は、その表の位置から当て直す。
+                var earliest=checkpointLsn;foreach(var start in this.replayStarts.Values){earliest=Math.Min(earliest,start);}
+                if(checkpointLsn>this.journal.Device.RecoveredLsn||earliest<this.journal.Device.FirstAvailableLsn-1){throw new InvalidDataException("Checkpoint is outside retained WAL coverage.");}
                 foreach(var record in this.journal.ReadTransactions()){
                     if(record.Draft.IsPreparation){throw new InvalidDataException("Prepared WAL requires the prepared transaction replay path.");}
-                    if(record.Lsn<=checkpointLsn){continue;}
+                    if(record.Lsn<=earliest){continue;}
+                    if(record.Lsn<=checkpointLsn){
+                        // 保存点より前の記録は、自分の位置がそれより前の表にだけ当てる(版付きの保存では使わない)。
+                        foreach(var entry in record.Draft.Entries){
+                            if(!this.participants.TryGetValue((entry.Partition,entry.TableId),out var participant)||!this.replayStarts.ContainsKey(participant)){continue;}
+                            if(participant.CodecIdentity!=entry.Codec){throw new InvalidDataException("WAL codec does not match the table.");}
+                            if(this.ShouldReplay(participant,record.Lsn,checkpointLsn)){participant.Replay(entry);}
+                        }
+                        continue;
+                    }
                     foreach(var entry in record.Draft.Entries){
                         this.ResolveReplayParticipant(entry);
                     }
                     var version=this.versioned?.NextRecoveryVersion()??0;
-                    foreach(var entry in record.Draft.Entries){this.Replay(this.ResolveReplayParticipant(entry),entry,record.Draft.Id,version,record.Lsn);}
+                    foreach(var entry in record.Draft.Entries){var participant=this.ResolveReplayParticipant(entry);if(this.ShouldReplay(participant,record.Lsn,checkpointLsn)){this.Replay(participant,entry,record.Draft.Id,version,record.Lsn);}}
                     this.AppliedLsn=record.Lsn;
                 }
             }
@@ -109,7 +166,8 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
     private async ValueTask<TransactionScope> Acquire(Marker marker,bool readOnly,CancellationToken cancellationToken,Guid? requestedId=null){
         var acquired=false;TransactionContext? context=null;
         try{
-            if(this.Concurrency==TransactionConcurrencyMode.Exclusive){await this.gate.WaitAsync(cancellationToken).ConfigureAwait(false);acquired=true;marker.HoldsExclusiveGate=true;}
+            // Exclusiveで1つずつ通すのは書き込みの取引だけ。版付きの保存があれば、読み込み専用の取引は開始時点の版を読むので待たない（2026-11-15の決定）。
+            if(this.Concurrency==TransactionConcurrencyMode.Exclusive&&!(readOnly&&this.versioned is not null)){await this.gate.WaitAsync(cancellationToken).ConfigureAwait(false);acquired=true;marker.HoldsExclusiveGate=true;}
             cancellationToken.ThrowIfCancellationRequested();ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();
             var id=Guid.NewGuid();if(requestedId is{} requested){id=requested;}context=new(id,readOnly);
             if(this.versioned is not null){await this.versioned.Start(context,cancellationToken).ConfigureAwait(false);}

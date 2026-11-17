@@ -2403,26 +2403,6 @@
   <data name="公開文書の表示権限が変わりました。対象を選び直してください。" xml:space="preserve"><value>公開文書の表示権限が変わりました。対象を選び直してください。</value></data>
   <data name="公開カタログの表示件数が上限を超えています。" xml:space="preserve"><value>公開カタログの表示件数が上限を超えています。</value></data>
   <data name="公開文書は公開版と成果物を確認して復元します。" xml:space="preserve"><value>公開文書は公開版と成果物を確認して復元します。</value></data>
-  <data name="表示用IDを下書きへ付与" xml:space="preserve"><value>表示用IDを下書きへ付与</value></data>
-  <data name="この接続先は表示用IDの付与に対応していません。" xml:space="preserve"><value>この接続先は表示用IDの付与に対応していません。</value></data>
-  <data name="表示用IDの付与にはDBの参照・編集権限が必要です。" xml:space="preserve"><value>表示用IDの付与にはDBの参照・編集権限が必要です。</value></data>
-  <data name="入力中の編集を下書きへ反映してから、表示用IDを付与してください。入力内容は保持しています。" xml:space="preserve"><value>入力中の編集を下書きへ反映してから、表示用IDを付与してください。入力内容は保持しています。</value></data>
-  <data name="ID付与中に定義・公開版または入力状態が変わりました。現在の編集を保持したまま処理を中止しました。" xml:space="preserve"><value>ID付与中に定義・公開版または入力状態が変わりました。現在の編集を保持したまま処理を中止しました。</value></data>
-  <data name="{0}の表示用IDを下書きへ付与しています。" xml:space="preserve"><value>{0}の表示用IDを下書きへ付与しています。</value></data>
-  <data name="{0}の表示用IDを下書きへ反映しました。保存・変更確認・明示適用へ進んでください。" xml:space="preserve"><value>{0}の表示用IDを下書きへ反映しました。保存・変更確認・明示適用へ進んでください。</value></data>
-  <data name="{0}の表示用IDは付与済みです。現在の下書きを継続します。" xml:space="preserve"><value>{0}の表示用IDは付与済みです。現在の下書きを継続します。</value></data>
-  <data name="表示用IDは元宣言のマーカーです。IDの転用や別版との同一性には別途検証が必要です。" xml:space="preserve"><value>表示用IDは元宣言のマーカーです。IDの転用や別版との同一性には別途検証が必要です。</value></data>
-  <data name="管理対象へ対応しないIDマーカーがあります。名前からの補完は行いません。" xml:space="preserve"><value>管理対象へ対応しないIDマーカーがあります。名前からの補完は行いません。</value></data>
-  <data name="複数の対象が同じ元宣言を共有しているため、一意の表示用IDを提供できません。" xml:space="preserve"><value>複数の対象が同じ元宣言を共有しているため、一意の表示用IDを提供できません。</value></data>
-  <data name="表示用IDの状態" xml:space="preserve"><value>表示用IDの状態</value></data>
-  <data name="{0}の表示用ID" xml:space="preserve"><value>{0}の表示用ID</value></data>
-  <data name="{0}件 · {1}" xml:space="preserve"><value>{0}件 · {1}</value></data>
-  <data name="名前変更をまたぐ文書復元への接続は準備中です。現在の復元条件は同じ版・成果物です。" xml:space="preserve"><value>名前変更をまたぐ文書復元への接続は準備中です。現在の復元条件は同じ版・成果物です。</value></data>
-  <data name="同じ元宣言を複数のスキーマ・表で共有しているため、表示用IDを一意に付与できません。共有する宣言を分けてください。" xml:space="preserve"><value>同じ元宣言を複数のスキーマ・表で共有しているため、表示用IDを一意に付与できません。共有する宣言を分けてください。</value></data>
-  <data name="表示用IDの重複または件数超過があります。コピーした宣言には新しいIDを付与してください。" xml:space="preserve"><value>表示用IDの重複または件数超過があります。コピーした宣言には新しいIDを付与してください。</value></data>
-  <data name="表示用IDマーカーの形式または配置が不正です。宣言直前のC#コメントを確認してください。" xml:space="preserve"><value>表示用IDマーカーの形式または配置が不正です。宣言直前のC#コメントを確認してください。</value></data>
-  <data name="同じ対象に複数の表示用IDがあります。C#のマーカーを確認してください。" xml:space="preserve"><value>同じ対象に複数の表示用IDがあります。C#のマーカーを確認してください。</value></data>
-  <data name="{0}に表示用IDを付与する対象がありません。スキーマまたはテーブルを定義してください。" xml:space="preserve"><value>{0}に表示用IDを付与する対象がありません。スキーマまたはテーブルを定義してください。</value></data>
   <data name="この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。" xml:space="preserve">
     <value>この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。</value>
   </data>
@@ -2455,18 +2435,11 @@
   <data name="入力テーブルのキーと投影先の列の対応を確定できません。" xml:space="preserve"><value>入力テーブルのキーと投影先の列の対応を確定できません。</value></data>
   <data name="結果型の決定方法" xml:space="preserve"><value>結果型の決定方法</value></data>
   <data name="結果型の自動決定に制限があります" xml:space="preserve"><value>結果型の自動決定に制限があります</value></data>
-  <data name="戻り型はC#の処理本体から決まります。" xml:space="preserve"><value>戻り型はC#の処理本体から決まります。</value></data>
-  <data name="結果列の型はC#の処理本体から決まります。" xml:space="preserve"><value>結果列の型はC#の処理本体から決まります。</value></data>
-  <data name="このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。" xml:space="preserve"><value>このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。</value></data>
-  <data name="この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。" xml:space="preserve"><value>この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。</value></data>
   <data name="この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。" xml:space="preserve"><value>この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。</value></data>
-  <data name="反映時に処理本体から戻り型を決定します。" xml:space="preserve"><value>反映時に処理本体から戻り型を決定します。</value></data>
   <data name="戻り値の暗黙変換を保持するため、C#宣言の型を使います。" xml:space="preserve"><value>戻り値の暗黙変換を保持するため、C#宣言の型を使います。</value></data>
   <data name="この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。" xml:space="preserve"><value>この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。</value></data>
-  <data name="引数は構造画面で編集し、戻り型はC#の処理本体で指定します。" xml:space="preserve"><value>引数は構造画面で編集し、戻り型はC#の処理本体で指定します。</value></data>
   <data name="値" xml:space="preserve"><value>値</value></data>
   <data name="非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。" xml:space="preserve"><value>非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。</value></data>
-  <data name="匿名型の列挙を返すと、反映時に結果列を更新します。" xml:space="preserve"><value>匿名型の列挙を返すと、反映時に結果列を更新します。</value></data>
   <data name="スキーマを追加" xml:space="preserve">
     <value>スキーマを追加</value>
   </data>
@@ -2560,4 +2533,29 @@
   <data name="生成コードを表示" xml:space="preserve">
     <value>生成コードを表示</value>
   </data>
+  <data name="処理本体は、結果列の行の型の集合を返してください。" xml:space="preserve"><value>処理本体は、結果列の行の型の集合を返してください。</value></data>
+  <data name="戻り型を ISet&lt;行の型&gt; にするとテーブル関数になり、結果列を編集できます。" xml:space="preserve"><value>戻り型を ISet&lt;行の型&gt; にするとテーブル関数になり、結果列を編集できます。</value></data>
+  <data name="スカラー関数には結果列がありません。引数と戻り型を編集してください。" xml:space="preserve"><value>スカラー関数には結果列がありません。引数と戻り型を編集してください。</value></data>
+  <data name="取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。" xml:space="preserve"><value>取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。</value></data>
+  <data name="取引を通さない表" xml:space="preserve"><value>取引を通さない表</value></data>
+  <data name="取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。" xml:space="preserve"><value>取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。</value></data>
+  <data name="DB下書きへ反映後、ManagerがこのプロジェクトをSDKでビルドして検査します。IDEでビルドしたDLLのサーバー上の絶対パスを指定することもできます。" xml:space="preserve"><value>DB下書きへ反映後、ManagerがこのプロジェクトをSDKでビルドして検査します。IDEでビルドしたDLLのサーバー上の絶対パスを指定することもできます。</value></data>
+  <data name="ビルドして検査" xml:space="preserve"><value>ビルドして検査</value></data>
+  <data name="SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。" xml:space="preserve"><value>SDKでビルドし、DLL・PDB・元ソース・依存DLLの検査に成功しました。</value></data>
+  <data name="反映・ビルド・取り込み" xml:space="preserve"><value>反映・ビルド・取り込み</value></data>
+  <data name="DB下書きへ反映し、SDKでビルド・検査して取り込みます。適用はDB画面で変更を確認してから行います。" xml:space="preserve"><value>DB下書きへ反映し、SDKでビルド・検査して取り込みます。適用はDB画面で変更を確認してから行います。</value></data>
+  <data name="復元の手順" xml:space="preserve"><value>復元の手順</value></data>
+  <data name="困ったときの場面を選ぶと、手順と、チャットAIに貼る問い合わせ文・エージェントに渡す指示文を表示します。Managerに入れないときは、CLIの recovery-guide で同じものを表示できます。" xml:space="preserve"><value>困ったときの場面を選ぶと、手順と、チャットAIに貼る問い合わせ文・エージェントに渡す指示文を表示します。Managerに入れないときは、CLIの recovery-guide で同じものを表示できます。</value></data>
+  <data name="復元の場面" xml:space="preserve"><value>復元の場面</value></data>
+  <data name="チャットAIに貼る問い合わせ文" xml:space="preserve"><value>チャットAIに貼る問い合わせ文</value></data>
+  <data name="問い合わせ文を写す" xml:space="preserve"><value>問い合わせ文を写す</value></data>
+  <data name="エージェントに渡す自動復元の指示文" xml:space="preserve"><value>エージェントに渡す自動復元の指示文</value></data>
+  <data name="指示文を写す" xml:space="preserve"><value>指示文を写す</value></data>
+  <data name="パスワードを忘れた" xml:space="preserve"><value>パスワードを忘れた</value></data>
+  <data name="サーバーが起動できない" xml:space="preserve"><value>サーバーが起動できない</value></data>
+  <data name="移行が途中で止まった" xml:space="preserve"><value>移行が途中で止まった</value></data>
+  <data name="バックアップから戻す" xml:space="preserve"><value>バックアップから戻す</value></data>
+  <data name="復元の手順を取得できませんでした。" xml:space="preserve"><value>復元の手順を取得できませんでした。</value></data>
+  <data name="クリップボードへ写しました。" xml:space="preserve"><value>クリップボードへ写しました。</value></data>
+  <data name="クリップボードへ写せませんでした。文を選んで写してください。" xml:space="preserve"><value>クリップボードへ写せませんでした。文を選んで写してください。</value></data>
 </root>

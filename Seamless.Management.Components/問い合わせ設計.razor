@@ -2,7 +2,7 @@
     <h3>@表示文言.取得("{0}の下書き",表示文言.取得(種類名))</h3>
     <div class="名前入力列">
         <label>@(表示文言.取得("名前"))<input aria-label="@表示文言.取得("問い合わせ名")" @bind="名前" @bind:event="oninput" @bind:after="入力を通知Async" readonly="@(定義.OriginalPath is not null)"/></label>
-        @if(定義.Kind!=DatabaseQueryKind.View){<label>@(表示文言.取得("戻り型"))<input aria-label="@表示文言.取得("戻り型")" value="@戻り型" readonly title="@表示文言.取得("反映時に処理本体から戻り型を決定します。")"/></label>}
+        @if(定義.Kind!=DatabaseQueryKind.View){<label>@(表示文言.取得("戻り型"))<型入力 ラベル="戻り型" 値="@戻り型" 候補="型候補" 値変更時="async 型=>{戻り型=型;await 入力を通知Async();}"/></label>}
     </div>
     @if(定義.Kind!=DatabaseQueryKind.View){
         <h4>@(表示文言.取得("引数"))</h4><編集グリッド 名前="関数の引数">
@@ -12,22 +12,18 @@
             </行>
         </編集グリッド><button class="テキストボタン" @onclick="async()=>{引数一覧.Add(new());await 入力を通知Async();}"><操作アイコン 種類="引数を追加"/>@(表示文言.取得("引数を追加"))</button>
     }
-    @if(定義.Kind==DatabaseQueryKind.View){
-        @if(列一覧.Count>0){
-            <h4>@表示文言.取得("結果列")</h4>
-            <ul>@foreach(var 列 in 列一覧){<li>@列.名前 <code>@列.型</code></li>}</ul>
-        }
-    }else if(DatabaseDesigner.FunctionElementType(戻り型) is not null){
+    @* ビューとテーブル関数の行の型は、表の列と同じく画面で編集する(I11)。処理本体はこの行の型を返す。 *@
+    @if(定義.Kind==DatabaseQueryKind.View||DatabaseDesigner.FunctionElementType(戻り型) is not null){
         <h4>@(表示文言.取得("結果列"))</h4><編集グリッド 名前="問い合わせの結果列">
             <見出し><th class="行操作列"></th><th>@(表示文言.取得("列名"))</th><th>@(表示文言.取得("C#型"))</th></見出し>
             <行>
-            @foreach(var 列 in 列一覧){<tr @key="列"><td class="行操作列"><行操作 名前="@表示文言.取得("{0}結果列",列.名前)" 前へ追加時="async()=>{列一覧.Insert(列一覧.IndexOf(列),new());await 入力を通知Async();}" 後へ追加時="async()=>{列一覧.Insert(列一覧.IndexOf(列)+1,new());await 入力を通知Async();}" 削除時="async()=>{列一覧.Remove(列);await 入力を通知Async();}"/></td><td><input aria-label="@表示文言.取得("結果列名")" @bind="列.名前" @bind:event="oninput" @bind:after="入力を通知Async"/></td><td><input aria-label="@表示文言.取得("結果列の型")" value="@列.型" readonly title="@表示文言.取得("結果列の型はC#の処理本体から決まります。")"/></td></tr>}
+            @foreach(var 列 in 列一覧){<tr @key="列"><td class="行操作列"><行操作 名前="@表示文言.取得("{0}結果列",列.名前)" 前へ追加時="async()=>{列一覧.Insert(列一覧.IndexOf(列),new());await 入力を通知Async();}" 後へ追加時="async()=>{列一覧.Insert(列一覧.IndexOf(列)+1,new());await 入力を通知Async();}" 削除時="async()=>{列一覧.Remove(列);await 入力を通知Async();}"/></td><td><input aria-label="@表示文言.取得("結果列名")" @bind="列.名前" @bind:event="oninput" @bind:after="入力を通知Async"/></td><td><型入力 ラベル="結果列の型" 値="@列.型" 候補="型候補" 値変更時="async 型=>{列.型=型;await 入力を通知Async();}"/></td></tr>}
             </行>
         </編集グリッド><button class="テキストボタン" @onclick="async()=>{列一覧.Add(new());await 入力を通知Async();}"><操作アイコン 種類="結果列を追加"/>@(表示文言.取得("結果列を追加"))</button>
     }
     <div class="処理本体ラベル">@(表示文言.取得("C#処理本体"))<コードエディター ラベル="C#処理本体" 行数="8" 値="@本体" 値変更時="async 値=>{本体=値;await 入力を通知Async();}"/></div>
-    @if(定義.Kind==DatabaseQueryKind.View){<p class="小案内">@表示文言.取得("匿名型の列挙を返すと、反映時に結果列を更新します。")</p>}
-    else{<p class="小案内">@表示文言.取得("反映時に処理本体から戻り型を決定します。")</p>}
+    @if(定義.Kind==DatabaseQueryKind.View){<p class="小案内">@表示文言.取得("処理本体は、結果列の行の型の集合を返してください。")</p>}
+    else{<p class="小案内">@表示文言.取得("戻り型を ISet<行の型> にするとテーブル関数になり、結果列を編集できます。")</p>}
     <p class="小案内">@(表示文言.取得("container からDB直下と各スキーマを参照できます。"))</p>
     <div class="表入力操作"><span></span><button class="控えめボタン" @onclick="取消時"><操作アイコン 種類="取消"/>@(表示文言.取得("取消"))</button><button class="主要ボタン" @onclick="反映時Async"><操作アイコン 種類="下書きに反映"/>@(表示文言.取得("下書きに反映"))</button></div>
 </section>

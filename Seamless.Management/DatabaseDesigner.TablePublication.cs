@@ -132,6 +132,8 @@ public static partial class DatabaseDesigner{
         private readonly Dictionary<SyntaxTree,HashSet<TextSpan>> spans=[];
         internal void Add(IEnumerable<SyntaxReference> declarations){
             foreach(var declaration in declarations){
+                // 生成される表のプロパティは仮のファイルにだけあり、利用者のソースではない。表は行の型の宣言で選ぶ。
+                if(declaration.SyntaxTree.FilePath==GeneratedTablesPath){continue;}
                 if(!this.spans.TryGetValue(declaration.SyntaxTree,out var selected)){this.spans.Add(declaration.SyntaxTree,selected=[]);}
                 selected.Add(declaration.Span);
             }

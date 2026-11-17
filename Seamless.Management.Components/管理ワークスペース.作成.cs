@@ -31,7 +31,7 @@ public partial class 管理ワークスペース{
         if(this.選択DBID is{} ID&&this.公開情報表示か(ID)){this.公開対象を開く(ID,項目);return;}
         this.選択スキーマ名=項目.Schema;
         this.計画対象=null;this.計画対象名=null;
-        if(項目.Kind=="Table"){this.実行問い合わせ=null;this.表データ表示時(項目.Id);}
+        if(項目.Kind is "Table" or "Set"){this.実行問い合わせ=null;this.表データ表示時(項目.Id);}
         else if(this.現在文書 is{} 文書){this.選択表名=null;this.問い合わせ表示時(文書,項目.Id);}
     }
     private void クエリ一覧表示時(){this.選択表名=null;this.実行問い合わせ=null;this.計画対象=null;this.計画対象名=null;this.表示=表示種別.クエリ一覧;}

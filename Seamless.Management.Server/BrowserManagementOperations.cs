@@ -1,7 +1,7 @@
 namespace Seamless.Management.Server;
 
 /// <summary>画面の回線が残っていても、新しい管理操作の受付時にセッションを検査する。</summary>
-public sealed class BrowserManagementOperations:IManagementOperations,IManagementSourceOperations{
+public sealed partial class BrowserManagementOperations:IManagementOperations,IManagementSourceOperations{
     public Task<CatalogPage<CatalogSchema>> SchemasAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.SchemasAsync(request,cancellationToken));
     public Task<CatalogObjectDetails> GetObjectDetailsAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.GetObjectDetailsAsync(request,cancellationToken));
     public Task<QueryTracePage> QueryTraceAsync(QueryTraceQuery query,CancellationToken cancellationToken=default)=>this.InvokeTraceAsync(()=>this.operations.QueryTraceAsync(query,cancellationToken));
@@ -64,6 +64,7 @@ public sealed class BrowserManagementOperations:IManagementOperations,IManagemen
     public Task<ExecutionPlanDocument[]> PlansAsync(string definitionId,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.PlansAsync(definitionId,cancellationToken));
     public Task<QueryPlanResult> QueryPlansAsync(QueryPlanRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.QueryPlansAsync(request,cancellationToken));
     public Task<CatalogPage<DefinitionSummary>> QueriesAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.QueriesAsync(request,cancellationToken));
+    public Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.RecoveryGuideAsync(scenario,cancellationToken));
     public Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.ServerSettingsAsync(cancellationToken));
     public Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.SaveServerSettingsAsync(request,cancellationToken));
     public Task<Page<UserProfile>> UserProfilesAsync(long cursor=0,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.UserProfilesAsync(cursor,cancellationToken));

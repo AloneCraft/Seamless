@@ -28,6 +28,9 @@
     @if(!string.IsNullOrEmpty(案内)){
         <div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>
     }
+    @if(値比較だけか){
+        <p class="小案内" role="note">@表示文言.取得("取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。")</p>
+    }
 
     @if(読込中か&&行一覧.Count==0){
         <div class="グリッド案内">@(表示文言.取得("データを読み込んでいます..."))</div>
@@ -113,6 +116,8 @@
     private bool 保存中か;
     private bool 読込完了か;
     private bool さらにあるか;
+    // 取引を通さない表(Set<T>)。衝突は値の比較だけで見つける。
+    private bool 値比較だけか;
     private string 案内 = "";
     private bool エラーか;
 
@@ -152,7 +157,7 @@
         var 要求版=this.公開版;this.前公開版=要求版;this.版更新待ちか=false;
         this.読込取消?.Cancel();this.読込取消?.Dispose();this.読込取消=new();var 取消=this.読込取消.Token;
         読込中か = true;
-        this.保存中か=false;this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;
+        this.保存中か=false;this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;this.値比較だけか=false;
         案内 = "";
         エラーか = false;
         新規行.Clear();
@@ -168,6 +173,7 @@
             版 = res.Version;
             さらにあるか = res.HasMore;
             this.次カーソル=res.NextCursor;
+            this.値比較だけか=res.ValueComparisonOnly;
 
             // 列の判定
             if(res.Columns is { Length: > 0 } cols){

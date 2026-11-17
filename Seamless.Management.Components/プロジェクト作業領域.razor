@@ -58,7 +58,15 @@
                 @if(成果物検査可能か&&編集文書.情報.Database is not null){
                     <details class="成果物検査">
                         <summary>@(表示文言.取得("ビルド成果物を検査"))</summary>
-                        <p class="小案内">@(表示文言.取得("DB下書きへ反映後、IDEでビルドしたDLLのサーバー上の絶対パスを指定します。"))</p>
+                        @if(SDKビルド可能か){
+                            <p class="小案内">@(表示文言.取得("DB下書きへ反映後、ManagerがこのプロジェクトをSDKでビルドして検査します。IDEでビルドしたDLLのサーバー上の絶対パスを指定することもできます。"))</p>
+                            <div class="成果物入力">
+                                @if(下書き反映可能か&&成果物取込可能か&&編集文書.情報.Database is not null){<button type="button" class="主要ボタン" disabled="@処理中か" title="@表示文言.取得("DB下書きへ反映し、SDKでビルド・検査して取り込みます。適用はDB画面で変更を確認してから行います。")" @onclick="()=>反映してビルドし取込時Async(編集文書)"><操作アイコン 種類="この成果物を取り込む"/>@(表示文言.取得("反映・ビルド・取り込み"))</button>}
+                                <button type="button" class="@(下書き反映可能か&&成果物取込可能か?"控えめボタン":"主要ボタン")" disabled="@処理中か" @onclick="()=>SDKビルド検査時Async(編集文書)"><操作アイコン 種類="検査"/>@(表示文言.取得("ビルドして検査"))</button>
+                            </div>
+                        }else{
+                            <p class="小案内">@(表示文言.取得("DB下書きへ反映後、IDEでビルドしたDLLのサーバー上の絶対パスを指定します。"))</p>
+                        }
                         <div class="成果物入力"><input aria-label="@表示文言.取得("ビルド済みDLLのパス")" placeholder="@表示文言.取得("サーバー上のDLLの絶対パス")" @bind="編集文書.成果物パス" @bind:event="oninput" @bind:after="()=>{編集文書.成果物=null;編集文書.成果物案内=null;編集文書.成果物エラーか=false;}" disabled="@処理中か"/><button type="button" class="控えめボタン" disabled="@(処理中か||string.IsNullOrWhiteSpace(編集文書.成果物パス))" @onclick="()=>成果物検査時Async(編集文書)"><操作アイコン 種類="検査"/>@(表示文言.取得("検査"))</button></div>
                         @if(編集文書.成果物案内 is{} 案内){<p class="状態通知" role="status" data-エラー="@編集文書.成果物エラーか.ToString().ToLowerInvariant()">@案内</p>}
                         @if(編集文書.成果物 is{} 成果物){
@@ -91,6 +99,8 @@
     [Parameter]public bool 競合解消可能か{get;set;}
     [Parameter]public bool 構成選択可能か{get;set;}
     [Parameter]public bool 成果物検査可能か{get;set;}
+    /// <summary>サーバーがこのプロジェクトを SDK でビルドして検査できる(OwnerSourceSdkBuildV1)。</summary>
+    [Parameter]public bool SDKビルド可能か{get;set;}
     [Parameter]public bool 成果物取込可能か{get;set;}
     [Parameter]public EventCallback<ImportedSourceBuild> 成果物取込後{get;set;}
     [Parameter]public SourceProjectDocument? 作成済みプロジェクト{get;set;}
@@ -279,7 +289,8 @@
         if(!最新.Files.Any(ファイル=>ファイル.Path==文書.ファイル)){文書.ファイル=最新.Files.First().Path;}
         this.案内=表示文言.取得("ファイル保存済み · IDEと同期しています。稼働DBへの適用は別操作です。");
     }
-    private Task DB下書きへ反映時Async(ソース文書 文書)=>this.実行Async(async()=>{
+    private Task DB下書きへ反映時Async(ソース文書 文書)=>this.実行Async(()=>this.DB下書きへ反映Async(文書),false);
+    private async Task DB下書きへ反映Async(ソース文書 文書){
         var DB=文書.情報.Database??throw new InvalidOperationException("作成元DBの同期記録が必要です。");
         await this.下書き反映中変更時.InvokeAsync(true);
         Draft? 保管済み=null;
@@ -305,7 +316,7 @@
             }
             throw;
         }finally{await this.下書き反映中変更時.InvokeAsync(false);}
-    },false);
+    }
     private async Task 自動同期Async(){
         using var 時計=new PeriodicTimer(TimeSpan.FromSeconds(2));
         try{while(await 時計.WaitForNextTickAsync(this.寿命.Token)){

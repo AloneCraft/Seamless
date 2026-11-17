@@ -11,9 +11,19 @@
     "0.1.0": {
       "parent": "0.1"
     },
+    "manager-alignment": {
+      "parent": "main",
+      "forkPoint": "649e8907",
+      "purpose": "Manager の設計・仕様と実装の照合（2026-11-15）に基づく8段階の実装"
+    },
     "relational-assignment": {
       "parent": "main",
       "forkPoint": "356f67bf"
+    },
+    "rdbms-transfer": {
+      "parent": "manager-alignment",
+      "forkPoint": "9f2d28c2",
+      "purpose": "Manager からの SQL Server・CSV の取り込みと書き出し、T-SQL 翻訳器の段階4（2026-11-17）"
     }
   },
   "rule": "Merge each child into its immediate recorded fork parent; return deepest children first.",

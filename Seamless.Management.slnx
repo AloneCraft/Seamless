@@ -10,8 +10,11 @@
     <Project Path="Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
     <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
     <Project Path="Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
+    <Project Path="Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
     <Project Path="Seamless.Database.Server/Seamless.Database.Server.csproj" />
     <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+    <Project Path="Seamless.Database.SqlServer.Functions/Seamless.Database.SqlServer.Functions.csproj" />
+    <Project Path="Seamless.Database.SqlTranslation/Seamless.Database.SqlTranslation.csproj" />
     <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
     <Project Path="Seamless/Seamless.csproj" />
     <Project Path="Seamless.Database.Query/Seamless.Database.Query.csproj" />

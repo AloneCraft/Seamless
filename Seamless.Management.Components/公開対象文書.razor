@@ -10,7 +10,7 @@
         @if(詳細 is not null){
             <dl class="対象情報"><dt>@表示文言.取得("種類")</dt><dd>@状態.対象.Kind</dd><dt>@表示文言.取得("列")</dt><dd>@string.Join(", ",詳細.Columns.Select(列=>列.Name+" ("+列.Type+")"))</dd></dl>
             @if(!行参照可能か){<p role="status">@表示文言.取得("データの参照にはReadRows権限が必要です。")</p>}
-            else if(状態.対象.Kind=="Table"){
+            else if(状態.対象.Kind is "Table" or "Set"){
                 <結果グリッド DB名="@DB.Name" テーブル名="@状態.対象.Id" 公開版="DB.Version" 表示中か="表示中か" 編集可能か="false"/>
             }else if(!実行可能か){<p role="status">@表示文言.取得("ビューと関数の実行にはExecute権限が必要です。")</p>}
             else{

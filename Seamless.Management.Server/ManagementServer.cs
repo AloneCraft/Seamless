@@ -28,6 +28,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
     private readonly LocalOwnerIdentity? localOwner;
     private readonly LocalBrowserSessions? localBrowser;
     private readonly SourceProjectService sourceProjects=new();
+    private ExternalTransferService? transfer;
     private ConcurrentManagementOperations? execution;
     private readonly global::Seamless.Execution.ExecutionScope? pipeResources;
     private readonly ResourceMemoryPool? pipeMemoryPool;
@@ -90,11 +91,10 @@ public sealed partial class ManagementServer:IAsyncDisposable{
         }}catch(OperationCanceledException)when(this.stopping.IsCancellationRequested){}
     }
     private async Task ServeTcpAsync(ConnectionContext connection){using var stream=new DuplexPipeStream(connection.Transport);await this.ServeConnectionAsync(stream,null,new(connection.Transport,ManagementWire.MaximumBytes,bigEndian:true),connection.Abort,connection.ConnectionClosed);}
-    private async Task ServeConnectionAsync(Stream stream,string? localUser,LengthPrefixedPipe? frames=null,Action? abort=null,CancellationToken connectionClosed=default){
-        var reused=false;
-        while(await this.ServeRequestAsync(stream,localUser,frames,abort,connectionClosed,reused)){reused=true;}
-    }
-    private async Task<bool> ServeRequestAsync(Stream stream,string? localUser,LengthPrefixedPipe? frames,Action? abort,CancellationToken connectionClosed,bool reused){
+    // 接続は1要求ごとに閉じる。Manager はブラウザーからだけ使い、接続を保つ切替は持たない（2026-11-12 の決定）。
+    private Task ServeConnectionAsync(Stream stream,string? localUser,LengthPrefixedPipe? frames=null,Action? abort=null,CancellationToken connectionClosed=default)=>
+        this.ServeRequestAsync(stream,localUser,frames,abort,connectionClosed);
+    private async Task ServeRequestAsync(Stream stream,string? localUser,LengthPrefixedPipe? frames,Action? abort,CancellationToken connectionClosed){
         RpcRequest? request=null;
         IDisposable? reservation=null;
         IDisposable? executionLease=null;
@@ -108,20 +108,15 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 if(frames is null){request=await ManagementWire.ReadRequestOrEndAsync(stream,readDeadline.Token,admit);}
                 else{request=await frames.ReadAsync(ReadRequest,readDeadline.Token,null,admit);}
             }
-            if(request is null){
-                if(!reused){throw new EndOfStreamException();}
-                return false;
-            }
+            if(request is null){throw new EndOfStreamException();}
             LocalOwnerIdentity? owner=null;
             if(this.localOwner is not null&&stream is NamedPipeServerStream pipe){this.localOwner.Verify(pipe);owner=this.localOwner;}
-            int? reuseIdleMilliseconds=null;
-            if(request.ReuseConnection){reuseIdleMilliseconds=RequestReadMilliseconds;}
-            if(request.Operation=="info"){var info=this.authorization?.Info??this.service.Info;if(this.PipeName is not null){info=info with{Capabilities=[..info.Capabilities,"SameUserPipeV1"]};}if(this.localOwner is not null){info=info with{Capabilities=[..info.Capabilities,"OsOwnerPipeV1"]};}if(owner is not null){info=info with{Capabilities=[..info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]};}if(owner is not null&&this.localBrowser is not null){info=info with{Capabilities=[..info.Capabilities,"LocalBrowserV1"]};}await this.Send(stream,request.Id,"result",info,reuseIdleMilliseconds:reuseIdleMilliseconds);return request.ReuseConnection;}
+            if(request.Operation=="info"){var info=this.authorization?.Info??this.service.Info;if(this.PipeName is not null){info=info with{Capabilities=[..info.Capabilities,"SameUserPipeV1"]};}if(this.localOwner is not null){info=info with{Capabilities=[..info.Capabilities,"OsOwnerPipeV1"]};}if(owner is not null){info=info with{Capabilities=[..info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceSdkBuildV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1","OwnerExternalTransferV1"]};}if(owner is not null&&this.localBrowser is not null){info=info with{Capabilities=[..info.Capabilities,"LocalBrowserV1"]};}await this.Send(stream,request.Id,"result",info);return;}
             if(request.Operation is "browserLaunch" or "browserRevoke"){
                 if(owner is null||this.localBrowser is null){throw new ManagementException("Unsupported","ブラウザー起動はOS所有者を確認したローカルIPCでのみ利用できます。");}
-                if(request.Operation=="browserLaunch"){await this.Send(stream,request.Id,"result",this.localBrowser.CreateLaunch(),reuseIdleMilliseconds:reuseIdleMilliseconds);}
-                else{this.localBrowser.RevokeAll();await this.Send(stream,request.Id,"result",new{Completed=true},reuseIdleMilliseconds:reuseIdleMilliseconds);}
-                return request.ReuseConnection;
+                if(request.Operation=="browserLaunch"){await this.Send(stream,request.Id,"result",this.localBrowser.CreateLaunch());}
+                else{this.localBrowser.RevokeAll();await this.Send(stream,request.Id,"result",new{Completed=true});}
+                return;
             }
             using var requestCancellation=CancellationTokenSource.CreateLinkedTokenSource(this.stopping.Token,connectionClosed);
             var operationToken=requestCancellation.Token;
@@ -145,18 +140,31 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                     "sourceFindImportedBuild"=>new SourceBuildLookup(this.service.FindImportedSourceBuild(owner.Account(),ManagementJson.Read<DraftKey>(request.Payload))),
                     _=>await this.sourceProjects.SynchronizeSourceProjectAsync(ManagementJson.Read<SourceProjectSynchronization>(request.Payload),sourceCancellation.Token)
                 };
-                await this.Send(stream,request.Id,"result",sourceResult,reuseIdleMilliseconds:reuseIdleMilliseconds);return request.ReuseConnection;
+                await this.Send(stream,request.Id,"result",sourceResult);return;
+            }
+            // 外部DBの取り込み(接続文字列とパスワードを扱う)は、OS の所有者を確かめた接続だけ。
+            if(request.Operation is "externalConnect" or "externalPreview" or "externalImport" or "externalStatus"){
+                if(owner is null){throw new ManagementException("Permission","外部DBの取り込みはOS所有者を確認したローカルIPCでのみ操作できます。");}
+                using var transferCancellation=CancellationTokenSource.CreateLinkedTokenSource(this.stopping.Token,connectionClosed);
+                var transfer=this.transfer??=new(this.service,this.sourceProjects,new WindowsCredentialStore());
+                object transferResult=request.Operation switch{
+                    "externalConnect"=>await transfer.ConnectAsync(ManagementJson.Read<ExternalConnectionRequest>(request.Payload),transferCancellation.Token),
+                    "externalPreview"=>await transfer.PreviewAsync(owner.Account(),ManagementJson.Read<ExternalImportPreviewRequest>(request.Payload),transferCancellation.Token),
+                    "externalImport"=>transfer.Start(owner.Account(),ManagementJson.Read<ExternalImportRequest>(request.Payload)),
+                    _=>transfer.Status(request.Payload.GetProperty("operationId").GetGuid())
+                };
+                await this.Send(stream,request.Id,"result",transferResult);return;
             }
             if(this.authorization is{} authorization){
                 using var operationCancellation=CancellationTokenSource.CreateLinkedTokenSource(this.stopping.Token,connectionClosed);
-                var authorizedResult=await authorization.InvokeAsync(request,operationCancellation.Token);await this.Send(stream,request.Id,"result",authorizedResult,reuseIdleMilliseconds:reuseIdleMilliseconds);return request.ReuseConnection;
+                var authorizedResult=await authorization.InvokeAsync(request,operationCancellation.Token);await this.Send(stream,request.Id,"result",authorizedResult);return;
             }
-            if(request.Operation=="login"){await this.Send(stream,request.Id,"result",this.service.Login(ManagementJson.Read<LoginRequest>(request.Payload)),reuseIdleMilliseconds:reuseIdleMilliseconds);return request.ReuseConnection;}
+            if(request.Operation=="login"){await this.Send(stream,request.Id,"result",this.service.Login(ManagementJson.Read<LoginRequest>(request.Payload)));return;}
             UserAccount Authenticate(){if(owner is not null){return owner.Account();}if(localUser is not null){return this.service.AuthenticateLocal(localUser);}return this.service.Authenticate(request.Token);}
             var user=Authenticate();
-            if(request.Operation=="localIdentity"){if(localUser is null&&owner is null){throw new ManagementException("Unsupported","この接続はローカルIPCではありません。");}await this.Send(stream,request.Id,"result",new UserInfo(user.Name,user.Grants,user.Disabled),reuseIdleMilliseconds:reuseIdleMilliseconds);return request.ReuseConnection;}
+            if(request.Operation=="localIdentity"){if(localUser is null&&owner is null){throw new ManagementException("Unsupported","この接続はローカルIPCではありません。");}await this.Send(stream,request.Id,"result",new UserInfo(user.Name,user.Grants,user.Disabled));return;}
             // 満杯の実行枠を待たず、処理中の操作を取り消せる制御経路を維持する。
-            if(request.Operation=="cancel"){await this.Send(stream,request.Id,"result",this.Cancel(user,request.Payload),operationToken,reuseIdleMilliseconds);return request.ReuseConnection;}
+            if(request.Operation=="cancel"){await this.Send(stream,request.Id,"result",this.Cancel(user,request.Payload),operationToken);return;}
             if(request.Operation is "queryTrace" or "watchQueryTrace" or "queryResourceHeat"){
                 if(this.execution is{} traceAdmission){executionLease=await traceAdmission.EnterExecutionAsync(operationToken).ConfigureAwait(false);}
                 user=Authenticate();
@@ -171,7 +179,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 var traceResult=await pendingTrace.ConfigureAwait(false);
                 if(this.execution is{} traceCompletion){executionLease=await traceCompletion.EnterExecutionAsync(operationToken).ConfigureAwait(false);}
                 operationToken.ThrowIfCancellationRequested();this.service.AuthorizeQueryTrace(Authenticate());
-                await this.Send(stream,request.Id,"result",traceResult,operationToken,reuseIdleMilliseconds);return request.ReuseConnection;
+                await this.Send(stream,request.Id,"result",traceResult,operationToken);return;
             }
             if(this.execution is{} executionSlots){executionLease=await executionSlots.EnterExecutionAsync(operationToken).ConfigureAwait(false);}
             operationToken.ThrowIfCancellationRequested();user=Authenticate();
@@ -180,8 +188,8 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 foreach(var row in this.service.Execute(user,ManagementJson.Read<ExecuteRequest>(request.Payload),cancellationToken)){
                     await this.Send(stream,request.Id,"row",row,cancellationToken);
                 }
-                await this.Send(stream,request.Id,"complete",new{Complete=true},cancellationToken,reuseIdleMilliseconds);
-                return request.ReuseConnection;
+                await this.Send(stream,request.Id,"complete",new{Complete=true},cancellationToken);
+                return;
             }
             object result=request.Operation switch{
                 "auditEvents"=>this.service.AuditEvents(user,ManagementJson.Read<AuditQuery>(request.Payload)),
@@ -221,6 +229,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 "auditReadBuffer"=>this.service.ReadAuditStatus(user),
                 "users"=>this.service.Users(user,Cursor(request.Payload)),
                 "serverSettings"=>this.service.ServerSettings(user),
+                "recoveryGuide"=>this.service.RecoveryGuide(user,ManagementJson.Read<RecoveryGuideRequest>(request.Payload).Scenario),
                 "authorizationDatabases"=>await this.service.ManageAuthorizationAsync<DatabaseAuthorizationList>(user,request.Operation,ManagementJson.Read<DatabaseAuthorizationListQuery>(request.Payload),operationToken),
                 "authorizationDatabase"=>await this.service.ManageAuthorizationAsync<DatabaseAuthorizationInfo>(user,request.Operation,ManagementJson.Read<DatabaseAuthorizationQuery>(request.Payload),operationToken),
                 "authorizationScope"=>await this.service.ManageAuthorizationAsync<AuthorizationScopeInfo>(user,request.Operation,ManagementJson.Read<AuthorizationScopeQuery>(request.Payload),operationToken),
@@ -242,24 +251,21 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 "changePassword"=>this.ChangePassword(user,request.Payload),
                 _=>throw new ManagementException("Unsupported","未対応の管理操作です。")
             };
-            await this.Send(stream,request.Id,"result",result,reuseIdleMilliseconds:reuseIdleMilliseconds);
-            return request.ReuseConnection;
-        }catch(OperationCanceledException)when(reused&&request is null){
-            // 次のフレームを待つ期限の終了では処理を開始していない。
+            await this.Send(stream,request.Id,"result",result);
+            return;
         }catch(OperationCanceledException)when(connectionClosed.IsCancellationRequested){
             abort?.Invoke();
         }catch(ResponseDeliveryAborted error){
             abort?.Invoke();
             this.ConnectionFailed?.Invoke(error);
         }catch(Exception error){
-            if(request is null){this.ConnectionFailed?.Invoke(error);return false;}var actual=error;if(error is System.Reflection.TargetInvocationException{InnerException:{} inner}){actual=inner;}
+            if(request is null){this.ConnectionFailed?.Invoke(error);return;}var actual=error;if(error is System.Reflection.TargetInvocationException{InnerException:{} inner}){actual=inner;}
             var code="OperationFailed";if(actual is ManagementException management){code=management.Code;}else if(actual is Seamless.Security.AuthorizationException denied){code=denied.Code;}else if(actual is Seamless.Authentication.OidcAuthenticationException authentication){code=authentication.Code;}else if(actual is OperationCanceledException){code="Cancelled";}
             else if(request.Operation=="commitRows"&&actual is Seamless.Database.ForeignKeyViolationException){code="Constraint";}
             else if(request.Operation=="commitRows"&&actual is JsonException or FormatException or OverflowException){code="Validation";}
             try{await this.WriteResponseAsync(stream,new RpcResponse(request.Id,"error",ManagementJson.Element(new{}),code,actual.Message));}
             catch(ResponseDeliveryAborted){abort?.Invoke();}
         }finally{executionLease?.Dispose();reservation?.Dispose();}
-        return false;
     }
     private static RpcRequest ReadRequest(System.Buffers.ReadOnlySequence<byte> bytes){var reader=new Utf8JsonReader(bytes);var request=JsonSerializer.Deserialize<RpcRequest>(ref reader,ManagementJson.Options)??throw new ManagementException("Protocol","要求がありません。");if(reader.Read()){throw new ManagementException("Protocol","要求の末尾に余分なJSONがあります。");}return request;}
     private object SeedBatch(UserAccount user,JsonElement payload){this.service.SeedBatch(user,ManagementJson.Read<SeedBatchRequest>(payload));return new{success=true};}
@@ -277,8 +283,8 @@ public sealed partial class ManagementServer:IAsyncDisposable{
     }
     private static string Id(JsonElement payload)=>payload.GetProperty("id").GetString()??throw new ManagementException("InvalidRequest","IDが必要です。");
     private static long Cursor(JsonElement payload){if(payload.TryGetProperty("cursor",out var cursor)){return cursor.GetInt64();}return 0;}
-    private Task Send(Stream stream,Guid id,string kind,object value,CancellationToken? cancellationToken=null,int? reuseIdleMilliseconds=null)=>
-        this.WriteResponseAsync(stream,new(id,kind,ManagementJson.Element(value)){ReuseIdleMilliseconds=reuseIdleMilliseconds},cancellationToken);
+    private Task Send(Stream stream,Guid id,string kind,object value,CancellationToken? cancellationToken=null)=>
+        this.WriteResponseAsync(stream,new(id,kind,ManagementJson.Element(value)),cancellationToken);
     private async Task WriteResponseAsync(Stream stream,RpcResponse response,CancellationToken? cancellationToken=null){
         var cancellation=cancellationToken??this.stopping.Token;
         using var deadline=this.responseWriteTimeout.HasValue?CancellationTokenSource.CreateLinkedTokenSource(cancellation):null;

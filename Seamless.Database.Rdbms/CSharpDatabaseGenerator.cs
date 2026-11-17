@@ -6,7 +6,19 @@ namespace Seamless.Database.Rdbms;
 public static partial class CSharpDatabaseGenerator {
     public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows=false,bool executableViews=false)=>Generate(catalog,preserveSqlRows,executableViews,false);
     public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql)=>Generate(catalog,preserveSqlRows,executableViews,runtimeSql,false);
-    public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql,bool collectible) {
+    public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql,bool collectible)=>
+        Generate(catalog,preserveSqlRows,executableViews,runtimeSql,collectible,null);
+
+    /// <summary>
+    /// 取り込み用に生成する。ビューは <paramref name="views"/> の訳で C# のビューにし、訳せないビューは取り込まずに
+    /// <see cref="GeneratedDatabase.Compatibility"/> へ回避策つきで入れる。写しは利用者が選んだビューだけ。
+    /// </summary>
+    public static GeneratedDatabase Generate(DatabaseCatalog catalog,ViewImportOptions views){
+        ArgumentNullException.ThrowIfNull(views);
+        return Generate(catalog,false,false,false,false,views);
+    }
+
+    private static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql,bool collectible,ViewImportOptions? viewImport) {
         var originalCatalog=catalog;
         if(preserveSqlRows){catalog=CreateImportCatalog(catalog);}
         ArgumentNullException.ThrowIfNull(catalog);
@@ -22,12 +34,18 @@ public static partial class CSharpDatabaseGenerator {
         if(collectible){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|CollectibleV1")));}
         // [生成物の形] 行を Tables と [Key] で宣言する形(旧方式の Keys と Records の二重書きは廃止)。前の形の生成物を同じ指紋で使わない。
         fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|DeclaredTablesV1")));
+        var views=viewImport is null?null:TranslateViews(catalog,schemas,typeNamespace,$"global::{typeNamespace}.{databaseName}",viewImport);
+        if(views is not null){
+            // 訳の版と、写しにすると選んだビューが変われば、生成物も変わる。
+            fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|ViewTranslation:"+viewImport!.Translator.Version+":"+string.Join(",",views.Snapshots.Order(StringComparer.OrdinalIgnoreCase)))));
+        }
         var routines=new List<GeneratedRoutineBinding>();
         var files = new List<GeneratedSourceFile> {
             new($"{FileName(databaseName)}.cs",CreateDatabaseSource(databaseName,typeNamespace,fingerprint,schemas,executableViews,catalog.Name,routines,runtimeSql,collectible)),
         };
         // [宣言の形] 表は Tables.<スキーマ> に [Key] 付きで書き、キーの型とコンテナの表のプロパティは DB の生成器が作る。
-        // ビューは、定義を LINQ へ訳せるまで取り込んだ時点の写しを表として出す(SQL Server へ直接問い合わせる実行用のビューは、行の型だけ Views.<スキーマ> に出す)。
+        // ビューは、訳す指定(ViewImportOptions)があれば C# のビューにし、写しは利用者が選んだものだけ(CSharpDatabaseGenerator.Views.cs)。
+        // 指定が無ければ、取り込んだ時点の写しを表として出す(SQL Server へ直接問い合わせる実行用のビューは、行の型だけ Views.<スキーマ> に出す)。
         // 関数・手続きの結果の行は Functions・Procedures に出す。
         foreach(var schema in schemas) {
             foreach(var table in schema.Tables) {
@@ -36,7 +54,10 @@ public static partial class CSharpDatabaseGenerator {
                     CreateTableSource(typeNamespace,schema,table)));
             }
             foreach(var view in schema.Views) {
-                if(executableViews){
+                if(views is not null){
+                    // 訳したビューの行の型と入口は、まとめて1つのファイル(下)に出す。訳せないビューは出さない。
+                    if(views.IsSnapshot(schema.Source.Name,view.Source.Name)){files.Add(new($"Tables/{FileName(schema.Name)}/{FileName(view.Name)}.cs",CreateTableSource(typeNamespace,schema,view)));}
+                }else if(executableViews){
                     files.Add(new($"Views/{FileName(schema.Name)}/{FileName(view.Name)}.cs",CreateViewRowSource(typeNamespace,schema,view)));
                 }else{
                     files.Add(new($"Tables/{FileName(schema.Name)}/{FileName(view.Name)}.cs",CreateTableSource(typeNamespace,schema,view)));
@@ -68,7 +89,30 @@ public static partial class CSharpDatabaseGenerator {
                     column.Source.Type,column.Source.IsSynthetic)).ToArray(),
                  GeneratedRelationKind.View)))).ToArray();
         if(executableViews){tables=tables.Where(static table=>table.Kind==GeneratedRelationKind.Table).ToArray();}
-        return new(catalog.Name,FileName(databaseName),fingerprint,files.AsReadOnly(),tables){Routines=routines.AsReadOnly(),RootNamespace=runtimeSql?typeNamespace:null,IsCollectible=collectible};
+        var compatibility=new List<CompatibilityIssue>();
+        if(views is not null){
+            // 写しにするビューだけが行を取り込む表として残る。
+            tables=tables.Where(table=>table.Kind==GeneratedRelationKind.Table||views.IsSnapshot(table.SourceSchema,table.SourceTable)).ToArray();
+            if(views.Source is not null){files.Add(views.Source);}
+            // 元のビューの定義を残す(同じ製品へ書き出すとき元の定義のまま作り直す。訳せず取り込まなかったビューも含む)。Queries/SourceDefinitions.cs に出す。
+            // 関数・手続きの元の定義も残す(計算列・既定値・CHECK が使う関数を、書き出しで表より先に作る)。
+            static string Verbatim(string text)=>"@\""+text.Replace("\"","\"\"",StringComparison.Ordinal)+"\"";
+            var definitions=catalog.Schemas.SelectMany(static schema=>schema.Views.Where(static view=>view.Definition is not null)
+                .Select(view=>$"[assembly: global::Seamless.Database.ImportedDatabaseView({Literal(schema.Name)},{Literal(view.Name)},{Verbatim(view.Definition!)})]"))
+                .Concat(catalog.Schemas.SelectMany(static schema=>schema.Routines.Where(static routine=>routine.Definition is not null)
+                .Select(routine=>$"[assembly: global::Seamless.Database.ImportedDatabaseRoutine({Literal(schema.Name)},{Literal(routine.Name)},{Verbatim(routine.Definition!)})]")))
+                // 型付きの xml の列が従う XML スキーマコレクションの本文も残す(書き出しで表より先に作る)。
+                .Concat(catalog.XmlSchemaCollections.Select(collection=>$"[assembly: global::Seamless.Database.ImportedDatabaseXmlSchemaCollection({Literal(collection.Schema)},{Literal(collection.Name)},{Verbatim(collection.Definition)})]")).ToArray();
+            if(definitions.Length>0){
+                var builder=Header();
+                foreach(var definition in definitions){builder.AppendLine(definition);}
+                files.Add(new("Queries/SourceDefinitions.cs",builder.ToString()));
+            }
+            compatibility.AddRange(views.Issues);
+            compatibility.AddRange(RoutineIssues(routines));
+            compatibility.AddRange(XmlSchemaIssues(catalog));
+        }
+        return new(catalog.Name,FileName(databaseName),fingerprint,files.AsReadOnly(),tables){Routines=routines.AsReadOnly(),RootNamespace=runtimeSql?typeNamespace:null,IsCollectible=collectible,Compatibility=compatibility.AsReadOnly(),Views=views?.Views??[]};
     }
 
     private static DatabaseCatalog CreateImportCatalog(DatabaseCatalog catalog){
@@ -146,8 +190,9 @@ public static partial class CSharpDatabaseGenerator {
         var builder = Header();
         builder.AppendLine($"namespace {typeNamespace} {{");
         builder.AppendLine();
-        if(collectible){builder.AppendLine("internal static class DatabaseGenerator{public const bool Collectible=true;}");}
-        else{builder.AppendLine("internal static class DatabaseGenerator;");}
+        // partial にする：Manager の内蔵のコンパイルが、同じ印のクラスに自分の部分を足す(取り込んだ DB を Manager の DB にする)。
+        if(collectible){builder.AppendLine("internal static partial class DatabaseGenerator{public const bool Collectible=true;}");}
+        else{builder.AppendLine("internal static partial class DatabaseGenerator;");}
         builder.AppendLine();
         if(runtimeSql){
             builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.Query.RuntimeSqlDatabaseContainer {{");
@@ -242,7 +287,15 @@ public static partial class CSharpDatabaseGenerator {
         builder.AppendLine($"public partial struct {name} {{");
         foreach(var column in columns) {
             if(keys.Contains(column)){builder.AppendLine("    [global::Seamless.Database.Key]");}
-            if(importedColumns){builder.AppendLine($"    [global::Seamless.Database.ImportedDatabaseColumn({Literal(column.Source.Name)},{column.Source.Type.MaximumLength??-1},{Literal(column.Source.Type.SqlTypeName)},{Literal(column.Source.Type.Collation)},IsSynthetic={column.Source.IsSynthetic.ToString().ToLowerInvariant()})]");}
+            if(importedColumns){
+                // 書き出しで元の型(decimal(p,s)・datetime2(n) など)に戻せるよう、精度と小数部の桁も残す。
+                var precision=column.Source.Type.Precision is{} p?$",Precision={p}":"";
+                var scale=column.Source.Type.Scale is{} s?$",Scale={s}":"";
+                // 型付きの xml の列は、従う XML スキーマコレクションも残す(書き出しで同じ型の列に戻す)。
+                var xml=column.Source.Type.XmlSchemaCollectionName is{} collection
+                    ?$",XmlSchemaCollectionSchema={Literal(column.Source.Type.XmlSchemaCollectionSchema)},XmlSchemaCollectionName={Literal(collection)},IsXmlDocument={column.Source.Type.IsXmlDocument.ToString().ToLowerInvariant()}":"";
+                builder.AppendLine($"    [global::Seamless.Database.ImportedDatabaseColumn({Literal(column.Source.Name)},{column.Source.Type.MaximumLength??-1},{Literal(column.Source.Type.SqlTypeName)},{Literal(column.Source.Type.Collation)},IsSynthetic={column.Source.IsSynthetic.ToString().ToLowerInvariant()}{precision}{scale}{xml})]");
+            }
             if(column.Source.ComputedDefinition is not null){builder.AppendLine($"    [global::Seamless.Database.ComputedColumn({column.Source.Ordinal})]");}
             builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
         }
@@ -352,6 +405,10 @@ public static partial class CSharpDatabaseGenerator {
         var canonical = new StringBuilder();
         Append(canonical,catalog.Name);
         if(catalog.DefaultCollation is not null){Append(canonical,"DatabaseCollation");Append(canonical,catalog.DefaultCollation);}
+        // XML スキーマコレクションは、ある DB だけ指紋に混ぜる(無い DB の指紋は前と同じ)。
+        foreach(var collection in catalog.XmlSchemaCollections.OrderBy(static value=>value.Schema,StringComparer.Ordinal).ThenBy(static value=>value.Name,StringComparer.Ordinal)){
+            Append(canonical,"XmlSchemaCollection");Append(canonical,collection.Schema);Append(canonical,collection.Name);Append(canonical,collection.Definition);
+        }
         foreach(var schema in catalog.Schemas.OrderBy(static value=>value.Name,StringComparer.Ordinal)) {
             Append(canonical,schema.Name);
             foreach(var table in schema.Tables.OrderBy(static value=>value.Name,StringComparer.Ordinal)) {
@@ -477,6 +534,7 @@ public static partial class CSharpDatabaseGenerator {
         Append(builder,type.SourceMaximumLength?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
         Append(builder,type.SourcePrecision?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
         Append(builder,type.SourceScale?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
+        if(type.XmlSchemaCollectionName is not null){Append(builder,"XmlSchemaCollection");Append(builder,type.XmlSchemaCollectionSchema??string.Empty);Append(builder,type.XmlSchemaCollectionName);Append(builder,type.IsXmlDocument.ToString());}
         if(type.ResultSqlTypeName is not null||type.ResultMaximumLength is not null){Append(builder,"ResultSqlType");Append(builder,type.ResultSqlTypeName??string.Empty);Append(builder,type.ResultMaximumLength?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);}
     }
 

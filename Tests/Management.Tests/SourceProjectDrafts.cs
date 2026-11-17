@@ -102,12 +102,9 @@ public sealed class SourceProjectDrafts{
         Assert.Equal(2,result.BaseVersion);
         document=await Edit(sources,document.ProjectPath,text=>text.Replace("// server replacement","// manager after publication",StringComparison.Ordinal));
         result=await sources.SaveSourceProjectDraftAsync(document.Id);
-        var working=SourceWorkspace.Open(projectPath);
-        working.UndoManager();
-        var undone=File.ReadAllText(Path.Combine(projectPath,"Database.cs"));
-        Assert.Contains("// server replacement",undone);
-        Assert.Contains("// external after publication",undone);
-        Assert.DoesNotContain("// manager after publication",undone);
+        var saved=File.ReadAllText(Path.Combine(projectPath,"Database.cs"));
+        Assert.Contains("// manager after publication",saved);
+        Assert.Contains("// external after publication",saved);
         document=await sources.OpenSourceProjectAsync(new(document.ProjectPath));
         result=await sources.SaveSourceProjectDraftAsync(document.Id);
         var active=await operations.GetDefinitionAsync(definition.Id);

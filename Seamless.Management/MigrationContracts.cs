@@ -2,7 +2,6 @@ namespace Seamless.Management;
 
 public sealed record ColumnMigration(string Target,string? Source=null,string? Expression=null);
 public sealed record TableMigration(string Target,string Source,ColumnMigration[] Columns,string[] DroppedColumns);
-public sealed record RemovedTableDefinition(int Version,string DefinitionId,string Path,string File,string Declaration,string Prefix,string Suffix,string RowFingerprint,TableMigration? Mapping,bool WasNew,string? AddedDrop);
 public sealed record MigrationDefinition(int Version,TableMigration[] Tables,string[] DroppedTables,string[]? NewTables=null){
     [System.Text.Json.Serialization.JsonIgnore]
     public bool HasDataLoss=>this.DroppedTables.Length>0||this.Tables.Any(table=>table.DroppedColumns.Length>0);

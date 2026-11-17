@@ -12,13 +12,70 @@ public static partial class DatabaseDesigner{
     public static Definition Empty(string id,string name)=>new(id,name,DefinitionKind.Database,"UserCode.ManagedDb","",new("1",[new("Database.cs","using Seamless.Database;\nnamespace UserCode;\ninternal static partial class DatabaseGenerator;\npublic sealed partial class ManagedDb(DatabaseContainerOptions options):DatabaseContainer(options){\n}\n")],[]));
     private static CSharpCompilation Compilation(Definition definition){
         var options=new CSharpParseOptions(LanguageVersion.CSharp14,preprocessorSymbols:definition.Source.Defines??[]);
-        return CSharpCompilation.Create("Design",definition.Source.Files.Select(file=>CSharpSyntaxTree.ParseText(file.Text,options,path:file.Path)),SourceEditor.PlatformReferences());
+        var compilation=CSharpCompilation.Create("Design",definition.Source.Files.Select(file=>CSharpSyntaxTree.ParseText(file.Text,options,path:file.Path)),SourceEditor.PlatformReferences());
+        var generated=GeneratedTableProperties(compilation,definition);
+        if(generated.Length==0){return compilation;}
+        return compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(generated,options,path:GeneratedTablesPath));
+    }
+    // [生成される表] Tables(・Work)の行の型だけで宣言した表は、表のプロパティを DB の生成器が作る(Shared/Database.Generation の CollectDeclaredObjects)。
+    // 設計器は生成器を通さずに読むので、同じ規則で表のプロパティだけを利用者のソースではない仮のファイルへ合成し、手書きの表と同じく列挙・読み取り・列の編集をできるようにする。
+    // キーの型は生成器が作る型のまま(設計器からは解決しない)にし、主キーは行の型の[Key]で表す。仮のファイルは書き換えない。
+    internal const string GeneratedTablesPath="<seamless-generated>/Tables.g.cs";
+    private static bool IsGeneratedTable(IPropertySymbol property)=>property.DeclaringSyntaxReferences.Any(reference=>reference.SyntaxTree.FilePath==GeneratedTablesPath);
+    private static string GeneratedTableProperties(CSharpCompilation compilation,Definition definition){
+        if(compilation.GetTypeByMetadataName(definition.EntryType) is not{} container){return "";}
+        var root=container.ContainingNamespace.IsGlobalNamespace?"":container.ContainingNamespace.ToDisplayString();
+        var handWritten=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        var owners=new Dictionary<string,INamedTypeSymbol>(StringComparer.Ordinal);
+        var ancestors=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        Walk(container,"");
+        var builder=new System.Text.StringBuilder();
+        foreach(var row in SourceTypes(compilation.Assembly.GlobalNamespace).Where(type=>type.TypeKind==TypeKind.Struct&&type.ContainingType is null)){
+            var ns=row.ContainingNamespace.IsGlobalNamespace?"":row.ContainingNamespace.ToDisplayString();
+            string? schema=null;
+            foreach(var kind in new[]{"Tables","Work"}){
+                var prefix=root.Length==0?kind:root+"."+kind;
+                if(ns==prefix){schema="";}else if(ns.StartsWith(prefix+".",StringComparison.Ordinal)){schema=ns[(prefix.Length+1)..];}
+                if(schema is not null){break;}
+            }
+            // 手書きの表のプロパティが使う行の型と、主キー([Key])の無い型は、生成器が作る表として扱わない。所属のスキーマが宣言されていなければ合成しない。
+            if(schema is null||handWritten.Contains(row)||KeyColumns(row).Length==0||!owners.TryGetValue(schema,out var owner)||owner.GetMembers(row.Name).Length>0){continue;}
+            var keyType="global::"+(root.Length==0?"Keys":root+".Keys")+(schema.Length==0?"":"."+schema)+".@"+row.Name;
+            var property="public global::Seamless.Database.Table<"+keyType+","+TypeName(row)+"> @"+row.Name+"=>throw null!;";
+            builder.Append(Wrap(owner,property)).Append('\n');
+        }
+        return builder.ToString();
+
+        void Walk(INamedTypeSymbol owner,string prefix){
+            if(!ancestors.Add(owner)){return;}
+            try{
+                owners.TryAdd(prefix,owner);
+                foreach(var property in owner.GetMembers().OfType<IPropertySymbol>()){
+                    if(property.Type is not INamedTypeSymbol named){continue;}
+                    if(named.Name=="Table"&&named.TypeArguments.Length==2&&named.TypeArguments[1] is INamedTypeSymbol record){handWritten.Add(record);}
+                    else if(named.BaseType?.Name=="DatabaseSchema"){Walk(named,prefix.Length==0?property.Name:prefix+"."+property.Name);}
+                }
+            }finally{ancestors.Remove(owner);}
+        }
+    }
+    private static IEnumerable<INamedTypeSymbol> SourceTypes(INamespaceSymbol ns){
+        foreach(var type in ns.GetTypeMembers()){if(type.DeclaringSyntaxReferences.Length>0){yield return type;}}
+        foreach(var child in ns.GetNamespaceMembers()){foreach(var type in SourceTypes(child)){yield return type;}}
+    }
+    // 合成するメンバーを、所属の型(入れ子なら外側の型も)の partial 宣言で包む。
+    private static string Wrap(INamedTypeSymbol owner,string member){
+        var text="partial class @"+owner.Name+"{"+member+"}";
+        for(var outer=owner.ContainingType;outer is not null;outer=outer.ContainingType){text="partial class @"+outer.Name+"{"+text+"}";}
+        if(!owner.ContainingNamespace.IsGlobalNamespace){text="namespace "+owner.ContainingNamespace.ToDisplayString()+"{"+text+"}";}
+        return text;
     }
     private static INamedTypeSymbol Container(CSharpCompilation compilation,Definition definition)=>compilation.GetTypeByMetadataName(definition.EntryType)??throw new ManagementException("Unsupported","DBの宣言を特定できません。C#で編集してください。");
     private static INamedTypeSymbol Owner(INamedTypeSymbol container,string schema){var owner=container;foreach(var part in schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){owner=(owner.GetMembers(part).OfType<IPropertySymbol>().SingleOrDefault()?.Type as INamedTypeSymbol)??throw new ManagementException("Unsupported","スキーマの宣言を特定できません: "+schema);}return owner;}
     private static IPropertySymbol Property(INamedTypeSymbol container,string path){var split=path.LastIndexOf('.');var schema="";var name=path;if(split>=0){schema=path[..split];name=path[(split+1)..];}return Owner(container,schema).GetMembers(name).OfType<IPropertySymbol>().SingleOrDefault()??throw new ManagementException("NotFound","表の宣言がありません: "+path);}
     public static (string Path,int Start,int Length,string Text) TableSource(Definition definition,string path){
-        var compilation=Compilation(definition);var property=Property(Container(compilation,definition),path);var syntax=property.DeclaringSyntaxReferences.Single().GetSyntax();
+        var compilation=Compilation(definition);var property=Property(Container(compilation,definition),path);
+        if(IsGeneratedTable(property)){var row=Declaration(RowTypes(property)[1]);return(row.SyntaxTree.FilePath,row.SpanStart,row.Span.Length,row.ToFullString());}
+        var syntax=property.DeclaringSyntaxReferences.Single().GetSyntax();
         var text=syntax.ToFullString()+string.Concat(RowTypes(property).SelectMany(type=>type.DeclaringSyntaxReferences).Select(reference=>reference.GetSyntax().ToFullString()));
         return(syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,text);
     }
@@ -27,15 +84,20 @@ public static partial class DatabaseDesigner{
     private static TypeDeclarationSyntax Declaration(INamedTypeSymbol type)=>type.DeclaringSyntaxReferences.SingleOrDefault()?.GetSyntax() as TypeDeclarationSyntax??throw new ManagementException("Unsupported","複数の宣言や外部型はC#で編集してください: "+type.Name);
     public static TableDesign Read(Definition definition,string path){
         var compilation=Compilation(definition);var property=Property(Container(compilation,definition),path);var types=RowTypes(property);var keyNames=KeyColumns(types[1]);var keys=keyNames.ToHashSet(StringComparer.Ordinal);
-        var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
-        if(syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}},ArgumentList.Arguments.Count:1} call||call.ArgumentList.Arguments[0].Expression is not SimpleLambdaExpressionSyntax lambda){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
         if(keyNames.Length==0){throw new ManagementException("Unsupported","主キー([Key])の無い表はC#で編集してください。");}
-        if(!IsKeySelector(lambda,keyNames)){throw new ManagementException("Unsupported","計算を含むキーの定義はC#で編集してください。");}
+        if(!IsGeneratedTable(property)){
+            var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
+            if(syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}},ArgumentList.Arguments.Count:1} call||call.ArgumentList.Arguments[0].Expression is not SimpleLambdaExpressionSyntax lambda){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
+            if(!IsKeySelector(lambda,keyNames)){throw new ManagementException("Unsupported","計算を含むキーの定義はC#で編集してください。");}
+        }
         var existing=definition.Migration?.Tables.SingleOrDefault(table=>table.Target==path);
         var columns=Columns(types[1]).Select(item=>new ColumnDesign(item.Name,TypeName(item.Type),keys.Contains(item.Name),item.Name,existing?.Columns.SingleOrDefault(column=>column.Target==item.Name)?.Expression)).ToArray();
         var relations=property.GetAttributes().Where(attribute=>attribute.AttributeClass?.Name=="ForeignKeyAttribute").Select(attribute=>{var args=attribute.ConstructorArguments;return new ForeignKeyDesign((string)args[0].Value!,(string)args[1].Value!,args[2].Values.Select(value=>(string)value.Value!).ToArray(),args[3].Values.Select(value=>(string)value.Value!).ToArray());}).ToArray();
         var split=path.LastIndexOf('.');if(split<0){return new(path,"",columns,relations,path);}return new(path[(split+1)..],path[..split],columns,relations,path);
     }
+    // [予約名] すべての入口がルートの入口を返す Database を持つので、表・スキーマ・ビュー・関数の名前に使えない(DB生成器の SDB002 と同じ)。
+    private const string RootAccessName="Database";
+    private static void ObjectName(string value){Identifier(value);if(value==RootAccessName){throw new ManagementException("Validation","名前 Database は、入口からルートへ戻る Database と重なるので使えません。");}}
     private static void Identifier(string value){if(!SyntaxFacts.IsValidIdentifier(value)){throw new ManagementException("Validation","有効なC#識別子を入力してください: "+value);}}
     private static string Literal(string value)=>SyntaxFactory.Literal(value).Text;
     // [改行] Managerが作る断片は書き込み先のファイルの改行に合わせる。利用者の本文は書き換えない。
@@ -68,7 +130,7 @@ public static partial class DatabaseDesigner{
         }
     }
     private static Definition EnsureSchema(Definition definition,string schema){
-        var parts=schema.Split('.',StringSplitOptions.RemoveEmptyEntries);var path="";foreach(var part in parts){Identifier(part);var compilation=Compilation(definition);var container=Container(compilation,definition);var owner=Owner(container,path);if(owner.GetMembers(part).Length>0){
+        var parts=schema.Split('.',StringSplitOptions.RemoveEmptyEntries);var path="";foreach(var part in parts){ObjectName(part);var compilation=Compilation(definition);var container=Container(compilation,definition);var owner=Owner(container,path);if(owner.GetMembers(part).Length>0){
                 if(owner.GetMembers(part).OfType<IPropertySymbol>().SingleOrDefault()?.Type is not INamedTypeSymbol type||!IsSchemaType(type)){throw new ManagementException("Conflict","スキーマ名が既存オブジェクトと競合しています: "+part);}
                 path=string.Join(".",new[]{path,part}.Where(value=>value.Length>0));continue;
             }
@@ -81,12 +143,16 @@ public static partial class DatabaseDesigner{
     }
     public static Definition Apply(Definition definition,TableDesign design){
         definition=EnsureSchema(definition,design.Schema);
-        Identifier(design.Name);foreach(var part in design.Schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){Identifier(part);}if(design.Columns.Length==0||!design.Columns.Any(column=>column.PrimaryKey)||design.Columns.Select(column=>column.Name).Distinct().Count()!=design.Columns.Length){throw new ManagementException("Validation","列と主キーを指定し、列名の重複を解消してください。");}
+        ObjectName(design.Name);foreach(var part in design.Schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){ObjectName(part);}if(design.Columns.Length==0||!design.Columns.Any(column=>column.PrimaryKey)||design.Columns.Select(column=>column.Name).Distinct().Count()!=design.Columns.Length){throw new ManagementException("Validation","列と主キーを指定し、列名の重複を解消してください。");}
         foreach(var column in design.Columns){Identifier(column.Name);if(SyntaxFactory.ParseTypeName(column.Type).ContainsDiagnostics){throw new ManagementException("Validation","列の型が不正です: "+column.Name);}if(column.PrimaryKey&&column.Type.EndsWith('?')){throw new ManagementException("Validation","主キーをnull許容にはできません。");}}
         var compilation=Compilation(definition);var container=Container(compilation,definition);var edits=new List<(string File,int Start,int Length,string Text)>();var files=definition.Source.Files.ToList();var ns=container.ContainingNamespace.ToDisplayString();var owner=container;
         if(design.Schema.Length>0){owner=Owner(container,design.Schema);}
         IPropertySymbol? property=null;if(design.OriginalPath is not null){property=Property(container,design.OriginalPath);}if(owner.GetMembers(design.Name).Any(member=>!SymbolEqualityComparer.Default.Equals(member,property))){throw new ManagementException("Conflict","同名のオブジェクトがあります。");}
         string keyType,recordType;var shapeChanged=true;
+        var generatedTable=property is not null&&IsGeneratedTable(property);
+        if(generatedTable&&(design.OriginalPath!=design.Path||design.ForeignKeys.Length>0)){
+            throw new ManagementException("Unsupported","Tablesの行の型だけで宣言した表の名前・所属・外部キーは、C#で編集してください。");
+        }
         if(property is not null){var types=RowTypes(property);keyType=KeyTypeSyntax(property);recordType=TypeName(types[1]);var original=Read(definition,design.OriginalPath!);shapeChanged=!original.Columns.Select(column=>(column.Name,column.Type,column.PrimaryKey)).SequenceEqual(design.Columns.Select(column=>(column.Name,column.Type,column.PrimaryKey)));
             if(shapeChanged){
                 if(Tables(definition).Where(path=>path!=design.OriginalPath).Select(path=>RowTypes(Property(container,path))[1]).Any(other=>SymbolEqualityComparer.Default.Equals(other,types[1]))){throw new ManagementException("Unsupported","行型を他の表と共有しています。影響を確認してC#で編集してください。");}
@@ -104,7 +170,7 @@ public static partial class DatabaseDesigner{
         var attributes=string.Join("\n",design.ForeignKeys.Select(relation=>"[global::Seamless.Database.ForeignKey("+Literal(relation.Name)+","+Literal(relation.ReferencedTable)+",new string[]{"+string.Join(",",relation.Columns.Select(Literal))+"},new string[]{"+string.Join(",",relation.ReferencedColumns.Select(Literal))+"})]"));
         var declaration=attributes+"\npublic global::Seamless.Database.Table<"+keyType+","+recordType+"> "+design.Name+"=>this.Table<"+keyType+","+recordType+">(row=>row.Key);\n";
         if(property is null){var type=Declaration(owner);var edit=AppendMember(type,GeneratedText(declaration,type));edits.Add((type.SyntaxTree.FilePath,edit.Start,edit.Length,edit.Text));}
-        else{var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
+        else if(!generatedTable){var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
             if(shapeChanged&&syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}}}){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
             var generated=(PropertyDeclarationSyntax)SyntaxFactory.ParseMemberDeclaration(declaration)!;
             if(!shapeChanged){generated=generated.WithExpressionBody(syntax.ExpressionBody).WithAccessorList(syntax.AccessorList).WithSemicolonToken(syntax.SemicolonToken);}
@@ -162,26 +228,30 @@ public static partial class DatabaseDesigner{
     }
     private static string Format(string text)=>SyntaxFactory.ParseCompilationUnit(text).NormalizeWhitespace(eol:"\n").ToFullString()+"\n";
     public static Definition Remove(Definition definition,string path){
-        var property=Property(Container(Compilation(definition),definition),path);var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();var source=new SourceEditor().Apply(definition.Source,new(definition.Source.Hash(),syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,""));
+        var compilation=Compilation(definition);var container=Container(compilation,definition);var property=Property(container,path);
+        var removals=new List<SyntaxNode>{TableDeclaration(property)};
+        // 手書きの表の行の型が Tables にあると、DB の生成器がその行の型から表を作り直す(手順B 以降)。ほかの表が使っていなければ行の型も消す。
+        if(!IsGeneratedTable(property)&&RowTypes(property)[1] is INamedTypeSymbol row&&IsTablesRecord(row,container)&&
+            !Tables(definition).Where(other=>other!=path).Any(other=>SymbolEqualityComparer.Default.Equals(RowTypes(Property(container,other))[1],row))){
+            removals.AddRange(row.DeclaringSyntaxReferences.Select(reference=>reference.GetSyntax()).Where(syntax=>definition.Source.Files.Any(file=>file.Path==syntax.SyntaxTree.FilePath)));
+        }
+        var files=definition.Source.Files.Select(file=>{
+            var text=file.Text;var changed=false;
+            foreach(var syntax in removals.Where(syntax=>syntax.SyntaxTree.FilePath==file.Path).OrderByDescending(syntax=>syntax.SpanStart)){text=text.Remove(syntax.SpanStart,syntax.Span.Length);changed=true;}
+            // 行の型を消して型の宣言が残らないファイル(Tables/<名前>.cs など)はファイルごと消す(同じ名前で作り直せるように)。
+            if(changed&&!SyntaxFactory.ParseCompilationUnit(text).DescendantNodes().OfType<BaseTypeDeclarationSyntax>().Any()&&!SyntaxFactory.ParseCompilationUnit(text).DescendantNodes().OfType<DelegateDeclarationSyntax>().Any()){return null;}
+            return file with{Text=text};
+        }).OfType<SourceFile>().ToArray();
+        var source=definition.Source with{Files=files,Revision=Guid.NewGuid().ToString("N")};
         var migration=definition.Migration??new(1,[],[]);var prior=migration.Tables.SingleOrDefault(table=>table.Target==path);var dropped=migration.DroppedTables;
         if(!(migration.NewTables??[]).Contains(path)){dropped=dropped.Append(prior?.Source??path).Distinct().ToArray();}
         return definition with{Source=source,Migration=migration with{Tables=migration.Tables.Where(table=>table.Target!=path).ToArray(),DroppedTables=dropped,NewTables=(migration.NewTables??[]).Where(table=>table!=path).ToArray()}};
     }
-    public static RemovedTableDefinition CaptureRemoval(Definition definition,string path){
-        SourceEditor.Validate(definition.Source);var compilation=Compilation(definition);var property=Property(Container(compilation,definition),path);var syntax=property.DeclaringSyntaxReferences.Single().GetSyntax();var text=definition.Source.Files.Single(file=>file.Path==syntax.SyntaxTree.FilePath).Text;
-        var start=syntax.SpanStart;var end=syntax.Span.End;var prefixStart=Math.Max(0,start-128);var mapping=definition.Migration?.Tables.SingleOrDefault(table=>table.Target==path);var wasNew=definition.Migration?.NewTables?.Contains(path)==true;string? drop=null;
-        if(!wasNew){var key=path;if(mapping is not null){key=mapping.Source;}if(definition.Migration?.DroppedTables.Contains(key)!=true){drop=key;}}
-        return new(1,definition.Id,path,syntax.SyntaxTree.FilePath,text[start..end],text[prefixStart..start],text[end..Math.Min(text.Length,end+128)],RowFingerprint(property),mapping,wasNew,drop);
+    // 行の型が <根>.Tables の名前空間(またはその下)にあるか。手順B 以降、DB の生成器はこの行の型から表を作る。
+    private static bool IsTablesRecord(INamedTypeSymbol row,INamedTypeSymbol container){
+        var root=container.ContainingNamespace.ToDisplayString();var tables=root.Length==0?"Tables":root+".Tables";var ns=row.ContainingNamespace.ToDisplayString();
+        return ns==tables||ns.StartsWith(tables+".",StringComparison.Ordinal);
     }
-    public static Definition RestoreRemoved(Definition definition,RemovedTableDefinition removed){
-        if(removed.Version!=1||definition.Id!=removed.DefinitionId){throw new ManagementException("Conflict","削除記録の対象・版が一致しません。");}if(Tables(definition).Contains(removed.Path)){throw new ManagementException("Conflict","同名のテーブルが既に存在します。");}
-        var file=definition.Source.Files.SingleOrDefault(file=>file.Path==removed.File)??throw new ManagementException("Conflict","元のソースファイルが変更されています。");var anchor=removed.Prefix+removed.Suffix;var offset=file.Text.IndexOf(anchor,StringComparison.Ordinal);
-        if(anchor.Length==0||offset<0||file.Text.IndexOf(anchor,offset+1,StringComparison.Ordinal)>=0){throw new ManagementException("Conflict","削除位置の周辺が変更されています。入力と削除記録を保持して差分を確認してください。");}
-        var source=new SourceEditor().Apply(definition.Source,new(definition.Source.Hash(),removed.File,offset+removed.Prefix.Length,0,removed.Declaration));var candidate=definition with{Source=source};var compilation=Compilation(candidate);
-        if(RowFingerprint(Property(Container(compilation,candidate),removed.Path))!=removed.RowFingerprint){throw new ManagementException("Conflict","行型・キー型が変更されています。削除の取消を自動適用できません。");}
-        var migration=definition.Migration??new(1,[],[]);var mappings=migration.Tables.ToList();if(removed.Mapping is{} mapping){if(mappings.Any(table=>table.Source==mapping.Source||table.Target==mapping.Target)){throw new ManagementException("Conflict","同じテーブルの移行定義が変更されています。");}mappings.Add(mapping);}
-        var added=migration.NewTables??[];if(removed.WasNew){added=added.Append(removed.Path).Distinct().ToArray();}var dropped=migration.DroppedTables;if(removed.AddedDrop is{} drop){dropped=dropped.Where(value=>value!=drop).ToArray();}
-        return candidate with{Migration=migration with{Tables=mappings.ToArray(),DroppedTables=dropped,NewTables=added}};
-    }
-    private static string RowFingerprint(IPropertySymbol property)=>Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("\n",RowTypes(property).Select(type=>type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)+"\n"+string.Join("\n",type.DeclaringSyntaxReferences.OrderBy(reference=>reference.SyntaxTree.FilePath,StringComparer.Ordinal).Select(reference=>reference.GetSyntax().ToFullString())))))));
+    // 表を表す宣言：手書きの表は表のプロパティ、生成される表は行の型の宣言。
+    private static SyntaxNode TableDeclaration(IPropertySymbol property)=>IsGeneratedTable(property)?Declaration(RowTypes(property)[1]):property.DeclaringSyntaxReferences.Single().GetSyntax();
 }

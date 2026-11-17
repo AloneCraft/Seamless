@@ -187,7 +187,7 @@ public sealed class SourceProjects{
         Assert.False(File.Exists(Path.Combine(destination,"Sales.csproj")));
     }
     [Theory][InlineData("inherit")][InlineData("canonical-edited")][InlineData("conflict")][InlineData("pending")][InlineData("pending-only")]
-    public async Task CreatedProjectPreservesLegacyEditsUndoAndUnfinishedWork(string state){
+    public async Task CreatedProjectPreservesLegacyEditsAndUnfinishedWork(string state){
         var destination=Path.Combine(Root(),"SalesApp");
         var definition=Seamless.Management.DatabaseDesigner.Empty("sales-id","Sales");
         var (workspace,project)=SourceWorkspace.CreatePackageProject(destination,new(definition,1,0),definition.Source,"Sales");
@@ -199,7 +199,7 @@ public sealed class SourceProjects{
         var metadata=Path.Combine(destination,".seamless","projects",id);
         Directory.CreateDirectory(metadata);
         var legacy=new WorkspaceState(1,new(new Definition("source-"+id,"Sales",DefinitionKind.Database,"","",changed),0,0),
-            baseline,changed,baseline,null,ProjectBinding:workspace.State.ProjectBinding);
+            baseline,changed,null,ProjectBinding:workspace.State.ProjectBinding);
         var legacyFile=Path.Combine(metadata,"workspace.json");
         File.WriteAllText(legacyFile,System.Text.Json.JsonSerializer.Serialize(legacy,ManagementJson.Options));
         if(state=="canonical-edited"){
@@ -235,8 +235,6 @@ public sealed class SourceProjects{
         Assert.Contains("// legacy edit",inherited.Current.Definition.Source.Files.Single(file=>file.Path=="Database.cs").Text);
         Assert.Equal(originalLegacy,File.ReadAllBytes(legacyFile));
         Assert.NotNull(inherited.State.ImportedProjectStateHash);
-        inherited.UndoManager();
-        Assert.DoesNotContain("// legacy edit",File.ReadAllText(code));
         await service.OpenSourceProjectAsync(new(project));
         var before=File.ReadAllBytes(canonicalFile);
         await File.AppendAllTextAsync(legacyFile," ");
@@ -258,7 +256,7 @@ public sealed class SourceProjects{
             Directory.CreateDirectory(metadata);
             var source=workspace.Current.Definition.Source with{References=[]};
             var state=new WorkspaceState(1,new(new Definition("source-"+id,"References",DefinitionKind.Database,"","",source),0,0),
-                source,source,source,null,ProjectBinding:workspace.State.ProjectBinding);
+                source,source,null,ProjectBinding:workspace.State.ProjectBinding);
             File.WriteAllText(Path.Combine(metadata,"workspace.json"),System.Text.Json.JsonSerializer.Serialize(state,ManagementJson.Options));
         }
         using var service=new SourceProjectService();
@@ -268,7 +266,6 @@ public sealed class SourceProjects{
             var current=SourceWorkspace.Open(destination);
             Assert.Equal(references,current.Current.Definition.Source.References);
             Assert.Equal(references,current.State.Synchronized.References);
-            Assert.Equal(references,current.State.WithoutManager.References);
         }
     }
     [Fact]public Task CreateSourceProject_RemoteConnectionWithoutOwner_ThrowsPermission()=>ManagementTransport.WithServerCertificate(async certificate=>{

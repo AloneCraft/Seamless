@@ -23,7 +23,13 @@ internal sealed partial class NativeRuntime{
             var version=this.RowEditingVersion(request.Database,request.ExpectedVersion,admittedId);
             authorize?.Invoke();
             var database=this.Open(version).Database;
-            var declaration=FindRowTable(DatabaseTableDeclaration.Read(database.GetType()),request.Table);
+            var tables=DatabaseTableDeclaration.Read(database.GetType());
+            if(!tables.Any(item=>item.Path==request.Table)&&DatabaseTableDeclaration.ReadDirectSets(database.GetType()).SingleOrDefault(item=>item.Path==request.Table) is{} direct){
+                // 取引を通さない表は取引を開かずに読む(他のスレッドの書き込みと並んで動く)。
+                var readSet=RowHandler<Func<object,TableRowsRequest,long,CancellationToken,TableRows>>(direct,DirectSetHandler(direct,nameof(ReadDirectSetRows),nameof(ReadDirectSetRowsKeyless)));
+                var rows=readSet(direct.GetTable(database),request,version.Version,cancellation);authorize?.Invoke();return rows;
+            }
+            var declaration=FindRowTable(tables,request.Table);
             var read=RowHandler<Func<object,TableRowsRequest,long,CancellationToken,TableRows>>(declaration,nameof(ReadTypedRows));
             using var snapshot=database.BeginReadSession(cancellation);
             var result=read(declaration.GetTable(database),request,version.Version,cancellation);authorize?.Invoke();return result;
@@ -42,6 +48,22 @@ internal sealed partial class NativeRuntime{
             var version=this.RowEditingVersion(request.Database,request.ExpectedVersion,admittedId);
             var database=this.Open(version).Database;
             var declarations=DatabaseTableDeclaration.Read(database.GetType());
+            var directSets=DatabaseTableDeclaration.ReadDirectSets(database.GetType());
+            var targets=request.Changes.Select(change=>change.Table).Distinct(StringComparer.Ordinal).ToArray();
+            if(targets.Any(target=>directSets.Any(item=>item.Path==target))){
+                if(!targets.All(target=>directSets.Any(item=>item.Path==target))){
+                    throw new ManagementException("InvalidRequest","取引を通さない表の変更は、取引で書く表の変更と一緒には保存できません。分けて保存してください。");
+                }
+                // 取引を通さない表：先に全部の行を照合(値の比較)してから書く。書き始めた後の失敗は取り消せない。
+                var writes=request.Changes.GroupBy(change=>change.Table,StringComparer.Ordinal).Select(group=>{
+                    var direct=directSets.Single(item=>item.Path==group.Key);
+                    var prepare=RowHandler<Func<object,IEnumerable<TableRowChange>,CancellationToken,Action>>(direct,DirectSetHandler(direct,nameof(PrepareDirectSetRows),nameof(PrepareDirectSetRowsKeyless)));
+                    return prepare(direct.GetTable(database),group,cancellation);
+                }).ToArray();
+                cancellation.ThrowIfCancellationRequested();
+                foreach(var write in writes){write();}
+                return new(version.Version,request.OperationId,request.Changes.Length);
+            }
             using var transaction=database.BeginTransaction(cancellation);
             foreach(var group in request.Changes.GroupBy(change=>change.Table,StringComparer.Ordinal)){
                 var declaration=FindRowTable(declarations,group.Key);
@@ -80,13 +102,39 @@ internal sealed partial class NativeRuntime{
     private static TableRows ReadTypedRows<TKey,TRecord>(object source,TableRowsRequest request,long version,CancellationToken cancellation)
         where TKey:struct where TRecord:struct{
         var table=(StoredTable<TKey,TRecord>)source;
+        TRecord[]? keyed=null;
+        if(request.Key is{} key){cancellation.ThrowIfCancellationRequested();keyed=table.TryGetValue((TKey)Materialize(key,typeof(TKey)),out var record)?[record]:[];}
+        return ReadRows(table,record=>table.RecordKey(record),keyed,typeof(TKey),request,version,cancellation);
+    }
+
+    // 取引を通さない表の名前で、キー付き(Set<TKey,TRecord>)とキー無し(Set<TRecord>)の処理を選ぶ。
+    private static string DirectSetHandler(DatabaseTableDeclaration declaration,string keyed,string keyless)=>
+        declaration.Property.PropertyType.GetGenericTypeDefinition()==typeof(Set<,>)?keyed:keyless;
+
+    private static TableRows ReadDirectSetRows<TKey,TRecord>(object source,TableRowsRequest request,long version,CancellationToken cancellation)
+        where TRecord:global::Seamless.Collections.IRecord<TKey>{
+        var set=(Set<TKey,TRecord>)source;
+        TRecord[]? keyed=null;
+        if(request.Key is{} key){cancellation.ThrowIfCancellationRequested();keyed=set.TryGetValue((TKey)Materialize(key,typeof(TKey)),out var record)?[record]:[];}
+        return ReadRows(set,static record=>record.Key,keyed,typeof(TKey),request,version,cancellation) with{ValueComparisonOnly=true};
+    }
+
+    // キー無しの表は行そのものがキー。
+    private static TableRows ReadDirectSetRowsKeyless<TRecord>(object source,TableRowsRequest request,long version,CancellationToken cancellation)
+        where TRecord:notnull{
+        var set=(Set<TRecord>)source;
+        TRecord[]? keyed=null;
+        if(request.Key is{} key){cancellation.ThrowIfCancellationRequested();var record=(TRecord)Materialize(key,typeof(TRecord));keyed=set.Contains(record)?[record]:[];}
+        return ReadRows(set,static record=>record,keyed,typeof(TRecord),request,version,cancellation) with{ValueComparisonOnly=true};
+    }
+
+    private static TableRows ReadRows<TRecord>(IEnumerable<TRecord> source,Func<TRecord,object?> recordKey,TRecord[]? keyed,Type keyType,TableRowsRequest request,long version,CancellationToken cancellation){
         var rows=new List<TableRowSnapshot>();
         var columns=RuntimeValueJson.Columns(typeof(TRecord));
-        var keyMembers=RuntimeValueJson.Columns(typeof(TKey));
+        var keyMembers=RuntimeValueJson.Columns(keyType);
         var bytes=0;
-        if(request.Key is{} key){
-            cancellation.ThrowIfCancellationRequested();
-            if(table.TryGetValue((TKey)Materialize(key,typeof(TKey)),out var record)){Add(record);}
+        if(keyed is not null){
+            foreach(var record in keyed){Add(record);}
             return new(version,rows.ToArray(),false,columns){KeyMembers=keyMembers};
         }
         // ページ間にDBロックや列挙子を残さず、既読部分を照合して更新による重複・欠落を検出する。
@@ -94,7 +142,7 @@ internal sealed partial class NativeRuntime{
         using var prefix=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         prefix.AppendData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new{request.Database,request.Table,Version=version})));
         long offset=0;
-        foreach(var record in table){
+        foreach(var record in source){
             cancellation.ThrowIfCancellationRequested();
             if(request.Cursor is{} continuation&&offset<continuation.Offset){
                 prefix.AppendData(Encoding.ASCII.GetBytes(RowStamp(record)));offset++;
@@ -115,7 +163,7 @@ internal sealed partial class NativeRuntime{
         }
 
         bool Add(TRecord record){
-            var key=RuntimeValueJson.Serialize(table.RecordKey(record));
+            var key=RuntimeValueJson.Serialize(recordKey(record));
             var values=RuntimeValueJson.Serialize(record);
             var size=(long)Encoding.UTF8.GetByteCount(key.GetRawText())+Encoding.UTF8.GetByteCount(values.GetRawText())+256;
             if(size>MaximumRowResponseBytes-bytes){
@@ -167,6 +215,76 @@ internal sealed partial class NativeRuntime{
             if(!table.TryGetValue(key,out var current)||RowStamp(current)!=stamp){
                 throw new ManagementException("RowConflict","取得後に行が変更されました: "+change.Table);
             }
+        }
+    }
+
+    // 取引を通さない表の変更を照合し、書き込む処理を返す。照合はすべて書き込みの前に行う(値の比較だけ。照合から書き込みまでの他者の書き込みは見つけられない)。
+    private static Action PrepareDirectSetRows<TKey,TRecord>(object source,IEnumerable<TableRowChange> changes,CancellationToken cancellation)
+        where TRecord:global::Seamless.Collections.IRecord<TKey>{
+        var set=(Set<TKey,TRecord>)source;
+        var removals=new HashSet<TKey>();
+        var additions=new List<TRecord>();
+        foreach(var change in changes){
+            cancellation.ThrowIfCancellationRequested();
+            switch(change.Kind){
+                case TableRowChangeKind.Insert when change.Key is null&&change.ExpectedStamp is null&&change.Values is{} inserted:
+                    additions.Add((TRecord)Materialize(inserted,typeof(TRecord)));break;
+                case TableRowChangeKind.Replace when change.Values is{} replacement:
+                    RequireCurrent(change);additions.Add((TRecord)Materialize(replacement,typeof(TRecord)));break;
+                case TableRowChangeKind.Delete when change.Values is null:
+                    RequireCurrent(change);break;
+                default:throw new ManagementException("InvalidRequest","行変更の種類と値が一致しません: "+change.Table);
+            }
+        }
+        var added=new HashSet<TKey>();
+        foreach(var record in additions){
+            if(!added.Add(record.Key)||!removals.Contains(record.Key)&&set.ContainsKey(record.Key)){throw new ManagementException("Constraint","主キーが重複しています。");}
+        }
+        return ()=>{
+            foreach(var key in removals){if(!set.RemoveKey(key)){throw new ManagementException("Conflict","照合の後に他者が行を消しました。取引を通さない表なので、ここまでの書き込みは取り消せません。読み直してください。");}}
+            foreach(var record in additions){if(!set.Add(record)){throw new ManagementException("Conflict","照合の後に他者が同じキーの行を足しました。取引を通さない表なので、ここまでの書き込みは取り消せません。読み直してください。");}}
+        };
+
+        void RequireCurrent(TableRowChange change){
+            if(change.Key is not{} input||change.ExpectedStamp is not{Length:64} stamp){throw new ManagementException("InvalidRequest","更新・削除には取得時の主キーと行識別値が必要です。");}
+            var key=(TKey)Materialize(input,typeof(TKey));
+            if(!removals.Add(key)){throw new ManagementException("InvalidRequest","同じ行が複数回指定されています。");}
+            if(!set.TryGetValue(key,out var current)||RowStamp(current)!=stamp){throw new ManagementException("RowConflict","取得後に行が変更されました: "+change.Table);}
+        }
+    }
+
+    // キー無しの表は行そのものがキー。更新は古い行を消して新しい行を足す。
+    private static Action PrepareDirectSetRowsKeyless<TRecord>(object source,IEnumerable<TableRowChange> changes,CancellationToken cancellation)
+        where TRecord:notnull{
+        var set=(Set<TRecord>)source;
+        var removals=new HashSet<TRecord>();
+        var additions=new List<TRecord>();
+        foreach(var change in changes){
+            cancellation.ThrowIfCancellationRequested();
+            switch(change.Kind){
+                case TableRowChangeKind.Insert when change.Key is null&&change.ExpectedStamp is null&&change.Values is{} inserted:
+                    additions.Add((TRecord)Materialize(inserted,typeof(TRecord)));break;
+                case TableRowChangeKind.Replace when change.Values is{} replacement:
+                    RequireCurrent(change);additions.Add((TRecord)Materialize(replacement,typeof(TRecord)));break;
+                case TableRowChangeKind.Delete when change.Values is null:
+                    RequireCurrent(change);break;
+                default:throw new ManagementException("InvalidRequest","行変更の種類と値が一致しません: "+change.Table);
+            }
+        }
+        var added=new HashSet<TRecord>();
+        foreach(var record in additions){
+            if(!added.Add(record)||!removals.Contains(record)&&set.Contains(record)){throw new ManagementException("Constraint","同じ行がすでにあります。");}
+        }
+        return ()=>{
+            foreach(var record in removals){if(!set.Remove(record)){throw new ManagementException("Conflict","照合の後に他者が行を消しました。取引を通さない表なので、ここまでの書き込みは取り消せません。読み直してください。");}}
+            foreach(var record in additions){if(!set.Add(record)){throw new ManagementException("Conflict","照合の後に他者が同じ行を足しました。取引を通さない表なので、ここまでの書き込みは取り消せません。読み直してください。");}}
+        };
+
+        void RequireCurrent(TableRowChange change){
+            if(change.Key is not{} input||change.ExpectedStamp is not{Length:64} stamp){throw new ManagementException("InvalidRequest","更新・削除には取得時の行と行識別値が必要です。");}
+            var record=(TRecord)Materialize(input,typeof(TRecord));
+            if(!removals.Add(record)){throw new ManagementException("InvalidRequest","同じ行が複数回指定されています。");}
+            if(!set.Contains(record)||RowStamp(record)!=stamp){throw new ManagementException("RowConflict","取得後に行が変更されました: "+change.Table);}
         }
     }
 

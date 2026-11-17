@@ -11,6 +11,8 @@ public sealed record TableRowSnapshot(JsonElement Key,JsonElement Values,string 
 public sealed record TableRows(long Version,TableRowSnapshot[] Rows,bool HasMore,CatalogField[]? Columns=null){
     public TableRowCursor? NextCursor{get;init;}
     public CatalogField[] KeyMembers{get;init;}=[];
+    /// <summary>取引を通さない表(Set&lt;T&gt;)。保存時の衝突は行の値の比較だけで見つけ、照合から書き込みまでの間の他者の書き込みと、同じ値へ戻した変更(ABA)は見つけられない。</summary>
+    public bool ValueComparisonOnly{get;init;}
 }
 public enum TableRowChangeKind{Insert,Replace,Delete}
 public sealed record TableRowChange(string Table,TableRowChangeKind Kind,JsonElement? Key=null,string? ExpectedStamp=null,JsonElement? Values=null);

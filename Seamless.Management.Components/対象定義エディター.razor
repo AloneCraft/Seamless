@@ -15,13 +15,10 @@
                     <見出し><th class="行操作列"></th><th>@表示文言.取得("列名")</th><th>@表示文言.取得("C#型")</th>@if(this.対象.Kind=="Table"){<th>@表示文言.取得("主キー")</th><th>@表示文言.取得("初期値・変換式")</th>}</見出し>
                     <行>@foreach(var 列 in this.列一覧){
                         <tr @key="列">
-                            <td class="行操作列">@if(this.対象.Kind!="View"){<行操作 名前="@列.名前" 前へ追加時="()=>this.列追加時Async(this.列一覧.IndexOf(列))" 後へ追加時="()=>this.列追加時Async(this.列一覧.IndexOf(列)+1)" 削除時="()=>this.列削除時Async(列)"/>}</td>
-                            <td><input aria-label="@表示文言.取得("列名")" value="@列.名前" readonly="@(this.対象.Kind=="View")" disabled="@(!this.編集可能か||this.同期中か)" @oninput="引数=>this.列名変更時Async(列,引数)"/></td>
-                            <td>@if(this.対象.Kind=="Table"){
-                                <型入力 ラベル="列の型" 値="@列.型" 候補="this.型候補" 値変更時="型=>this.列型変更時Async(列,型)"/>
-                            }else{
-                                <input aria-label="@表示文言.取得("結果列の型")" value="@列.型" readonly title="@表示文言.取得("結果列の型はC#の処理本体から決まります。")"/>
-                            }</td>
+                            <td class="行操作列"><行操作 名前="@列.名前" 前へ追加時="()=>this.列追加時Async(this.列一覧.IndexOf(列))" 後へ追加時="()=>this.列追加時Async(this.列一覧.IndexOf(列)+1)" 削除時="()=>this.列削除時Async(列)"/></td>
+                            <td><input aria-label="@表示文言.取得("列名")" value="@列.名前" disabled="@(!this.編集可能か||this.同期中か)" @oninput="引数=>this.列名変更時Async(列,引数)"/></td>
+                            @* ビュー・関数の行の型も、表の列と同じく画面で編集する(I11)。処理本体はこの行の型を返す。 *@
+                            <td><型入力 ラベル="@(this.対象.Kind=="Table"?"列の型":"結果列の型")" 値="@列.型" 候補="this.型候補" 値変更時="型=>this.列型変更時Async(列,型)"/></td>
                             @if(this.対象.Kind=="Table"){
                                 <td><input type="checkbox" aria-label="@表示文言.取得("主キー")" checked="@列.主キーか" disabled="@(!this.編集可能か||this.同期中か)" @onchange="引数=>this.キー変更時Async(列,引数)"/></td>
                                 <td><input aria-label="@表示文言.取得("初期値・変換式")" title="@表示文言.取得("既存行へ設定するC#式。nullも明示できます。")" value="@列.式" @oninput="引数=>this.列式変更時Async(列,引数)"/></td>
@@ -29,10 +26,10 @@
                         </tr>
                     }</行>
                 </編集グリッド>
-                @if(this.対象.Kind!="View"){<button type="button" class="テキストボタン" disabled="@(!this.編集可能か||this.同期中か)" @onclick="()=>this.列追加時Async(this.列一覧.Count)"><操作アイコン 種類="列を追加"/>@表示文言.取得("列を追加")</button>}
+                <button type="button" class="テキストボタン" disabled="@(!this.編集可能か||this.同期中か)" @onclick="()=>this.列追加時Async(this.列一覧.Count)"><操作アイコン 種類="列を追加"/>@表示文言.取得("列を追加")</button>
             }
             @if(this.対象.Kind!="Table"&&this.対象.Kind!="View"){
-                <label>@表示文言.取得("戻り型")<input aria-label="@表示文言.取得("戻り型")" value="@this.戻り型" readonly title="@表示文言.取得("戻り型はC#の処理本体から決まります。")"/></label>
+                <label>@表示文言.取得("戻り型")<型入力 ラベル="戻り型" 値="@this.戻り型" 候補="this.型候補" 値変更時="this.戻り型変更時Async"/></label>
                 <h4>@表示文言.取得("引数")</h4>
                 <編集グリッド 名前="関数の引数">
                     <見出し><th class="行操作列"></th><th>@表示文言.取得("名前")</th><th>@表示文言.取得("C#型")</th></見出し>
@@ -106,7 +103,7 @@
     }
     public async Task 列を追加Async(){
         if(!this.編集可能か||!await this.同期Async()||this.基準?.StructureAvailable!=true){return;}
-        if(!this.基準.Parts.Any(部分=>部分.Role=="Record")){this.案内=表示文言.取得("引数は構造画面で編集し、戻り型はC#の処理本体で指定します。");await this.InvokeAsync(this.StateHasChanged);return;}
+        if(!this.基準.Parts.Any(部分=>部分.Role=="Record")){this.案内=表示文言.取得("スカラー関数には結果列がありません。引数と戻り型を編集してください。");await this.InvokeAsync(this.StateHasChanged);return;}
         this.内部表示="Structure";var 名前="Column";var 番号=1;
         while(this.列一覧.Any(列=>列.名前==名前)){名前="Column"+番号++;}
         this.列一覧.Add(new(){名前=名前});
@@ -121,7 +118,8 @@
     private Task 変更通知Async(){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.変更ありか=true;this.案内=null;this.診断一覧=[];return this.未保存変更時.InvokeAsync(true);}
     private Task コード変更時Async(string 値){this.入力コード=値;return this.変更通知Async();}
     private Task 列名変更時Async(列入力 列,ChangeEventArgs 値){列.名前=値.Value?.ToString()??"";return this.変更通知Async();}
-    private Task 列型変更時Async(列入力 列,string 型){if(this.対象.Kind!="Table"){return Task.CompletedTask;}列.型=型;return this.変更通知Async();}
+    private Task 列型変更時Async(列入力 列,string 型){列.型=型;return this.変更通知Async();}
+    private Task 戻り型変更時Async(string 型){this.戻り型=型;return this.変更通知Async();}
     private Task キー変更時Async(列入力 列,ChangeEventArgs 値){列.主キーか=値.Value is true;return this.変更通知Async();}
     private Task 列式変更時Async(列入力 列,ChangeEventArgs 値){
         var 式=値.Value?.ToString();

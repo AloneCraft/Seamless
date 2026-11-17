@@ -11,7 +11,8 @@ public partial class 管理ワークスペース{
         if(対象.種類=="DB"){return ID is "DB名変更" or "全ソース";}
         if(対象.種類=="分類"){return ID=="全ソース";}
         if(対象.種類 is "表" or "問い合わせ"){return ID is "対象名前変更" or "対象コピー" or "対象削除" or "生成コード";}
-        if(対象.種類 is "スキーマ" or "オブジェクト分類"){return ID=="生成コード";}
+        if(対象.種類=="スキーマ"){return ID is "生成コード" or "スキーマ削除";}
+        if(対象.種類=="オブジェクト分類"){return ID=="生成コード";}
         return true;
     }
 
@@ -23,6 +24,7 @@ public partial class 管理ワークスペース{
                 名前変更=(項目,名前)=>this.ツリー名前変更Async(DBID,項目,名前),
                 コピー=項目=>this.ツリーコピーAsync(DBID,項目),
                 削除=項目=>this.ツリー削除Async(DBID,項目),
+                スキーマ削除=名前=>this.ツリースキーマ削除Async(DBID,名前),
             };
             this.ツリー操作一覧.Add(DBID,操作);
         }
@@ -63,7 +65,24 @@ public partial class 管理ワークスペース{
         return this.下書きを更新Async(文書,定義=>DatabaseDesigner.AddSchema(定義,名前));
     }
 
+    // 空のスキーマを下書きから消す。消したスキーマを開いている文書のタブは閉じる。
+    private async Task<ツリー操作結果> ツリースキーマ削除Async(string DBID,string 名前){
+        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return 拒否!;}
+        var 結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.RemoveSchema(定義,名前));
+        if(結果.案内 is null){
+            foreach(var 開いた文書 in this.対象文書一覧.Values.Where(項目=>項目.DBID==DBID&&項目.対象 is null&&項目.スキーマ==名前).ToArray()){this.作業文書を閉じる(開いた文書.ID);}
+            if(this.選択DBID==DBID&&this.選択スキーマ名==名前){this.選択スキーマ名="";}
+        }
+        return 結果;
+    }
+    private async Task スキーマ削除をメニューから実行Async(管理対象 対象){
+        var 結果=await this.ツリースキーマ削除Async(対象.ID,対象.スキーマ);
+        if(結果.案内 is{} 案内){this.案内=案内;this.エラーか=true;}
+        await this.InvokeAsync(this.StateHasChanged);
+    }
+
     private Task<ツリー操作結果> ツリー名前変更Async(string DBID,CatalogObject 項目,string 名前){
+        if(項目.Kind=="Set"){return Task.FromResult(new ツリー操作結果(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true));}
         if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return Task.FromResult(拒否!);}
         if(項目.Kind!="Table"){
             return Task.FromResult(new ツリー操作結果(表示文言.取得("ビュー・関数の名前変更は未対応です。C#タブで型名とメソッド名を変更してください。"),true));
@@ -72,6 +91,7 @@ public partial class 管理ワークスペース{
     }
 
     private Task<ツリー操作結果> ツリーコピーAsync(string DBID,CatalogObject 項目){
+        if(項目.Kind=="Set"){return Task.FromResult(new ツリー操作結果(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true));}
         if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return Task.FromResult(拒否!);}
         var 名前=this.コピー名(文書.定義,項目);
         if(項目.Kind=="Table"){
@@ -102,6 +122,7 @@ public partial class 管理ワークスペース{
     }
 
     private Task<ツリー操作結果> ツリー削除Async(string DBID,CatalogObject 項目){
+        if(項目.Kind=="Set"){return Task.FromResult(new ツリー操作結果(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true));}
         // 稼働DBのテーブル削除は行データの破棄と移行計画を伴う。設計と確認手順が未確定のため、仮の実装として未対応を明示する。
         return Task.FromResult(new ツリー操作結果(表示文言.取得("削除は未対応です。稼働DBの行データの扱いと確認手順を設計中です。"),true));
     }

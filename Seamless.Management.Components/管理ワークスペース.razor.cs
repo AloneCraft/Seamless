@@ -35,6 +35,7 @@ public partial class 管理ワークスペース{
     private string 作業場所{get{if(this.ロール表示か){return "ロールと権限";}if(this.設定表示か){return "サーバー設定";}if(this.利用者管理表示か){return "利用者";}if(this.監査表示か){return "監査";}return "データベース";}}
     private int 処理中数;
     private string 案内=表示文言.取得("接続しています…");
+    private bool 外部取り込みできるか,外部取り込み表示か;
     private bool エラーか,表入力中か,DB名編集中か,DB作成中か,DB保存先指定中か,保存先フォーカス待ちか,プロジェクト生成中か;
     private enum 表示種別{構造,ソース,データ,問い合わせ,クエリ一覧,計画,履歴}
     private 表示種別 表示=表示種別.構造;
@@ -76,10 +77,10 @@ public partial class 管理ワークスペース{
     private long メニュー世代;
     private double メニューX,メニューY;
     private bool パレットか;
-    private bool 操作中か=>this.表示用ID処理中か||this.DB名前変更中か||this.コマンド?.実行中か==true||this.DB作成中か||this.処理中数>0||this.ソース下書き処理中か;
+    private bool 操作中か=>this.DB名前変更中か||this.コマンド?.実行中か==true||this.DB作成中か||this.処理中数>0||this.ソース下書き処理中か;
     private bool DB作成できるか=>this.認証有効か&&this.利用者 is{Disabled:false} 利用者&&利用者.Grants.Any(許可=>(許可.Permissions&ManagementPermission.Edit)!=0);
     private 文書状態? 現在文書{get{if(this.選択DBID is not null&&!this.公開情報表示か(this.選択DBID)&&this.文書一覧.TryGetValue(this.選択DBID,out var 文書)){return 文書;}return null;}}
-    private bool プロジェクト表示か,プロジェクト未保存か,ソース操作できるか,ソース参照できるか,ソース下書きできるか,ソース成果物できるか,ソース成果物取込できるか,ソース下書き処理中か,ソース競合できるか,ソース構成できるか;
+    private bool プロジェクト表示か,プロジェクト未保存か,ソース操作できるか,ソース参照できるか,ソース下書きできるか,ソース成果物できるか,ソースSDKビルドできるか,ソース成果物取込できるか,ソース下書き処理中か,ソース競合できるか,ソース構成できるか;
     private bool 未保管の作業があるか=>this.DBツリー画面.Values.Any(木=>木.未保存か)||this.ロール未保存か||this.設定未保存か||this.管理未保存か||this.プロジェクト未保存か||this.文書一覧.Values.Any(文書=>文書.未保管か)||this.関数定義文書.Values.Any(文書=>文書.未保管か)||this.対象文書一覧.Values.Any(文書=>文書.編集中か||文書.データ編集中か);
 
     protected override async Task OnInitializedAsync(){
@@ -115,9 +116,9 @@ public partial class 管理ワークスペース{
             new("対象表示下","下へ移動",対象=>対象.種類 is "表" or "問い合わせ" or "登録関数",対象=>this.オブジェクト表示順を変更できるか(対象,1),対象=>this.オブジェクト表示順を変更Async(対象,1),["order","down","表示順"],グループ:"表示順（この画面内・未保存）",アイコン:"下"),
             new("対象表示既定","既定の表示順に戻す",対象=>対象.種類 is "表" or "問い合わせ" or "登録関数",対象=>this.オブジェクト表示順を使えるか(対象.ID),this.オブジェクト表示順を戻すAsync,["order","reset","表示順"],グループ:"表示順（この画面内・未保存）",アイコン:"戻す"),
             new("DB名変更","名前の変更",対象=>対象.種類=="DB"&&this.DB名変更対応か,対象=>this.対象DB(対象) is{} DB&&this.DB名を変更できるか(DB),対象=>{this.DB名前変更開始時(this.対象DB(対象)!);return Task.CompletedTask;},["名前","rename"],ショートカット:"F2",アイコン:"編集"),
-            new("DB表示用ID","表示用IDを下書きへ付与",対象=>this.表示用ID対応か&&対象.種類=="DB"&&this.対象DB(対象) is{IsSystem:false} DB&&this.権限があるか(DB.Name,ManagementPermission.View)&&this.権限があるか(DB.Name,ManagementPermission.Edit),対象=>this.表示用ID操作が可能か(対象),this.表示用ID付与時Async,["identity","UUID","識別","stable"],グループ:"その他",アイコン:"ソース"),
             new("開く","開く",対象=>対象.種類=="DB",_=>this.認証有効か,対象=>this.DBを開く時Async(対象.ID),["open","表示"],アイコン:"開く"),
             new("新しいDB","新しいデータベース",対象=>対象.種類=="分類",_=>this.DB作成できるか,_=>{this.新規DB開始時();return Task.CompletedTask;},["作成","database","new"],アイコン:"DB"),
+            new("外部DB取り込み","外部DBから取り込む",対象=>対象.種類=="分類",_=>this.DB作成できるか&&this.外部取り込みできるか,_=>{this.外部取り込み開始時();return Task.CompletedTask;},["取り込み","import","sqlserver"],アイコン:"DB"),
             new("更新","一覧を更新",対象=>対象.種類 is not ("作成" or "表追加"),_=>this.認証有効か,_=>this.更新Async(),["再取得","refresh"],グループ:"表示",アイコン:"更新"),
             new("計画","実行計画を表示",対象=>対象.種類=="問い合わせ",対象=>this.対象文書(対象) is not null,対象=>{this.問い合わせ表示時(this.対象文書(対象)!,対象.表!);this.クエリ計画表示時();return Task.CompletedTask;},["plan","flinq","最適化"],グループ:"表示",アイコン:"計画"),
             new("保管","下書きを保管",対象=>対象.種類 is not ("作成" or "表追加")&&this.対象文書(対象) is not null,対象=>this.対象文書(対象) is{} 文書&&this.権限があるか(文書.DB.Name,ManagementPermission.Edit),対象=>this.下書きを保管Async(this.対象文書(対象)!),["保存","save","draft"],ショートカット:"",アイコン:"保存"),
@@ -127,9 +128,10 @@ public partial class 管理ワークスペース{
             new("閉じる","このタブを閉じる",対象=>対象.種類=="文書",_=>true,対象=>{this.作業文書を閉じる(対象.文書ID??対象.ID);return Task.CompletedTask;},["close","文書"],グループ:"タブ",アイコン:"閉じる"),
             new("対象名前変更","名前の変更",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー名前変更をメニューから開始Async(対象),["名前","rename"],ショートカット:"F2",アイコン:"名前の変更"),
             new("対象コピー","コピー",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー操作をメニューから実行Async(対象,(操作,項目)=>操作.コピー(項目)),["copy","複製"],アイコン:"コピー"),
+            new("スキーマ削除","削除",対象=>対象.種類=="スキーマ",対象=>this.作成できるか(対象),対象=>this.スキーマ削除をメニューから実行Async(対象),["delete","remove","schema"],アイコン:"削除"),
             new("対象削除","削除",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー操作をメニューから実行Async(対象,(操作,項目)=>操作.削除(項目)),["delete","remove"],アイコン:"削除"),
         }.Select(操作=>操作 with{表示するか=対象=>操作.表示するか(対象)&&this.公開メニュー操作か(対象,操作.ID)&&this.ツリーメニュー操作か(対象,操作.ID)}));
-        await this.処理Async(async()=>{var 情報=await this.管理操作.InfoAsync(this.寿命.Token);this.表示状態インスタンスID=情報.InstanceId;this.表示用ID対応か=情報.Capabilities.Contains("SourceObjectIdentitiesV1",StringComparer.Ordinal);this.資源計測対応か=情報.Capabilities.Contains("ResourceHeatV1",StringComparer.Ordinal);this.ロール対応か=情報.Capabilities.Contains("DatabaseAuthorizationV1",StringComparer.Ordinal);this.設定対応か=情報.Capabilities.Contains("ServerSettingsV1",StringComparer.Ordinal);this.利用者管理対応か=情報.Capabilities.Contains("UserProfilesV1",StringComparer.Ordinal);this.監査対応か=情報.Capabilities.Contains("AuditSearchV1",StringComparer.Ordinal);this.DB名変更対応か=情報.Capabilities.Contains("DatabaseRenameV1",StringComparer.Ordinal);this.ソース構成できるか=情報.Capabilities.Contains("OwnerSourceConfigurationsV1",StringComparer.Ordinal);this.ソース競合できるか=情報.Capabilities.Contains("OwnerSourceConflictsV1",StringComparer.Ordinal);this.ソース操作できるか=情報.Capabilities.Contains("OwnerSourceProjectsV1",StringComparer.Ordinal);this.ソース参照できるか=情報.Capabilities.Contains("OwnerSourceDirectoryV1",StringComparer.Ordinal);this.ソース下書きできるか=情報.Capabilities.Contains("OwnerSourceDraftsV1",StringComparer.Ordinal);this.ソース成果物できるか=情報.Capabilities.Contains("OwnerSourceBuildsV1",StringComparer.Ordinal);this.ソース成果物取込できるか=情報.Capabilities.Contains("OwnerSourceBuildImportsV1",StringComparer.Ordinal)&&情報.Capabilities.Contains("OwnerSourceBuildPublicationV1",StringComparer.Ordinal);await this.更新Async();var 最初=this.DB一覧.FirstOrDefault(DB=>!DB.IsSystem);if(最初 is not null){await this.DBを開くAsync(最初.Id);}});
+        await this.処理Async(async()=>{var 情報=await this.管理操作.InfoAsync(this.寿命.Token);this.表示状態インスタンスID=情報.InstanceId;this.資源計測対応か=情報.Capabilities.Contains("ResourceHeatV1",StringComparer.Ordinal);this.ロール対応か=情報.Capabilities.Contains("DatabaseAuthorizationV1",StringComparer.Ordinal);this.設定対応か=情報.Capabilities.Contains("ServerSettingsV1",StringComparer.Ordinal);this.利用者管理対応か=情報.Capabilities.Contains("UserProfilesV1",StringComparer.Ordinal);this.監査対応か=情報.Capabilities.Contains("AuditSearchV1",StringComparer.Ordinal);this.DB名変更対応か=情報.Capabilities.Contains("DatabaseRenameV1",StringComparer.Ordinal);this.ソース構成できるか=情報.Capabilities.Contains("OwnerSourceConfigurationsV1",StringComparer.Ordinal);this.ソース競合できるか=情報.Capabilities.Contains("OwnerSourceConflictsV1",StringComparer.Ordinal);this.ソース操作できるか=情報.Capabilities.Contains("OwnerSourceProjectsV1",StringComparer.Ordinal);this.外部取り込みできるか=情報.Capabilities.Contains("OwnerExternalTransferV1",StringComparer.Ordinal)&&this.管理操作 is IManagementTransferOperations;this.ソース参照できるか=情報.Capabilities.Contains("OwnerSourceDirectoryV1",StringComparer.Ordinal);this.ソース下書きできるか=情報.Capabilities.Contains("OwnerSourceDraftsV1",StringComparer.Ordinal);this.ソース成果物できるか=情報.Capabilities.Contains("OwnerSourceBuildsV1",StringComparer.Ordinal);this.ソースSDKビルドできるか=情報.Capabilities.Contains("OwnerSourceSdkBuildV1",StringComparer.Ordinal);this.ソース成果物取込できるか=情報.Capabilities.Contains("OwnerSourceBuildImportsV1",StringComparer.Ordinal)&&情報.Capabilities.Contains("OwnerSourceBuildPublicationV1",StringComparer.Ordinal);await this.更新Async();var 最初=this.DB一覧.FirstOrDefault(DB=>!DB.IsSystem);if(最初 is not null){await this.DBを開くAsync(最初.Id);}});
         this.表示状態情報読込済みか=true;
     }
     protected override async Task OnAfterRenderAsync(bool firstRender){
@@ -322,7 +324,7 @@ public partial class 管理ワークスペース{
         if(結果.State==OperationState.Succeeded){this.新DB未確定操作=null;this.DB名編集中か=false;await this.更新Async();await this.DBを開くAsync(this.DB一覧.Single(DB=>DB.DefinitionId==this.新DB定義ID).Id);}
         else if(結果.State is OperationState.Failed or OperationState.Cancelled){this.新DB未確定操作=null;this.案内+=" · "+結果.Error;}
     });
-    private void 表データ表示時(string 表){if(this.選択DBID is{} ID&&this.公開情報表示か(ID)){var 公開項目=this.公開DB一覧[ID].オブジェクト.FirstOrDefault(項目=>項目.Kind=="Table"&&項目.Id==表);if(公開項目 is not null){this.公開対象を開く(ID,公開項目);}return;}this.ツリー所属選択中か=false;this.選択表名=表;this.実行問い合わせ=null;this.計画対象=null;this.計画対象名=null;this.表示=表示種別.データ;if(this.現在文書?.オブジェクト.FirstOrDefault(項目=>項目.Id==表&&項目.Kind=="Table") is{} 項目){this.対象を文書で開く(項目);}}
+    private void 表データ表示時(string 表){if(this.選択DBID is{} ID&&this.公開情報表示か(ID)){var 公開項目=this.公開DB一覧[ID].オブジェクト.FirstOrDefault(項目=>項目.Kind is "Table" or "Set"&&項目.Id==表);if(公開項目 is not null){this.公開対象を開く(ID,公開項目);}return;}this.ツリー所属選択中か=false;this.選択表名=表;this.実行問い合わせ=null;this.計画対象=null;this.計画対象名=null;this.表示=表示種別.データ;if(this.現在文書?.オブジェクト.FirstOrDefault(項目=>項目.Id==表&&項目.Kind is "Table" or "Set") is{} 項目){this.対象を文書で開く(項目);}}
     private void 表作成開始時(文書状態 文書,string? 所属=null){var スキーマ=所属??this.選択スキーマ名;this.作成入力を閉じる();if(!this.作成場所を開く(文書.DB.Id,スキーマ,"Table")){return;}this.表示=表示種別.構造;this.編集前の表=null;this.表名="NewTable";this.スキーマ名=スキーマ;this.選択スキーマ名=this.スキーマ名;this.入力列.Clear();this.入力列.Add(new(){名前="Id",主キーか=true});this.入力列.Add(new(){名前="Name",型="string"});this.表入力中か=true;}
     private void 表編集開始時(文書状態 文書,string 表){
         if(!this.権限があるか(文書.DB.Name,ManagementPermission.Edit)||文書.未確定操作 is not null){this.案内=表示文言.取得("現在このテーブルを編集できません。");return;}

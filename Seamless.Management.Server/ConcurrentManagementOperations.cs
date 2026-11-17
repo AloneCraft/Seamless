@@ -53,7 +53,7 @@ public sealed partial class ConcurrentManagementOperations:IManagementOperations
         this.InvokeAsync(()=>operation(this.service,authenticate()),cancellationToken);
     internal Task<T> InvokeAuthenticatedTaskAsync<T>(Func<UserAccount> authenticate,Func<ManagementService,UserAccount,Task<T>> operation,CancellationToken cancellationToken)=>
         this.InvokeTaskAsync(()=>operation(this.service,authenticate()),cancellationToken);
-    public Task<ServerInfo> InfoAsync(CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Info with{Capabilities=[..this.service.Info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]},cancellationToken);
+    public Task<ServerInfo> InfoAsync(CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Info with{Capabilities=[..this.service.Info.Capabilities,"OwnerExternalTransferV1","OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceSdkBuildV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]},cancellationToken);
     public Task<CatalogPage<CatalogDatabase>> DatabasesAsync(long cursor=0,string versionToken="",CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Databases(this.owner,cursor,versionToken),cancellationToken);
     public Task<CatalogDatabase> RenameDatabaseAsync(RenameDatabaseRequest request,CancellationToken cancellationToken=default)=>
         this.InvokeAsync(()=>this.service.RenameDatabase(this.owner,request,cancellationToken),cancellationToken);
@@ -86,6 +86,8 @@ public sealed partial class ConcurrentManagementOperations:IManagementOperations
         this.InvokeAsync(()=>this.service.QueryPlans(this.owner,request),cancellationToken);
     public Task<CatalogPage<DefinitionSummary>> QueriesAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>
         this.InvokeAsync(()=>this.service.Queries(this.owner,request),cancellationToken);
+    public Task<RecoveryGuideDocument> RecoveryGuideAsync(RecoveryScenario scenario,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync(()=>this.service.RecoveryGuide(this.owner,scenario),cancellationToken);
     public Task<ServerSettingsSnapshot> ServerSettingsAsync(CancellationToken cancellationToken=default)=>
         this.InvokeAsync(()=>this.service.ServerSettings(this.owner),cancellationToken);
     public Task<ServerSettingsSnapshot> SaveServerSettingsAsync(ServerSettingsEdit request,CancellationToken cancellationToken=default)=>

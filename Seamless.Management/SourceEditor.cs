@@ -58,7 +58,6 @@ public sealed class SourceEditor{
         if(source.TargetFramework!="net10.0"||source.LanguageVersion!="14"){throw new ManagementException("Unsupported","net10.0 / C# 14 のスナップショットを指定してください。");}
         if(source.Files.Length is 0 or >256||source.Files.Sum(file=>(long)file.Text.Length)>4*1024*1024||source.Files.Select(file=>file.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=source.Files.Length){throw new ManagementException("InvalidRequest","ソースの件数・容量・パスが不正です。");}
         foreach(var file in source.Files){if(string.IsNullOrWhiteSpace(file.Path)||Path.IsPathRooted(file.Path)||file.Path.IndexOfAny([':','\0','*','?','"','<','>','|'])>=0||file.Path.Split('/','\\').Any(part=>part is ".." or "." or ""||part.EndsWith(' ')||part.EndsWith('.'))||!file.Path.EndsWith(".cs",StringComparison.OrdinalIgnoreCase)){throw new ManagementException("InvalidRequest","相対的なC#ソースパスが必要です。");}}
-        SourceIdentityMarkers.Validate(source);
     }
     private static string Id(string path,int start,int length)=>path+"#"+start+":"+length;
 }

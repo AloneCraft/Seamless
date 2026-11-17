@@ -33,7 +33,7 @@ public partial class 管理ワークスペース{
         if(!this.対象文書一覧.TryGetValue(ID,out var 対象)){return;}
         this.文書を選ぶ(対象.DBID);this.選択作業文書ID=対象.ID;
         this.ツリー所属選択中か=対象.対象 is null;this.選択スキーマ名=対象.スキーマ??対象.対象?.Schema??"";
-        if(対象.対象?.Kind=="Table"){this.選択表名=対象.対象.Id;this.実行問い合わせ=null;}
+        if(対象.対象?.Kind is "Table" or "Set"){this.選択表名=対象.対象.Id;this.実行問い合わせ=null;}
         else if(対象.対象 is not null){this.選択表名=null;}
         this.タブ順序.追加(ID);
     }

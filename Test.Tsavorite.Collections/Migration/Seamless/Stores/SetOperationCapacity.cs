@@ -28,7 +28,7 @@ public class SetOperationCapacity{
             setA.Add(i);
         }
         using var other=b.Create();
-        Assert.Throws<OutOfMemoryException>(()=>setA.UnionWith(other));
+        Assert.Throws<global::Seamless.Collections.Tsavorite.TsavoriteLogFullException>(()=>setA.UnionWith(other));
         AssertOriginalKept(setA,500);
         Assert.True(storeA.Budget.MemoryBytes<=storeA.Budget.MemoryLimitBytes);
     }
@@ -47,7 +47,7 @@ public class SetOperationCapacity{
             setA.Add(i);
         }
         using var other=b.Create();
-        Assert.Throws<OutOfMemoryException>(()=>setA.SymmetricExceptWith(other));
+        Assert.Throws<global::Seamless.Collections.Tsavorite.TsavoriteLogFullException>(()=>setA.SymmetricExceptWith(other));
         AssertOriginalKept(setA,500);
     }
     [Fact,Trait("Category","Unit")]public void UnionWith_FitsInMemory_StillWorks(){

@@ -10,9 +10,12 @@ public sealed class ツリー展開状態{
     public bool テーブル展開中か(string ID)=>this.開いたテーブル.Contains(ID);
     public void テーブルを開閉(string ID,bool 展開か){if(展開か){this.開いたテーブル.Add(ID);}else{this.開いたテーブル.Remove(ID);}}
 
+    /// <summary>DB 直下の固定の見出し「スキーマ」の分類の名前。スキーマはこの見出しの下に並ぶ。</summary>
+    public const string スキーマ分類="Schema";
     public bool スキーマ展開中か(string 名前)=>this.開いたスキーマ.Contains(名前);
     public void スキーマを開閉(string 名前,bool 展開か){
-        if(展開か){this.開いたスキーマ.Add(名前);}else{this.開いたスキーマ.Remove(名前);}
+        // スキーマを開くときは、親の見出し「スキーマ」も開いて見えるようにする。
+        if(展開か){this.開いたスキーマ.Add(名前);this.開いた分類.Add(("",スキーマ分類));}else{this.開いたスキーマ.Remove(名前);}
     }
     public bool 分類展開中か(string 所属,string 種類)=>this.開いた分類.Contains((所属,種類));
     public void 分類を開閉(string 所属,string 種類,bool 展開か){

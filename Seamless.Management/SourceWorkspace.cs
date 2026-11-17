@@ -6,18 +6,16 @@ using Microsoft.CodeAnalysis.Text;
 namespace Seamless.Management;
 
 public sealed record PendingTablePublication(Guid Id,long DraftRevision,long BaseVersion,string DefinitionHash);
-public sealed record SourceDraftBaseline(string DefinitionHash,SourceSnapshot ExternalSource);
-public sealed record WorkspaceState(int Format,DefinitionExport Current,SourceSnapshot Published,SourceSnapshot Synchronized,SourceSnapshot WithoutManager,string? SavedDraftHash,bool UndoConflict=false,
+public sealed record WorkspaceState(int Format,DefinitionExport Current,SourceSnapshot Published,SourceSnapshot Synchronized,string? SavedDraftHash,
     [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]PendingTablePublication? PendingTablePublication=null,
     [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]Guid? ResolvedConflictId=null,
-    [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]bool ManagerMigrationTracked=false,
-    [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]MigrationDefinition? WithoutManagerMigration=null,
     [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]Definition? SavedDraftDefinition=null,
     [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]SourceProjectBinding? ProjectBinding=null){
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? ImportedProjectStateHash{get;init;}
+    /// <summary>作業領域を作ったときのソース。下書きの保存を確認した記録が無いときに、サーバーの下書きが作ったときの中身のままかを見分けるためだけに使う。同期では変えない。</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public SourceDraftBaseline? ProjectDraftBaseline{get;init;}
+    public SourceSnapshot? CreatedSource{get;init;}
 }
 internal sealed record WorkspaceWrite(string Path,string? Before,string? After);
 internal sealed record WorkspaceJournal(WorkspaceState State,WorkspaceWrite[] Writes);
@@ -45,13 +43,16 @@ public sealed partial class SourceWorkspace{
         directory=Path.GetFullPath(directory);CheckLinks(directory);
         if(Directory.Exists(directory)&&Directory.EnumerateFileSystemEntries(directory).Any()){throw new IOException("空のプロジェクト保存先を指定してください。");}
         Directory.CreateDirectory(directory);Directory.CreateDirectory(Path.Combine(directory,".seamless"));
-        var workspace=new SourceWorkspace(directory,new(1,current,published,current.Definition.Source,current.Definition.Source,null,
-            ManagerMigrationTracked:true,WithoutManagerMigration:current.Definition.Migration));
+        var workspace=new SourceWorkspace(directory,new(1,current,published,current.Definition.Source,null){CreatedSource=current.Definition.Source.Freeze()});
         using var lease=workspace.Lock();
         var references=new XElement("ItemGroup");
         references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,"Seamless.Database","Seamless.Database.csproj"))));
         foreach(var generator in new[]{"Seamless.Database.Generator","Seamless.FLinq.Generator"}){references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,generator,generator+".csproj")),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));}
-        var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),new XElement("PropertyGroup",new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),new XElement("EnableDefaultCompileItems","false"),new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),new XElement("DefineConstants",string.Join(";",current.Definition.Source.Defines??[]))),references);
+        // 取り込んだ DB(SQL Server から)は bit の型と組み込み関数を使う。使うソースだけが部品を参照する。
+        if(current.Definition.Source.Files.Any(static file=>file.Text.Contains("global::Seamless.Database.SqlServer.",StringComparison.Ordinal))){references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,"Seamless.Database.SqlServer.Functions","Seamless.Database.SqlServer.Functions.csproj"))));}
+        // Manager が管理する DB の印を、DB 生成器の解析器(使用制限)と生成器へ渡す。
+        references.Add(new XElement("CompilerVisibleProperty",new XAttribute("Include","SeamlessManagedDatabase")));
+        var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),new XElement("PropertyGroup",new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),new XElement("SeamlessManagedDatabase","true"),new XElement("EnableDefaultCompileItems","false"),new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),new XElement("DefineConstants",string.Join(";",current.Definition.Source.Defines??[]))),references);
         project.Add(new XElement("ItemGroup",new XAttribute("Label","SeamlessSources"),current.Definition.Source.Files.Select(file=>new XElement("Compile",new XAttribute("Include",file.Path)))));
         File.WriteAllText(Path.Combine(directory,"Schema.csproj"),project.ToString());
         var sdkPolicy=Path.Combine(repository,"global.json");
@@ -118,12 +119,18 @@ public sealed partial class SourceWorkspace{
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.Client"),new XAttribute("Version",packageVersion)));
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.Generator"),new XAttribute("Version",packageVersion),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.FLinq.Generator"),new XAttribute("Version",packageVersion),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));
+        // 取り込んだ DB(SQL Server から)は bit の型と組み込み関数を使う。使うソースだけが部品を参照する。
+        if(current.Definition.Source.Files.Any(static file=>file.Text.Contains("global::Seamless.Database.SqlServer.",StringComparison.Ordinal))){
+            references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.SqlServer.Functions"),new XAttribute("Version",packageVersion)));
+        }
+        // Manager が管理する DB の印を、DB 生成器の解析器(使用制限)と生成器へ渡す。
+        references.Add(new XElement("CompilerVisibleProperty",new XAttribute("Include","SeamlessManagedDatabase")));
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",
                 new XElement("TargetFramework","net10.0"),
                 new XElement("LangVersion","14"),
                 new XElement("Nullable","enable"),
-                new XElement("AllowUnsafeBlocks","true"),
+                new XElement("AllowUnsafeBlocks","true"),new XElement("SeamlessManagedDatabase","true"),
                 new XElement("EnableDefaultCompileItems","true"),
                 new XElement("CopyLocalLockFileAssemblies","true"),
                 new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),
@@ -138,9 +145,7 @@ public sealed partial class SourceWorkspace{
         }
         var projectFiles=files.Select(file=>new SourceProjectFile(file.Path,Path.Combine(directory,file.Path.Replace('/',Path.DirectorySeparatorChar)))).ToArray();
         var binding=new SourceProjectBinding(projectFile,projectFiles);
-        var workspace=new SourceWorkspace(directory,new(1,current,published,current.Definition.Source,current.Definition.Source,null,
-            ManagerMigrationTracked:true,WithoutManagerMigration:current.Definition.Migration,
-            ProjectBinding:binding));
+        var workspace=new SourceWorkspace(directory,new(1,current,published,current.Definition.Source,null,ProjectBinding:binding){CreatedSource=current.Definition.Source.Freeze()});
         using var lease=workspace.Lock();
         workspace.Commit(workspace.State,files.Select(file=>new WorkspaceWrite(file.Path,null,file.Text)).ToArray());
         return (workspace,projectFile);
@@ -160,23 +165,16 @@ public sealed partial class SourceWorkspace{
         if(this.State.PendingTablePublication is not null){throw new ManagementException("Busy","単独保存の結果を確認してから作業を同期してください。");}
         if(manager.Id!=this.Current.Definition.Id){throw new ManagementException("Conflict","別のDB定義を同期できません。");}SourceEditor.Validate(manager.Source);
         if(this.ActiveConflict() is not null){throw ConflictPending();}
-        var disk=this.ReadDisk();SourceSnapshot merged;var external=this.State.WithoutManager;var undoConflict=this.State.UndoConflict;
+        var disk=this.ReadDisk();SourceSnapshot merged;
         var input=manager;
         try{if(managerBase is not null){manager=MergeDefinitions(managerBase,manager,this.Current.Definition);}merged=Merge(this.State.Synchronized,manager.Source,disk);}
         catch(ManagementException error)when(error.Code=="Conflict"){
             this.RecordConflict(new(Guid.NewGuid(),this.State.Synchronized,managerBase,input,disk));
             throw ConflictPending();
         }
-        // 通常の同期と「Manager編集だけの取消」は別の判定。新規宣言への外部編集は同期できても、安全な取消には依存解消が必要。
-        if(!undoConflict){try{external=Merge(this.State.Synchronized,this.State.WithoutManager,disk);}catch(ManagementException){undoConflict=true;}}
-        var state=this.State with{Current=this.Current with{Definition=manager with{Source=merged}},Synchronized=merged,WithoutManager=external,UndoConflict=undoConflict,
-            ManagerMigrationTracked=this.State.ManagerMigrationTracked||this.Current.Definition.Migration is null};
+        var state=this.State with{Current=this.Current with{Definition=manager with{Source=merged}},Synchronized=merged};
         if(state==this.State||JsonSerializer.Serialize(state,ManagementJson.Options)==JsonSerializer.Serialize(this.State,ManagementJson.Options)){return this.Current;}
         this.Commit(state,Writes(disk,merged));return this.Current;
-    }
-    public DefinitionExport UndoManager(){
-        var manager=this.Current.Definition;
-        return this.ConfirmManagerUndo(manager,null,this.PreviewManagerUndo(manager)).Draft;
     }
     public void MarkDraftSaved(long revision,long baseVersion,string? savedHash=null){
         using var lease=this.Lock();this.AssertCurrent();
@@ -193,13 +191,11 @@ public sealed partial class SourceWorkspace{
     }
     private void MarkDraftSaved(long revision,long baseVersion,string hash,Definition? definition){
         if(revision<this.Current.DraftRevision){return;}
-        this.Commit(this.State with{Current=this.Current with{DraftRevision=revision,BaseVersion=baseVersion},SavedDraftHash=hash,SavedDraftDefinition=definition?.Freeze(),
-            ProjectDraftBaseline=new(hash,this.State.WithoutManager.Freeze())},[]);
+        this.Commit(this.State with{Current=this.Current with{DraftRevision=revision,BaseVersion=baseVersion},SavedDraftHash=hash,SavedDraftDefinition=definition?.Freeze()},[]);
     }
     public void MarkPublished(Definition definition,long version){
         using var lease=this.Lock();this.AssertCurrent();if(!Same(definition.Source,this.State.Synchronized)){throw new ManagementException("Conflict","適用版と作業ソースが一致しません。");}
-        this.Commit(this.State with{Published=definition.Source,Current=this.Current with{Definition=definition,BaseVersion=version},WithoutManager=definition.Source,SavedDraftHash=null,SavedDraftDefinition=null,UndoConflict=false,
-            ManagerMigrationTracked=true,WithoutManagerMigration=definition.Migration},[]);
+        this.Commit(this.State with{Published=definition.Source,Current=this.Current with{Definition=definition,BaseVersion=version},SavedDraftHash=null,SavedDraftDefinition=null},[]);
     }
     public void BeginTablePublication(Guid id,long revision,string hash){
         using var lease=this.Lock();
@@ -228,14 +224,8 @@ public sealed partial class SourceWorkspace{
             !Same(remaining.Definition.Source,this.Current.Definition.Source)){
             throw new ManagementException("Conflict","公開版と個人下書きが作業記録と一致しません。内容を保持しています。");
         }
-        var external=this.State.WithoutManager;
-        var undoConflict=this.State.UndoConflict||this.State.WithoutManagerMigration is not null;
-        if(!undoConflict){
-            try{external=Merge(this.State.Published,published.Definition.Source,external);}
-            catch(ManagementException){undoConflict=true;}
-        }
         this.Commit(this.State with{Published=published.Definition.Source,Current=new(remaining.Definition,remaining.BaseVersion,remaining.Revision),
-            SavedDraftHash=remaining.Definition.Hash(),SavedDraftDefinition=remaining.Definition.Freeze(),WithoutManager=external,UndoConflict=undoConflict,PendingTablePublication=null},[]);
+            SavedDraftHash=remaining.Definition.Hash(),SavedDraftDefinition=remaining.Definition.Freeze(),PendingTablePublication=null},[]);
     }
     private SourceSnapshot ReadDisk(){
         var files=new List<SourceFile>();foreach(var file in this.State.Synchronized.Files){var path=this.FilePath(file.Path);if(!File.Exists(path)){throw new ManagementException("Conflict","外部でファイルが削除されています。内容を保全しました: "+file.Path);}if(new FileInfo(path).Length>8*1024*1024){throw new ManagementException("InvalidRequest","ソースが大きすぎます。");}files.Add(new(file.Path,File.ReadAllText(path)));}
