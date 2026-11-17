@@ -10,7 +10,7 @@ public static class BuildFingerprint{
             .Where(path=>{
                 var name=Path.GetFileName(path);
                 return name.StartsWith("Seamless.",StringComparison.Ordinal)||name.StartsWith("Benchmark.",StringComparison.Ordinal)
-                    ||name.StartsWith("Tsavorite.",StringComparison.Ordinal)||name=="Seamless.dll"||name=="ZLinq.dll";
+                    ||name.StartsWith("Tsavorite.",StringComparison.Ordinal)||name=="Runtime.dll"||name=="ZLinq.dll";
             }).Append(entryAssemblyPath).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(Path.GetFileName,StringComparer.Ordinal);
         return Fingerprint.Of(string.Join("\n",files.Select(path=>Path.GetFileName(path)+":"+Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))))));
     }

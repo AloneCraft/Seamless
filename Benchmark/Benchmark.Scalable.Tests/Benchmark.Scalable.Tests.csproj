@@ -18,7 +18,7 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
     <ProjectReference Include="../Benchmark.Scalable.Core/Benchmark.Scalable.Core.csproj" />
-    <ProjectReference Include="../../Seamless/Seamless.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
     <ProjectReference Include="../../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="MemoryPack" Version="1.*" />
@@ -35,9 +35,8 @@
   </ItemGroup>
   <Import Project="../../Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" Label="Shared" />
   <Import Project="../../Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" Label="Shared" />
-  <!-- 元packageはsupport DLLの取得専用。Coreは修正済みprojectを公開参照する。 -->
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
     <Reference Include="Garnet.common">
       <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
       <Private>true</Private>
@@ -47,5 +46,5 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <Import Project="../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <Import Project="../../Seamless/Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
 </Project>

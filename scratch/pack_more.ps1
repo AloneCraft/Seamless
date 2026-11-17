@@ -1,10 +1,10 @@
 $ErrorActionPreference = 'Stop'
 $projects = @(
-    "Seamless.Security\Seamless.Security.csproj",
-    "Seamless.Authentication\Seamless.Authentication.csproj",
-    "Seamless.Database.Query\Seamless.Database.Query.csproj",
-    "Seamless.Database.Compilation\Seamless.Database.Compilation.csproj",
-    "Seamless.Database.SqlServer\Seamless.Database.SqlServer.csproj"
+    "Seamless\Database\Client\Client.csproj",
+    "Seamless\Database\Client\Client.csproj",
+    "Seamless\Database\Database.csproj",
+    "Seamless\Database\Database.csproj",
+    "Seamless\Database\Database.csproj"
 )
 
 $runId = [guid]::NewGuid().ToString()

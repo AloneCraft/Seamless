@@ -29,7 +29,7 @@ public sealed partial class SourceProjectBuildInspection{
             var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
                 new XElement("PropertyGroup",new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("DebugType","portable"),
                     new XElement("EnableNETAnalyzers","false")),
-                new XElement("ItemGroup",Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Select(path=>new XElement("Reference",new XAttribute("Include",Path.GetFileNameWithoutExtension(path)),new XElement("HintPath",path),new XElement("Private","true"))),
+                new XElement("ItemGroup",ReferencePaths().Select(path=>new XElement("Reference",new XAttribute("Include",Path.GetFileNameWithoutExtension(path)),new XElement("HintPath",path),new XElement("Private","true"))),
                     new XElement("ProjectReference",new XAttribute("Include",helperProject)),new XElement("Analyzer",new XAttribute("Include",Path.Combine(AppContext.BaseDirectory,"Seamless.Database.Generator.dll")))));
             await File.WriteAllTextAsync(document.ProjectPath,project.ToString());
             var configuration="Release";

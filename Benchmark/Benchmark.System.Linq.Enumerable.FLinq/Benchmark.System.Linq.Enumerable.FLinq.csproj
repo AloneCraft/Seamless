@@ -14,9 +14,9 @@
     <AssemblyName>Benchmark.System.Linq.Enumerable.FLinq</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="artifacts\**" />
-    <EmbeddedResource Remove="artifacts\**" />
-    <None Remove="artifacts\**" />
+    <Compile Remove="artifacts/**" />
+    <EmbeddedResource Remove="artifacts/**" />
+    <None Remove="artifacts/**" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
@@ -29,11 +29,13 @@
     <Using Include="Common" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="../../Seamless/FLinq/Generator/Compiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Linq.Enumerable\Linq.Enumerable.projitems" Label="Shared" />
+  <Import Project="../../Shared/Linq.Enumerable/Linq.Enumerable.projitems" Label="Shared" />
+  <PropertyGroup>
+    <SeamlessLinqAnalysis>false</SeamlessLinqAnalysis>
+  </PropertyGroup>
 </Project>
-

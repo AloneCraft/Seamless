@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Seamless.Database.Client</RootNamespace>
+    <AssemblyName>Client</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;Results/**" />
+    <Compile Include="Results/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../../Security/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../../Authentication/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../../Management/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;../../Management/Server/**;../../Management/Components/**;../../Management/ManagerProgram.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Runtime.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.23.0" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
+    <PackageReference Include="Duende.IdentityModel.OidcClient" Version="7.1.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Server" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Management.Tests" />
+  </ItemGroup>
+</Project>

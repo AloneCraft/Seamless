@@ -10,7 +10,7 @@ foreach($path in @($DataRoot,$CacheRoot)){
     if(-not [IO.Path]::IsPathFullyQualified($path) -or [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($path)) -eq 'C:\'){throw 'Use absolute non-C output directories.'}
 }
 & "$repository/TestSeamless/Initialize-Storage.ps1" -ArchiveRoot $CacheRoot -TemporaryRoot (Join-Path $DataRoot 'tmp')|Out-Null
-$tool=Join-Path $DataRoot "bin/Seamless.Database.Tool/$Configuration/net10.0/seamless.dll"
+$tool=Join-Path $DataRoot "bin/Seamless/Database/Tool/$Configuration/net10.0/Server.dll"
 if(-not (Test-Path -LiteralPath $tool)){throw 'Build the Tool suite first.'}
 $id=[guid]::NewGuid().ToString('N')
 $output=Join-Path $DataRoot "cli-$id";$logs=Join-Path $CacheRoot "cli-$id"

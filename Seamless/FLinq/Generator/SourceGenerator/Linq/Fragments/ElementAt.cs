@@ -1,0 +1,260 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+namespace Seamless.FLinq.Generator;
+
+internal class ElementAt(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
+        method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => string.Empty;
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,index);
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, index)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectArrayElementAtInline(destVar,destType)
+        ??this.RenderRangeElementAtInline(destVar,destType)
+        ??this.RenderDirectSpanElementAtInline(destVar,destType)
+        ??this.RenderConsumeBasedElementAtInline(destVar,destType)
+        ??this.RenderComputeInline(destVar,destType,index);
+
+    private string? RenderDirectArrayElementAtInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        var arrVar = $"__arr{番号}";
+        var idxVar = $"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                var {{idxVar}}={{index}};
+                if((uint){{idxVar}}>=(uint){{arrVar}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
+                {{destVar}}={{arrVar}}[{{idxVar}}];
+            }
+            """;
+    }
+
+    private string? RenderConsumeBasedElementAtInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_ELEMENTAT_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var currIdx = $"__currIdx{番号}";
+        var targetIdx = $"__targetIdx{番号}";
+        var foundVar = $"__found{番号}";
+        var endLabel = $"__elemAtEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}if({currIdx}++=={targetIdx}) {{\n{indent}    {destVar}={arg};\n{indent}    {foundVar}=true;\n{indent}    goto {endLabel};\n{indent}}}";
+        });
+        return $$"""
+            var {{targetIdx}}={{index}};
+            if({{targetIdx}}<0) throw new global::System.ArgumentOutOfRangeException("index");
+            {{destType}} {{destVar}}=default!;
+            var {{currIdx}}=0;
+            var {{foundVar}}=false;
+            {{replaced}}
+            {{endLabel}}:;
+            if(!{{foundVar}}) throw new global::System.ArgumentOutOfRangeException("index");
+            """ ;
+    }
+    private string? RenderDirectSpanElementAtInline(string destVar,string destType) {
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
+            var __idx={{index}};
+            if(__idx<0) throw new global::System.ArgumentOutOfRangeException("index");
+            if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
+            {{destVar}}={{spanName}}[__idx];
+            """);
+    }
+    private string? RenderRangeElementAtInline(string destVar,string destType) {
+        if(source is not RangeRoot range||source.ElementType!="int") {
+            return null;
+        }
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var idx = $"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                {{range.RenderArgumentPreparation(start,count)}}
+                var {{idx}}={{index}};
+                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException("index");
+                {{destVar}}={{start}} + {{idx}};
+            }
+            """;
+    }
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source, int index){
+                if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                source.TryGetSpan(out var __span);
+                if((uint)index>=(uint)__span.Length) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                return __span[index];
+            }
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source, int index){
+                if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                var currentIndex=0;
+                while(source.TryGetNext(out var __mn24)){
+                    if(currentIndex==index) return __mn24;
+                    currentIndex++;
+                }
+                throw new global::System.ArgumentOutOfRangeException(nameof(index));
+            }
+            """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}
+
+internal class ElementAt_index(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
+        method.Parameters.Length==1
+        &&method.Parameters[0].Type is INamedTypeSymbol {
+            Name: "Index",
+            ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true }
+        };
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => string.Empty;
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,index);
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, index)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectArrayElementAtIndexInline(destVar,destType)
+        ??this.RenderRangeElementAtIndexInline(destVar,destType)
+        ??this.RenderDirectSpanElementAtIndexInline(destVar,destType)
+        ??this.RenderComputeInline(destVar,destType,index);
+
+    private string? RenderDirectArrayElementAtIndexInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        var arrVar = $"__arr{番号}";
+        var idxVar = $"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                var {{idxVar}}=({{index}}).GetOffset({{arrVar}}.Length);
+                if((uint){{idxVar}}>=(uint){{arrVar}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
+                {{destVar}}={{arrVar}}[{{idxVar}}];
+            }
+            """;
+    }
+    private string? RenderDirectSpanElementAtIndexInline(string destVar,string destType) {
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
+            var __idx=({{index}}).GetOffset({{spanName}}.Length);
+            if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
+            {{destVar}}={{spanName}}[__idx];
+            """);
+    }
+    private string? RenderRangeElementAtIndexInline(string destVar,string destType) {
+        if(source is not RangeRoot range||source.ElementType!="int") {
+            return null;
+        }
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var idx = $"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                {{range.RenderArgumentPreparation(start,count)}}
+                var {{idx}}=({{index}}).GetOffset({{count}});
+                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException("index");
+                {{destVar}}={{start}} + {{idx}};
+            }
+            """;
+    }
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source,global::System.Index index){
+                source.TryGetSpan(out var __span);
+                var idx=index.GetOffset(__span.Length);
+                if((uint)idx>=(uint)__span.Length) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                return __span[idx];
+            }
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source,global::System.Index index){
+                if(!index.IsFromEnd){
+                    var idx=index.Value;
+                    var currentIndex=0;
+                    while(source.TryGetNext(out var __mn25)){
+                        if(currentIndex==idx) return __mn25;
+                        currentIndex++;
+                    }
+                    throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                }else{
+                    var n=index.Value;
+                    if(n==0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                    var count=0;
+                    if(n<=16){
+                        global::System.Span<{{resultType}}> buffer=stackalloc {{resultType}}[16];
+                        buffer=buffer.Slice(0,n);
+                        while(source.TryGetNext(out var __mn26)){
+                            buffer[count%n]=__mn26;
+                            count++;
+                        }
+                        if(count<n) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                        return buffer[(count-n)%n];
+                    }else{
+                        var rented=global::System.Buffers.ArrayPool<{{resultType}}>.Shared.Rent(n);
+                        try{
+                            while(source.TryGetNext(out var __mn26)){
+                                rented[count%n]=__mn26;
+                                count++;
+                            }
+                            if(count<n) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                            return rented[(count-n)%n];
+                        }finally{
+                            if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{resultType}}>()) global::System.MemoryExtensions.AsSpan(rented,0,global::System.Math.Min(count,n)).Clear();
+                            global::System.Buffers.ArrayPool<{{resultType}}>.Shared.Return(rented);
+                        }
+                    }
+                }
+            }
+            """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}

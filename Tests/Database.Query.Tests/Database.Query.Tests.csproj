@@ -14,7 +14,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <PackageReference Include="MemoryPack" Version="1.*" />
     <Using Include="Xunit" />
-    <ProjectReference Include="../../Seamless.Database.Query/Seamless.Database.Query.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Fixtures/*.json" />
@@ -27,25 +27,23 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Seamless.TestKit/Seamless.TestKit.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
-    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="../../Seamless/Database/Generator/Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="../../Seamless/FLinq/Generator/Compiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
     <Using Include="Seamless.Collections" />
     <Using Include="Seamless.Collections.Tsavorite" />
     <Using Include="Seamless.TestKit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Client/Seamless.Database.Client.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Client/Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
-    <ProjectReference Include="../../Seamless.Database/Seamless.Database.csproj" />
-    <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
+    <ProjectReference Include="../../Seamless/Runtime.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../tools/Database.Verification/Database.Verification.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
-    <ProjectReference Include="../../Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
   </ItemGroup>
+  <PropertyGroup>
+    <SeamlessLinqAnalysis>false</SeamlessLinqAnalysis>
+  </PropertyGroup>
 </Project>

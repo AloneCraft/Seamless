@@ -4,23 +4,31 @@ Windows/Linuxのサーバーと同じプロセス内のKestrelが、共通のRaz
 
 ## プロジェクト
 
-`Publish.ps1`の配布物は、専用DBプロジェクト用の`packages`を同梱する。同じビルドの12パッケージを内容識別付きの版へ固定し、サーバーDLLとの対応を`source-packages.json`で確認する。新規プロジェクトはこの版を選ぶ。既存のプロジェクト参照は明示した設定に従う。[パッケージ対応の契約と確認範囲](../../Document/20261114Argon.md)
+`Publish.ps1`の配布物は、専用DBプロジェクト用の`packages`を同梱する。同じビルドの単一Seamless SDKパッケージを内容識別付きの版へ固定し、サーバーDLLとの対応を`source-packages.json`で確認する。新規プロジェクトはこの版を選ぶ。既存のプロジェクト参照は明示した設定に従う。[パッケージ対応の契約と確認範囲](../../Document/20261114Argon.md)
 
 ネイティブ資産はpublishの直下出力に加え、deps.jsonの`runtimes/<RID>/native`階層を保持する。TsavoriteのP/Invokeがこの相対名を使うため、Linuxの通常起動にも必要である。
 
 | プロジェクト | 責務 |
 |---|---|
-| `Seamless.Management` | 通信契約、TLSクライアント、Roslynの編集投影、ソース交換形式、計画のPE読取とDOT出力 |
-| `Seamless.Management.Server` | 認証・権限、永続システムDB、ビルド、検証DB、世代公開、CLI |
-| `Seamless.Management.Components` | 共通のRazor画面、操作メニュー、設計・ソース編集 |
-| `Seamless.Management.UI` | 未移行機能の参照用に保全した旧WPFソース |
+| `Seamless/Database/Client/Client.csproj` | 通信契約、TLSクライアント、Roslynの編集投影、ソース交換形式、計画のPE読取とDOT出力 |
+| `Seamless/Database/Server/Server.csproj` | 認証・権限、永続システムDB、ビルド、検証DB、世代公開、CLI、共通Razor管理画面 |
+| `Seamless/Management/Manager.csproj` | 管理ホストの起動用EXEと同梱SDK |
 | `Tests/Management.Tests` | 単体・実TLS・永続化・移行・公開境界でのプロセス停止試験 |
 
 `Seamless.Management.slnx`から関連プロジェクトを開ける。既存の管理対象DBへこのホストを自動接続したり、既存の保存形式を起動時に変換したりする機能は持たない。新しい管理領域でDB定義を明示的に公開する。
 
 ## 起動
 
-配布ZIPは.NETランタイムを同梱しない。実行に必要なものと、通常のプロジェクトをビルドするためのSDKを分けて導入する。
+`Publish.ps1`はWindows／Linuxサーバーのframework-dependent ZIPを作成する。このZIPには.NETランタイムを別途導入する。
+
+Windows x64のSDK同梱Managerは、検証済みSDKを用意してから次の入口で発行する。配布先の`distribution`には`Manager.exe`が1個入り、SDK、ソースパッケージ、管理画面の資産、自己完結ランタイムはEXEへ収録される。起動時にこれらを展開し、DBと設定は指定した保存先へ作成する。対象は.NET 10である。
+
+```powershell
+./tools/management/New-BundledDotNetSdk.ps1 -Destination F:/Seamless/manager-sdk -SdkVersion 10.0.404
+./tools/management/Publish-Manager.ps1 -BundledSdkDirectory F:/Seamless/manager-sdk -WorkRoot F:/Seamless/manager-publish -Configuration Release
+```
+
+SDK一式はファイルごとのSHAを検査する。Managerをビルドした確定出力から専用パッケージを作成し、同じ出力をNoBuildで発行する。発行後もDLLの指紋を照合し、工程間で入力が変化した場合は失敗する。
 
 `Invoke-Checks.ps1`の通常実行はリポジトリ内の`bin/obj`をビルド先、`Work/Management`をログ・一時ファイル・キャッシュの保存先とする。稼働DBから分離する試験DBと試験用キャッシュは、実行ごとに新しい`F:/Seamless`配下へ作成する。成果物自体の隔離も必要な場合だけ`-WorkRoot F:/Seamless/<実行名>`を指定する。既存のNuGetキャッシュをコピーせず参照するには`-PackageFallbackRoot <キャッシュの絶対パス>`を指定でき、書込先は選択した作業領域のままとする。
 
@@ -67,7 +75,7 @@ framework-dependent配布でも、起動用の.NET apphostは含まれる。`Pub
 
 導入先は[.NET 10公式ダウンロード](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)。通常利用では「Run apps - Runtime」から必要なランタイムを選び、開発では「Build apps - SDK」を選ぶ。SDK導入済みで必要な共有フレームワークもそろっていれば追加導入は不要。ランタイム不足時は.NETホストの起動エラーにも不足するフレームワークと導入先が表示される。サーバーにはMicrosoft.AspNetCore.Appを含むASP.NET Core Runtimeが必要である。
 
-ManagerからのDB定義・クエリのコンパイルは、サーバーに同梱したRoslynと生成器を使用する。通常の.csprojをSDKでビルドする処理とは異なり、この経路のためのSDK導入は要求しない。SDKを含まない隔離ランタイムで配布版の起動、IPC接続、空DBのコンパイルと公開を確認した。SDK未導入の別PCと、ランタイム不足時の案内の実画面は未検証。
+ManagerのDB定義とソースプロジェクトはSDKでビルドする。SDK同梱Managerは展開したtoolchain/dotnetを使用し、通常の開発用起動では設定済みSDKを使用する。検証対象と結果は製品8プロジェクト統合の設計書に記録する。
 
 TLS証明書は接続するDNS名をSANに持ち、有効期間と信頼チェーンを満たすものを用意する。秘密鍵を持つPFXはサーバー側だけで使用する。
 
@@ -153,10 +161,10 @@ DLLとデータ世代は管理領域の`generations`以下に保存する。DLL�
 
 新規の初期設定は管理DB形式4を作成する。以前の形式3は起動時には変換せず、そのまま従来の管理機能を利用できる。形式4では`AuditSearchV1`能力を公開し、`ManagementClient.AuditEventsAsync`と`ReadSummariesAsync`で詳細履歴・集計をページ取得する。現在の取得APIはサーバー管理権限を要求する。詳細履歴は自動削除しない。
 
-既存の保存先へ監査テーブルを追加するときは、対象サーバーを停止し、未使用のバックアップ先を指定して実行する。以下の`Seamless.Management.Server.exe`は`WindowsServer.csproj`のビルド・配布先の実行ファイルを指定する。
+既存の保存先へ監査テーブルを追加するときは、対象サーバーを停止し、未使用のバックアップ先を指定して実行する。以下の`Server.exe`は`Seamless/Database/Server/Server.csproj`のビルド・配布先の実行ファイルを指定する。
 
 ```powershell
-.\Seamless.Management.Server.exe upgrade-audit --root D:\Seamless\Management\Instance1 --backup D:\Seamless\Backups\BeforeAudit
+.\Server.exe upgrade-audit --root D:\Seamless\Management\Instance1 --backup D:\Seamless\Backups\BeforeAudit
 ```
 
 排他ロックとバックアップに成功してから、隣接するステージ領域へ管理レコードを逐次複製する。利用者のパスワードハッシュ・権限・無効状態、定義・下書き・公開版・履歴・インスタンスIDを維持し、旧履歴を監査へ取り込む。DLL・データの`generations`ディレクトリは変更しない。切替前の`system`は旧ディレクトリとして保持する。ステージと旧ディレクトリも使うため、バックアップ先に加えて元の保存先のあるドライブにも空き領域が必要になる。
@@ -164,7 +172,7 @@ DLLとデータ世代は管理領域の`generations`以下に保存する。DLL�
 プロセス停止で`management.audit-upgrade.json`が残った場合、通常起動は拒否する。サーバーを停止した状態で次の明示取消を行い、旧形式に戻してから原因を解消して再試行する。
 
 ```powershell
-.\Seamless.Management.Server.exe rollback-audit-upgrade --root D:\Seamless\Management\Instance1
+.\Server.exe rollback-audit-upgrade --root D:\Seamless\Management\Instance1
 ```
 
 これは中断した更新の取消専用であり、正常完了後に新しい操作を行ったDBを過去版へ戻す操作ではない。切替の確定後に中断マニフェストが削除されていれば、取消は拒否する。退避されたディレクトリは自動削除しない。

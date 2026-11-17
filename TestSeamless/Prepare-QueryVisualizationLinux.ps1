@@ -14,7 +14,7 @@ if(!$snapshot.StartsWith('F:\Seamless\',[StringComparison]::OrdinalIgnoreCase)){
 $manifestPath=(Resolve-Path -LiteralPath $SourceManifest).ProviderPath
 $manifestHash=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash
 $manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json -AsHashtable
-if(!$manifest.ContainsKey('Seamless.Management.Server/WindowsServer.csproj') -and !$manifest.ContainsKey('Seamless.Management.Server\WindowsServer.csproj')){throw 'The source manifest does not contain the normal server project.'}
+if(!$manifest.ContainsKey('Seamless/Database/Server/Server.csproj') -and !$manifest.ContainsKey('Seamless\Database\Server\Server.csproj')){throw 'The source manifest does not contain the normal server project.'}
 foreach($relative in $manifest.Keys){
     $inputPath=[IO.Path]::GetFullPath((Join-Path $snapshot $relative))
     if(!$inputPath.StartsWith($snapshot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'A source manifest path escapes the fixed snapshot.'}
@@ -35,13 +35,13 @@ $programHash=(Get-FileHash -LiteralPath $program -Algorithm SHA256).Hash
 if((Get-FileHash -LiteralPath $program -Algorithm SHA256).Hash -ne $programHash -or (Get-FileHash -LiteralPath (Join-Path $run 'probe/Program.cs') -Algorithm SHA256).Hash -ne $programHash){throw 'The P0 program changed during preparation.'}
 $xml=[Xml.Linq.XDocument]::Load($project)
 $references=@($xml.Descendants('ProjectReference'))
-if($references.Count -ne 1){throw 'Expected the single normal WindowsServer project reference.'}
+if($references.Count -ne 1){throw 'Expected the single normal Server project reference.'}
 $reference=$references[0].Attribute('Include')
-$windowsProject=(Join-Path $repository 'Seamless.Management.Server/WindowsServer.csproj').Replace('\','/')
-$fixedProject=(Join-Path $snapshot 'Seamless.Management.Server/WindowsServer.csproj').Replace('\','/')
+$windowsProject=(Join-Path $repository 'Seamless/Database/Server/Server.csproj').Replace('\','/')
+$fixedProject=(Join-Path $snapshot 'Seamless/Database/Server/Server.csproj').Replace('\','/')
 $actualReference=$reference.Value.Replace('\','/')
 if(![string]::Equals($actualReference,$windowsProject,[StringComparison]::OrdinalIgnoreCase) -and ![string]::Equals($actualReference,$fixedProject,[StringComparison]::OrdinalIgnoreCase)){throw 'Unexpected server project reference.'}
-$reference.Value=$linuxSnapshot+'/Seamless.Management.Server/WindowsServer.csproj'
+$reference.Value=$linuxSnapshot+'/Seamless/Database/Server/Server.csproj'
 $xml.Save((Join-Path $run 'probe/QueryVisualizationAcceptance.csproj'))
 [IO.File]::Copy((Join-Path $snapshot 'global.json'),(Join-Path $run 'global.json'),$false)
 [IO.File]::Copy($manifestPath,(Join-Path $run 'source-manifest.json'),$false)

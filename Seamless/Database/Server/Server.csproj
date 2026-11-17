@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <IsPackable>true</IsPackable>
+    <PackageId>Seamless</PackageId>
+    <NuspecFile>../../Seamless.nuspec</NuspecFile>
+    <IncludeSymbols>false</IncludeSymbols>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <RootNamespace>Seamless</RootNamespace>
+    <AssemblyName>Server</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <StartupObject>Seamless.Database.Server.ProductProgram</StartupObject>
+    <EnableDefaultRazorGenerateItems>false</EnableDefaultRazorGenerateItems>
+    <EnableDefaultRazorComponentItems>false</EnableDefaultRazorComponentItems>
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../Gateway/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../../Transport/Kestrel/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../../Management/Server/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../../Management/Components/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="../Tool/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsServerInformation.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsServerInformation.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsQuerySettings.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsQuerySettings.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsConnectionInitialization.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsConnectionInitialization.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsDatabaseOptions.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsDatabaseOptions.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsDatabaseList.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsDatabaseList.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsObjectExplorerDatabase.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsObjectExplorerDatabase.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsObjectExplorerTable160.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsObjectExplorerTable160.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsObjectExplorerView160.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsObjectExplorerView160.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsObjectExplorerProcedure120.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsObjectExplorerProcedure120.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsObjectExplorerFunctions.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsObjectExplorerFunctions.sql" />
+    <EmbeddedResource Include="../Gateway/Sql/Compatibility/SsmsFileTable.sql" LogicalName="Seamless.Database.Gateway.Sql.Compatibility.SsmsFileTable.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Client/Client.csproj" />
+    <ProjectReference Include="../Database.csproj" />
+    <ProjectReference Include="../../FLinq/Generator/Compiler.csproj" />
+    <ProjectReference Include="../../Runtime.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Generator/Generator.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Management.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../Management/Components/表示文言.resx" LogicalName="Seamless.Management.Components.表示文言.resources" />
+    <EmbeddedResource Include="../../Management/Components/表示文言.en.resx" LogicalName="Seamless.Management.Components.表示文言.en.resources" />
+    <RazorComponent Include="../../Management/Components/**/*.razor" Link="Components/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../../Management/Server/ManagerWeb/**/*.razor" Link="ManagerWeb/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Content Include="wwwroot/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="SetSeamlessSdkPackageInputs" BeforeTargets="GenerateNuspec" DependsOnTargets="GetTargetPath">
+    <PropertyGroup>
+      <_SeamlessSdkOutput>$([System.IO.Path]::GetDirectoryName('$(TargetPath)'))</_SeamlessSdkOutput>
+      <_SeamlessSdkOutput Condition="'$(SeamlessSdkInputDirectory)'!=''">$([System.IO.Path]::GetFullPath('$(SeamlessSdkInputDirectory)'))</_SeamlessSdkOutput>
+      <_SeamlessSdkRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../..'))</_SeamlessSdkRoot>
+      <NuspecProperties>version=$(PackageVersion);output=$(_SeamlessSdkOutput.Replace('\','/'));root=$(_SeamlessSdkRoot.Replace('\','/'))</NuspecProperties>
+    </PropertyGroup>
+  </Target>
+</Project>

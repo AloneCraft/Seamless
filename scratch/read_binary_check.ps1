@@ -1,4 +1,4 @@
-$lines = [System.IO.File]::ReadAllLines('Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs', [System.Text.Encoding]::UTF8)
+$lines = [System.IO.File]::ReadAllLines('Seamless/FLinq/Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs', [System.Text.Encoding]::UTF8)
 $start = -1
 for ($i=0; $i -lt $lines.Length; $i++) {
     if ($lines[$i] -match 'CanUseDirectSpanBinaryShortCircuit\(') { $start = $i; break; }

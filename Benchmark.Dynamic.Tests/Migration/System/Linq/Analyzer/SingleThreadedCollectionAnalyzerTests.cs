@@ -18,15 +18,20 @@ namespace Test.System.Linq.Analyzer;
 public sealed class SingleThreadedCollectionAnalyzerTests {
     [Fact]
     public async Task TaskRunCapturingLocalIsReported(){
-        var diagnostics=await Analyze("""
+        const string body="""
             class C {
                 void M(){
                     var set=new Seamless.Collections.Tsavorite.HashSet<int>();
                     System.Threading.Tasks.Task.Run(()=>{foreach(var item in set){}});
                 }
             }
-            """);
+            """;
+        var diagnostics=await Analyze(body);
         Assert.Single(diagnostics,diagnostic=>diagnostic.Id=="SEAMTHREAD001");
+        Assert.Empty(await Analyze(body,"false"));
+        Assert.Empty(await Analyze(body,"false",""));
+        Assert.Single(await Analyze(body,"false","true"),diagnostic=>diagnostic.Id=="SEAMTHREAD001");
+        Assert.Empty(await Analyze(body,"true","false"));
     }
 
     [Fact]
@@ -74,7 +79,7 @@ public sealed class SingleThreadedCollectionAnalyzerTests {
         Assert.DoesNotContain(diagnostics,diagnostic=>diagnostic.Id=="SEAMTHREAD001");
     }
 
-    private static async Task<ImmutableArray<Diagnostic>> Analyze(string body){
+    private static async Task<ImmutableArray<Diagnostic>> Analyze(string body,string? project=null,string? sourceOption=null){
         var source="""
             global using System.Linq;
             global using System.Collections.Generic;
@@ -105,6 +110,6 @@ public sealed class SingleThreadedCollectionAnalyzerTests {
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         var errors=compilation.GetDiagnostics().Where(diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error).ToArray();
         Assert.True(errors.Length==0,string.Join(Environment.NewLine,errors.Select(static error=>error.ToString())));
-        return await compilation.WithAnalyzers([new SingleThreadedCollectionAnalyzer()]).GetAnalyzerDiagnosticsAsync();
+        return await compilation.WithAnalyzers([new SingleThreadedCollectionAnalyzer()],new AnalyzerOptions([],new UnorderedEnumerableAnalyzerTests.OptionProvider(project,sourceOption))).GetAnalyzerDiagnosticsAsync();
     }
 }

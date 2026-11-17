@@ -23,7 +23,7 @@ $sourceManifest='<同じ候補のsource-manifest.json>'
     -Configuration Release
 ```
 
-準備処理は一意な`linux-<nonce>`を作り、プローブ・設定・検証スクリプトとハッシュを記録する。ProjectReferenceは固定したFスナップショットの`WindowsServer.csproj`へ接続する。準備処理はビルド・WSL起動・サーバー起動を行わない。
+準備処理は一意な`linux-<nonce>`を作り、プローブ・設定・検証スクリプトとハッシュを記録する。ProjectReferenceは固定したFスナップショットの`Seamless/Database/Server/Server.csproj`へ接続する。準備処理はビルド・WSL起動・サーバー起動を行わない。
 
 ## 実行枠の承認後
 

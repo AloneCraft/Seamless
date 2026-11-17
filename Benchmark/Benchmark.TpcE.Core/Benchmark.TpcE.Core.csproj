@@ -10,24 +10,21 @@
     <AssemblyName>Benchmark.TpcE.Core</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Artifacts\**;Work\**" />
-    <None Remove="Artifacts\**;Work\**" />
+    <Compile Remove="Artifacts/**;Work/**" />
+    <None Remove="Artifacts/**;Work/**" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <!-- 行の型に [MemoryPackable] を付けるため、生成器が届くよう利用側で直接参照する。 -->
     <PackageReference Include="MemoryPack" Version="1.*" />
-    <!-- 表と出力のダイジェストに XxHash128 を使う。 -->
-    <PackageReference Include="System.IO.Hashing" Version="10.0.2" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\Benchmark.Tpc.Core\Benchmark.Tpc.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
+    <ProjectReference Include="../Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->
     <Using Include="Benchmark.Tpc.Core" />
   </ItemGroup>
 </Project>

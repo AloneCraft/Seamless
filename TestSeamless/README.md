@@ -76,8 +76,8 @@ pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation All -Configuration Re
 SSMS と EXE は `Cases` の SQL を共用します。稼働 EXE で SQL ファイルを直接実行する例は次のとおりです。
 
 ```powershell
-dotnet <世代のTestSeamless.dll> sql source Seamless_Comparison_Fixture ./TestSeamless/Cases/Common/Read-AggregateJoinView.sql
-dotnet <世代のTestSeamless.dll> sql seamless Seamless_Comparison_Fixture ./TestSeamless/Cases/Common/Read-AggregateJoinView.sql
+dotnet <世代のTestRuntime.dll> sql source Seamless_Comparison_Fixture ./TestSeamless/Cases/Common/Read-AggregateJoinView.sql
+dotnet <世代のTestRuntime.dll> sql seamless Seamless_Comparison_Fixture ./TestSeamless/Cases/Common/Read-AggregateJoinView.sql
 ```
 
 元DBへの直接ファイル実行は読み取り文を制限し、専用 fixture だけに CRUD・取引を許します。SSMS 22 のソリューションは `Ssms/TestSeamless.Compare.sln` です。`SQLServer` と `SeamlessDB` の2プロジェクトの接続・生成SQLは、検証済み世代をステージングしてから公開します。生成SQLの所有台帳とハッシュを照合し、手書きファイルや編集済み生成物を削除しません。

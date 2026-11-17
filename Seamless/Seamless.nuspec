@@ -1,0 +1,62 @@
+<package>
+  <metadata>
+    <id>Seamless</id>
+    <version>$version$</version>
+    <authors>AloneCraft</authors>
+    <license type="expression">MIT</license>
+    <readme>README.md</readme>
+    <description>Seamless SDK。LINQ、永続コレクション、組込DB、ネイティブクライアントとソース生成器。</description>
+    <repository type="git" url="https://github.com/AloneCraft/Seamless" />
+    <contentFiles>
+      <files include="any/any/Seamless.SqlParserCS.Notices.txt" buildAction="None" copyToOutput="true" flatten="true" />
+    </contentFiles>
+    <dependencies>
+      <group targetFramework="net10.0">
+        <dependency id="MemoryPack" version="1.22.0" />
+        <dependency id="System.IO.Hashing" version="10.0.13" />
+        <dependency id="Microsoft.Extensions.Logging" version="[10.0.5]" />
+        <dependency id="Azure.Storage.Blobs" version="[12.27.0]" />
+        <dependency id="Microsoft.CodeAnalysis.CSharp" version="5.6.0" />
+        <dependency id="SqlParserCS" version="0.6.5" />
+        <dependency id="Microsoft.SqlServer.TransactSql.ScriptDom" version="180.102.0" />
+        <dependency id="Microsoft.Data.SqlClient" version="7.0.0" />
+        <dependency id="System.Security.Cryptography.Pkcs" version="10.0.13" />
+        <dependency id="SaxonCS-HE" version="13.1.0" />
+        <dependency id="Microsoft.IdentityModel.Protocols.OpenIdConnect" version="8.23.0" />
+        <dependency id="Microsoft.IdentityModel.JsonWebTokens" version="8.23.0" />
+        <dependency id="Duende.IdentityModel.OidcClient" version="7.1.1" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="$output$/Runtime.dll" target="lib/net10.0" />
+    <file src="$output$/Database.dll" target="lib/net10.0" />
+    <file src="$output$/Client.dll" target="lib/net10.0" />
+    <file src="$output$/Server.dll" target="lib/net10.0" />
+    <file src="$output$/en/Server.resources.dll" target="lib/net10.0/en" />
+    <file src="$output$/Sample.NetShop.Core.dll" target="lib/net10.0" />
+    <file src="$output$/Tsavorite.core.dll" target="lib/net10.0" />
+    <file src="$output$/Garnet.common.dll" target="lib/net10.0" />
+    <file src="$output$/Tsavorite.devices.AzureStorageDevice.dll" target="lib/net10.0" />
+    <file src="$output$/Seamless.FLinq.Generator.dll" target="analyzers/dotnet/cs" />
+    <file src="$output$/Seamless.Database.Generator.dll" target="analyzers/dotnet/cs" />
+    <file src="$root$/tools/build/SingleFileCompilation.props" target="buildTransitive/Seamless.props" />
+    <file src="$root$/tools/build/SingleFileCompilation.targets" target="buildTransitive/Seamless.targets" />
+    <file src="$root$/Seamless/Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" target="buildTransitive/Seamless.Tsavorite.Core.targets" />
+    <file src="$root$/README.md" target="/" />
+    <file src="$root$/Seamless/Database/Query/ThirdPartyNotices.txt" target="contentFiles/any/any/Seamless.SqlParserCS.Notices.txt" />
+    <file src="$root$/Seamless/Tsavorite/Core/Upstream/LICENSE" target="licenses/Tsavorite" />
+    <file src="$root$/Seamless/Tsavorite/Core/UPSTREAM-PROVENANCE.json" target="licenses" />
+    <file src="$root$/Seamless/Tsavorite/Core/recovery-head-pages.patch" target="licenses" />
+    <file src="$output$/runtimes/win-x64/native/native_device.dll" target="runtimes/win-x64/native" />
+    <file src="$output$/runtimes/win-arm64/native/native_device.dll" target="runtimes/win-arm64/native" />
+    <file src="$output$/runtimes/linux-x64/native/libnative_device_libaio.so" target="runtimes/linux-x64/native" />
+    <file src="$output$/runtimes/linux-x64/native/libnative_device.so" target="runtimes/linux-x64/native" />
+    <file src="$output$/runtimes/linux-musl-x64/native/libnative_device_libaio.so" target="runtimes/linux-musl-x64/native" />
+    <file src="$output$/runtimes/linux-musl-x64/native/libnative_device.so" target="runtimes/linux-musl-x64/native" />
+    <file src="$output$/runtimes/linux-arm64/native/libnative_device_libaio.so" target="runtimes/linux-arm64/native" />
+    <file src="$output$/runtimes/linux-arm64/native/libnative_device.so" target="runtimes/linux-arm64/native" />
+    <file src="$output$/runtimes/linux-musl-arm64/native/libnative_device_libaio.so" target="runtimes/linux-musl-arm64/native" />
+    <file src="$output$/runtimes/linux-musl-arm64/native/libnative_device.so" target="runtimes/linux-musl-arm64/native" />
+  </files>
+</package>

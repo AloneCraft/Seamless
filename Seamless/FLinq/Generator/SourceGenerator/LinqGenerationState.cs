@@ -1,0 +1,73 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+namespace Seamless.FLinq.Generator;
+
+internal sealed class LinqGenerationConfiguration(
+    LinqOptimizations optimizations,
+    LinqConvergenceMode convergenceMode,
+    bool emitOptimizationTrace) {
+    public LinqOptimizations Optimizations { get; } = optimizations;
+    public LinqConvergenceMode ConvergenceMode { get; } = convergenceMode;
+    public bool EmitOptimizationTrace { get; } = emitOptimizationTrace;
+}
+
+internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象型 target) {
+    public FLinqIncrementalGenerator.Linq傍受対象型 Target { get; } = target;
+    public LinqGenerationConfiguration Configuration { get; } = target.Configuration;
+    public OptimizationTraceCollector? Trace { get; } = target.Configuration.EmitOptimizationTrace
+        ? new OptimizationTraceCollector(target.Method.ToDisplayString())
+        : null;
+    public FLinqIncrementalGenerator.AnonymousTupleRegistry? AnonymousRegistry { get; } = new();
+    public HashSet<string> EmittedUnsafeAccessors { get; } = new(StringComparer.Ordinal);
+    public HashSet<string> UsedIdentifiers { get; } = new(StringComparer.Ordinal);
+    // ループなど入れ子のブロックの中だけの名前の衝突相手(ラムダの中だけで宣言される名前を除く)。GeneratedNames を参照。
+    public HashSet<string> BlockScopeIdentifiers { get; } = new(StringComparer.Ordinal);
+    // 利用者のメソッドに現れる識別子だけ(割り当てた名前・テンプレートの予約名を含まない)。GeneratedNameRenamer が付け替えの対象から外すために使う。
+    public HashSet<string> UserIdentifiers { get; } = new(StringComparer.Ordinal);
+    public List<Fragment> GeneratedFragments { get; } = new();
+    public Dictionary<Fragment,string> ProfileResultVariables{get;}=new();
+    public Dictionary<string,string> ProfileBodyRenames{get;}=new(StringComparer.Ordinal);
+public Dictionary<Fragment, ExecutionPlanOrigin> PlanOrigins { get; } = new();
+    public List<string> UnsafeAccessorCodes { get; } = new();
+    public string? FailureReason { get; set; }
+    // 呼び出し側へ取り込めなかったビュー・関数(DB の IReader への拡張メンバー)。呼び出し側でコンパイルエラー(FLINQ007)にする。
+    public List<MemberBodyInlining.Failure> InlineFailures { get; } = new();
+
+    internal string[] ResolveOuterTypeParameters(INamedTypeSymbol containingType) {
+        if(this.Target.MethodTypeParameters.Length>0) {
+            return this.Target.MethodTypeParameters;
+        }
+        var containingTypes = new Stack<INamedTypeSymbol>();
+        for(var current = containingType;current is not null;current=current.ContainingType) {
+            containingTypes.Push(current);
+        }
+        return containingTypes
+            .SelectMany(static type => type.TypeParameters)
+            .Select(static typeParameter => typeParameter.Name)
+            .ToArray();
+    }
+
+    internal int FragmentNumber;
+    internal int LinqInvocationCount;
+    internal string StaticMethods = string.Empty;
+}
+
+internal sealed class FragmentBuildContext(
+    GenerationState state,
+    SemanticModel semanticModel,
+    INamedTypeSymbol containingType,
+    int uniqueNumber) {
+    public GenerationState State { get; } = state;
+    public SemanticModel SemanticModel { get; } = semanticModel;
+    public INamedTypeSymbol ContainingType { get; } = containingType;
+    internal int UniqueNumber = uniqueNumber;
+    public LinqGenerationConfiguration Configuration => this.State.Configuration;
+    public string[] MethodTypeParameters => this.State.Target.MethodTypeParameters;
+    // StructMethodは構築中にも文字列化されるため、最初のsnapshotから対象の計測契約を使う。
+    internal FragmentRenderContext CreateRenderContext(bool? counterInstrumentationEnabled = null) =>
+        new(null,this.MethodTypeParameters.ToImmutableArray(),counterInstrumentationEnabled??this.State.Target.CounterInstrumentation);
+
+    internal void ApplyRenderContext(Fragment fragment,bool? counterInstrumentationEnabled = null) {
+        fragment.ApplyRenderContext(this.CreateRenderContext(counterInstrumentationEnabled));
+    }
+}

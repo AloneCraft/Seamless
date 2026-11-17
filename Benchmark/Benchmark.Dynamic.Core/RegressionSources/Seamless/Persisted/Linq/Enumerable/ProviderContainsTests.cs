@@ -3,7 +3,7 @@ using Seamless.Linq;
 
 namespace Test.Seamless.Persisted.Linq.Enumerable;
 
-// Contains の provider 特殊化オーバーロード（Seamless.Linq/Linq/Contains.cs）の回帰テスト。
+// Contains の provider 特殊化オーバーロード（Seamless/Linq/Linq/Contains.cs）の回帰テスト。
 // membership test は IValueEnumerator の default interface method ではなく型特殊化で表現している。
 // DIM にすると値型が constrained. callvirt で box されるため（実測 24 バイト/呼び出し）。
 // FLinq に傍受されると検証対象が生成コード側へ移ってしまうので、傍受を止めて素の

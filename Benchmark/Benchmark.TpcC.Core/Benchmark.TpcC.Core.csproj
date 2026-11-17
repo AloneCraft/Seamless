@@ -10,19 +10,18 @@
     <AssemblyName>Benchmark.TpcC.Core</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Artifacts\**;Work\**" />
-    <None Remove="Artifacts\**;Work\**" />
+    <Compile Remove="Artifacts/**;Work/**" />
+    <None Remove="Artifacts/**;Work/**" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <!-- 行の型に [MemoryPackable] を付けるため、生成器が届くよう利用側で直接参照する。 -->
     <PackageReference Include="MemoryPack" Version="1.*" />
     <Using Include="Benchmark.Tpc.Core" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark.Tpc.Core\Benchmark.Tpc.Core.csproj" />
-    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+    <ProjectReference Include="../Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
   </ItemGroup>
 </Project>

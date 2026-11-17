@@ -16,7 +16,7 @@ public sealed class NativeQueryExecutionSnapshots{
     [Fact]public Task OldTransactionKeepsItsApprovedPublicationWhileNewCodeRequiresNewApproval()=>ManagementTransport.WithServerCertificate(async certificate=>{
         var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);void Mark(string stage)=>File.AppendAllText(Path.Combine(root,"stages.log"),DateTimeOffset.UtcNow.ToString("o")+" "+stage+Environment.NewLine);
-        var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(static path=>{var name=Path.GetFileName(path);return name.StartsWith("MemoryPack",StringComparison.Ordinal)||name.StartsWith("Seamless.",StringComparison.Ordinal)&&!name.Contains("Generator",StringComparison.Ordinal)&&!name.StartsWith("Seamless.Management",StringComparison.Ordinal);}).ToArray();
+        var references=global::Seamless.Database.Gateway.Tests.GeneratedAssemblyBuilderTests.RuntimeReferences();
         var dotnet=Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"dotnet","dotnet.exe");
         var compiler=new GeneratedAssemblyBuilder(new(Path.Combine(root,"w"),Path.Combine(root,"c"),dotnet,typeof(Seamless.Database.Generator.DatabaseSchemaGenerator).Assembly.Location,references));
         var options=new DatabaseContainerOptions{TransactionConcurrency=TransactionConcurrencyMode.Optimistic,

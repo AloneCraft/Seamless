@@ -4,7 +4,10 @@ param(
     [Parameter(Mandatory)][string]$ArtifactsPath,
     [Parameter(Mandatory)][string]$LogRoot,
     [ValidateSet('Debug','Release')][string]$Configuration='Release',
-    [string]$PackageFallbackRoot
+    [string]$PackageFallbackRoot,
+    [string]$RuntimeIdentifier,
+    [switch]$SingleFile,
+    [switch]$NoBuild
 )
 $ErrorActionPreference='Stop'
 $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -14,7 +17,7 @@ $logs=[IO.Path]::GetFullPath($LogRoot)
 foreach($path in @($published,$artifacts,$logs)){
     if(!$path.StartsWith('F:\Seamless\',[StringComparison]::OrdinalIgnoreCase)){throw '配布先・ビルド出力・ログはF:\Seamless配下を指定してください。'}
 }
-if(!(Test-Path -LiteralPath (Join-Path $published 'Seamless.Management.Server.dll'))){throw '管理サーバーの配布出力が必要です。'}
+if(!(Test-Path -LiteralPath (Join-Path $published 'Server.dll'))){throw '管理サーバーの配布出力が必要です。'}
 $destination=Join-Path $published 'packages'
 if((Test-Path -LiteralPath $destination) -or (Test-Path -LiteralPath $logs)){throw 'パッケージとログの保存先は未使用にしてください。'}
 New-Item -ItemType Directory -Path $logs | Out-Null
@@ -22,7 +25,7 @@ $staging=Join-Path $published ('packages.stage-'+[guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Path $staging | Out-Null
 $runner=Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1'
 $dotnet=(Get-Command dotnet).Source
-$projects=@('Seamless','Seamless.Collections','Seamless.Collections.Persisted','Seamless.Collections.Tsavorite','Seamless.Tsavorite.Core','Seamless.Database','Seamless.Database.Client','Seamless.Database.Generator','Seamless.Execution','Seamless.FLinq.Generator','Seamless.Linq','Seamless.Transactions','Seamless.Transactions.Collections','Seamless.Database.SqlServer.Functions')
+$projects=@('Seamless')
 $packageIds=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach($name in $projects){[void]$packageIds.Add($name)}
 
@@ -56,17 +59,22 @@ function Get-PackageId([xml]$Document){
     return $node.InnerText
 }
 
-$arguments=@('build',(Join-Path $repository 'Seamless/Seamless.csproj'),'-c',$Configuration,'--artifacts-path',$artifacts,'-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false')
+$arguments=@('build',(Join-Path $repository 'Seamless/Database/Server/Server.csproj'),'-c',$Configuration,'--artifacts-path',$artifacts,'-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false')
+$properties=@()
+if($RuntimeIdentifier){$properties+="RuntimeIdentifier=$RuntimeIdentifier"}
+if($SingleFile){
+    if(!$RuntimeIdentifier){throw '単一EXEのSDK一式にはRuntimeIdentifierが必要です。'}
+    $properties+=@('PublishSingleFile=true','SelfContained=true')
+}
+foreach($property in $properties){$arguments+="-p:$property"}
 if($PackageFallbackRoot){$arguments+=('-p:RestoreFallbackFolders='+[IO.Path]::GetFullPath($PackageFallbackRoot))}
-Invoke-FeedStage 'build-entry' $dotnet $arguments
-# 取り込んだ DB(SQL Server から)のプロジェクトが使う、bit の型と組み込み関数の部品。入口(Seamless)からは参照されないので別にビルドする。
-$functionArguments=@('build',(Join-Path $repository 'Seamless.Database.SqlServer.Functions/Seamless.Database.SqlServer.Functions.csproj'),'-c',$Configuration,'--artifacts-path',$artifacts,'-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false')
-if($PackageFallbackRoot){$functionArguments+=('-p:RestoreFallbackFolders='+[IO.Path]::GetFullPath($PackageFallbackRoot))}
-Invoke-FeedStage 'build-sqlserver-functions' $dotnet $functionArguments
+if(!$NoBuild){Invoke-FeedStage 'build-entry' $dotnet $arguments}
+if($NoBuild){$properties+=("SeamlessSdkInputDirectory="+$published);$properties+='BuildProjectReferences=false'}
 $plan=[ordered]@{
     Dotnet=$dotnet;Configuration=$Configuration;ArtifactsPath=$artifacts;Feed=$staging;Version='0.0.0';NoBuild=$true
     Sources='https://api.nuget.org/v3/index.json'
-    Projects=@($projects | ForEach-Object {Join-Path $repository ($_+'/'+$_+'.csproj')})
+    Projects=@(Join-Path $repository 'Seamless/Database/Server/Server.csproj')
+    Properties=$properties
 }
 $planPath=Join-Path $logs 'pack-plan.json'
 [IO.File]::WriteAllText($planPath,($plan|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
@@ -93,6 +101,7 @@ foreach($package in $packages){
             try{$hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream))}finally{$stream.Dispose()}
             $payload.Add($id+'/'+$name+'='+$hash)
             $file=[IO.Path]::GetFileName($name)
+            if($name.StartsWith('lib/net10.0/',[StringComparison]::Ordinal)){$file=$name.Substring('lib/net10.0/'.Length)}
             if(($name.StartsWith('lib/',[StringComparison]::Ordinal) -or $name.StartsWith('analyzers/',[StringComparison]::Ordinal)) -and $file.EndsWith('.dll',[StringComparison]::Ordinal)){
                 if($assemblies.ContainsKey($file) -and $assemblies[$file] -cne $hash){throw ('同名DLLの内容が異なります: '+$file)}
                 $assemblies[$file]=$hash
@@ -102,7 +111,7 @@ foreach($package in $packages){
         }
     }finally{$archive.Dispose()}
 }
-if(!$found.SetEquals($packageIds) -or !$assemblies.ContainsKey('Seamless.Database.dll') -or !$assemblies.ContainsKey('Seamless.Execution.dll')){throw '一式の構成が不正です。'}
+if(!$found.SetEquals($packageIds) -or !$assemblies.ContainsKey('Database.dll') -or !$assemblies.ContainsKey('Runtime.dll')){throw '一式の構成が不正です。'}
 $payload.Sort([StringComparer]::Ordinal)
 $fingerprint=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes([string]::Join("`n",$payload))))
 $version='0.0.0-build.h'+$fingerprint.Substring(0,32).ToLowerInvariant()

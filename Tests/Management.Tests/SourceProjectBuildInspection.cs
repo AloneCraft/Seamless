@@ -50,7 +50,7 @@ public sealed partial class SourceProjectBuildInspection{
         var edited=document.Source! with{Files=document.Source!.Files.Select(file=>{if(file.Path=="Database.cs"){return file with{Text=file.Text+code};}return file;}).ToArray()};
         document=await sources.SynchronizeSourceProjectAsync(new(document.Id,document.Source,edited));
         draft=await sources.SaveSourceProjectDraftAsync(document.Id);
-        var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Select(path=>
+        var references=ReferencePaths().Select(path=>
             new XElement("Reference",new XAttribute("Include",Path.GetFileNameWithoutExtension(path)),new XElement("HintPath",path),new XElement("Private","true")));
         var helperDirectory=Path.Combine(root,"helper");Directory.CreateDirectory(helperDirectory);
         var helperProject=Path.Combine(helperDirectory,"ExternalBuildHelper.csproj");
@@ -72,7 +72,7 @@ public sealed partial class SourceProjectBuildInspection{
         Assert.Equal(draft.Definition.Hash(),result.DefinitionHash);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(image))),result.AssemblySha256);
         Assert.NotEqual(Guid.Empty,result.ModuleVersionId);
-        Assert.Contains(result.Dependencies,item=>item.Name=="Seamless.Database"&&item.Shared);
+        Assert.Contains(result.Dependencies,item=>item.Name=="Database"&&item.Shared);
         Assert.Contains(result.Dependencies,item=>item.Name=="ExternalBuildHelper"&&!item.Shared);
         Assert.False(File.Exists(sentinel));
         Assert.Equal(64,result.BundleHash.Length);
@@ -102,7 +102,7 @@ public sealed partial class SourceProjectBuildInspection{
             await File.WriteAllBytesAsync(pdb,[0,1,2]);
             Assert.Equal("BuildMismatch",(await Assert.ThrowsAsync<ManagementException>(()=>sources.InspectSourceProjectBuildAsync(request))).Code);
         }finally{await File.WriteAllBytesAsync(pdb,originalPdb);}
-        var dependency=Path.Combine(Path.GetDirectoryName(image)!,"Seamless.Database.dll");var originalDependency=await File.ReadAllBytesAsync(dependency);
+        var dependency=Path.Combine(Path.GetDirectoryName(image)!,"Database.dll");var originalDependency=await File.ReadAllBytesAsync(dependency);
         try{
             await File.WriteAllBytesAsync(dependency,[..originalDependency,1]);
             Assert.Equal("BuildMismatch",(await Assert.ThrowsAsync<ManagementException>(()=>sources.InspectSourceProjectBuildAsync(request))).Code);
@@ -150,7 +150,9 @@ public sealed partial class SourceProjectBuildInspection{
             Assert.Equal(result.BundleHash,selectedPreview.BundleHash);
             Assert.Equal(result.BundleHash,selectedPreview.Validation?.BundleHash);
             var package=Path.Combine(root,"store","source-builds",result.BundleHash);
-            foreach(var file in new[]{"module.dll","module.pdb","dependency-000.dll","manifest.json"}){
+            using var storedManifest=System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(package,"manifest.json")));
+            var privateDependency=Assert.Single(storedManifest.RootElement.GetProperty("files").EnumerateArray(),file=>file.GetProperty("name").GetString()=="ExternalBuildHelper").GetProperty("file").GetString()!;
+            foreach(var file in new[]{"module.dll","module.pdb",privateDependency,"manifest.json"}){
                 var path=Path.Combine(package,file);var original=await File.ReadAllBytesAsync(path);
                 try{
                     await File.WriteAllBytesAsync(path,[..original,1]);

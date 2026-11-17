@@ -38,7 +38,7 @@ try{
         $version='v1';$feed=Join-Path $ArchiveRoot 'feeds\v1';$package=Join-Path $packageRoot 'v1\seamless.test\v1'
         $generated=Join-Path $path 'build\obj\TestSeamless.Queries\generated\Release';$bin=Join-Path $path 'build\bin\TestSeamless\Release\net10.0'
         foreach($folder in @($package,$feed,$generated,$bin,(Join-Path $path 'build\obj\TestSeamless'),(Join-Path $path 'schema'),(Join-Path $path 'modules'))){New-Item -ItemType Directory -Path $folder -Force|Out-Null}
-        [IO.File]::WriteAllText((Join-Path $generated 'test.cs'),'interceptor');[IO.File]::WriteAllText((Join-Path $path 'schema\schema.dll'),'schema');[IO.File]::WriteAllText((Join-Path $path 'modules\module.dll'),'module');[IO.File]::WriteAllText((Join-Path $bin 'TestSeamless.dll'),'host')
+        [IO.File]::WriteAllText((Join-Path $generated 'test.cs'),'interceptor');[IO.File]::WriteAllText((Join-Path $path 'schema\schema.dll'),'schema');[IO.File]::WriteAllText((Join-Path $path 'modules\module.dll'),'module');[IO.File]::WriteAllText((Join-Path $bin 'TestRuntime.dll'),'host')
         $fhash=(Get-FileHash (Join-Path $generated 'test.cs') -Algorithm SHA256).Hash;$mhash=(Get-FileHash (Join-Path $path 'modules\module.dll') -Algorithm SHA256).Hash
         Write-JsonFixture (Join-Path $path 'generation.json') @{Id='current';State='Validated';ProductVersion=$version;SourceDatabaseNames=@('KeepDb');Databases=@(@{Name='KeepDb';Fingerprint='fp'});ModuleManifest='modules\native-module.json';SchemaAssembly='schema\schema.dll'}
         Write-JsonFixture (Join-Path $path 'build\obj\TestSeamless\project.assets.json') @{libraries=@{'Seamless.Test/v1'=@{type='package';path='seamless.test/v1'}}}

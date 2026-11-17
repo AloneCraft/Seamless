@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $projects = @(
-    "Seamless.Transactions\Seamless.Transactions.csproj",
-    "Seamless.Transactions.Collections\Seamless.Transactions.Collections.csproj"
+    "Seamless\Runtime.csproj",
+    "Seamless\Runtime.csproj"
 )
 
 $runId = [guid]::NewGuid().ToString()

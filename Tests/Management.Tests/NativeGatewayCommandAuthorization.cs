@@ -33,7 +33,7 @@ public sealed class NativeGatewayCommandAuthorization{
             var now=DateTimeOffset.UtcNow;using var initialized=StoredAuthorization.Initialize(store,policy,new(actor,"admin",[],now.AddMinutes(30),now),issuer.Settings);
         }
         var dotnet=Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"dotnet","dotnet.exe");
-        var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(static path=>{var name=Path.GetFileName(path);return name.StartsWith("MemoryPack",StringComparison.Ordinal)||name.StartsWith("Seamless.",StringComparison.Ordinal)&&!name.Contains("Generator",StringComparison.Ordinal)&&!name.StartsWith("Seamless.Management",StringComparison.Ordinal);}).ToArray();
+        var references=global::Seamless.Database.Gateway.Tests.GeneratedAssemblyBuilderTests.RuntimeReferences();
         var compiler=new GeneratedAssemblyBuilder(new(Path.Combine(directory,"w"),Path.Combine(directory,"c"),dotnet,typeof(Seamless.Database.Generator.DatabaseSchemaGenerator).Assembly.Location,references));
         NativeQueryExecution? captured=null;var outsideProfileId=0;
         var number=new DatabaseType(DatabaseTypeKind.Int32,false,SqlTypeName:"int");

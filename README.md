@@ -180,8 +180,8 @@ Console.WriteLine(set.Contains(1));         // True
 
 ## 現在の実行・検証基盤
 
-- [`Seamless.Execution`](Seamless.Execution/) は実行スコープ、256 MiB／16 GiBの既定共有予算、決定的Codec、一時資源所有を提供します。
-- [`Seamless.Linq`](Seamless.Linq/) の `scope.Query(source)` は、外部ソート、退避可能なGroupBy／Join／集合演算、バイト一致の既定等値性を提供します。
+- [`Seamless.Execution`](Seamless/Execution/) は実行スコープ、256 MiB／16 GiBの既定共有予算、決定的Codec、一時資源所有を提供します。
+- [`Seamless.Linq`](Seamless/Linq/) の `scope.Query(source)` は、外部ソート、退避可能なGroupBy／Join／集合演算、バイト一致の既定等値性を提供します。
 - DynamicはFLinqの検証・固定参照コードとの比較、Scalableは大規模コレクションとLINQ・容量探索を受け持ち、共有SQLite履歴へ記録します。
 - 操作方法と比較条件は [測定履歴・比較・プロファイル](Document/測定履歴と比較検証.md)、利用者向けAPIは [初期設定と拡張](Document/ストア初期設定と拡張.md)、実行・等値性・DB契約は [Execution、LINQ、Databaseの現在仕様](Document/実行基盤とデータベース仕様.md) を参照してください。
 

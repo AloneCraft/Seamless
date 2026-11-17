@@ -56,7 +56,7 @@ foreach($configuration in $Configurations){
         if(-not $reopen){
             $owner=Join-Path $run 'owner.json';$hash=(Get-FileHash -LiteralPath $owner).Hash
             $dll=Join-Path $BuildRoot "bin/DataGrip.Stage1.Server/$configuration/net10.0/DataGrip.Stage1.Server.dll"
-            $generator=Join-Path $BuildRoot "bin/Seamless.Database.Generator/$configuration/net10.0/Seamless.Database.Generator.dll"
+            $generator=Join-Path $BuildRoot "bin/Seamless/Database/Generator/$configuration/net10.0/Seamless.Database.Generator.dll"
             $guard=& "$repository/TestSeamless/Invoke-LocalProcess.ps1" -Executable (Get-Command dotnet).Source -Arguments @($dll,$run,(Join-Path $CacheRoot $runName),$generator) -WorkingDirectory $DataRoot -ArtifactDirectory (Join-Path $artifact 'reinitialization-guard') -TimeoutSeconds 10
             if($guard.Outcome -ne 'Failed' -or (Get-FileHash -LiteralPath $owner).Hash -ne $hash){throw 'Existing fixture was not protected.'}
             if((Get-Content -LiteralPath (Join-Path $artifact 'reinitialization-guard/stderr.log') -Raw) -notmatch 'Refuse to reuse a previous run without explicit --reopen'){throw 'Unexpected guard failure.'}

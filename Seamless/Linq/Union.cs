@@ -1,0 +1,136 @@
+using System;
+using System.Buffers;
+using System.Collections;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using Seamless.Linq;
+namespace Seamless.Linq {
+    partial class Enumerable {
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public static T[] ParallelUnionToArray<T>(IEnumerable<T> input,int maxExecutionSlots) where T:struct =>
+            ParallelUnionToArray(input,maxExecutionSlots,parentBudget:null);
+
+        internal static T[] ParallelUnionToArray<T>(IEnumerable<T> input,int maxExecutionSlots,
+            global::Seamless.Execution.ResourceBudget? parentBudget) where T:struct {
+            ArgumentNullException.ThrowIfNull(input);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxExecutionSlots);
+            if(maxExecutionSlots==1){
+                return global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Distinct(input));
+            }
+            using var scope=new global::Seamless.Execution.ExecutionScope(new(){ParentBudget=parentBudget});
+            using var lookup=new PartitionedLookupBuilder<T,T>(scope,null,maxExecutionSlots);
+            using var result=new global::Seamless.Execution.QueryResultBuffer<T>(scope);
+            lookup.Build(target=>{
+                foreach(var value in input){target.Add(value,value);}
+            });
+            foreach(var group in lookup.Groups(preserveOrder:false)){
+                result.Add(global::System.Linq.Enumerable.First(group));
+            }
+            return result.ToArray();
+        }
+
+        public static ValueEnumerable<Union<TEnumerator,TEnumerator2,TSource>,TSource> Union<TEnumerator, TEnumerator2, TSource>(this ValueEnumerable<TEnumerator,TSource> source,ValueEnumerable<TEnumerator2,TSource> second)
+            where TEnumerator : struct, IValueEnumerator<TSource>
+            where TEnumerator2 : struct, IValueEnumerator<TSource>
+            => new(new(source.Enumerator,second.Enumerator,null));
+
+        public static ValueEnumerable<Union<TEnumerator,TEnumerator2,TSource>,TSource> Union<TEnumerator, TEnumerator2, TSource>(this ValueEnumerable<TEnumerator,TSource> source,ValueEnumerable<TEnumerator2,TSource> second,IEqualityComparer<TSource>? comparer)
+            where TEnumerator : struct, IValueEnumerator<TSource>
+            where TEnumerator2 : struct, IValueEnumerator<TSource>
+            => new(new(source.Enumerator,second.Enumerator,comparer));
+
+
+        public static ValueEnumerable<Union<TEnumerator,FromEnumerable<TSource>,TSource>,TSource> Union<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,IEnumerable<TSource> second)
+            where TEnumerator : struct, IValueEnumerator<TSource>
+            => new(new(source.Enumerator,Throws.IfNull(second).AsValueEnumerable().Enumerator,null));
+
+        public static ValueEnumerable<Union<TEnumerator,FromEnumerable<TSource>,TSource>,TSource> Union<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer)
+            where TEnumerator : struct, IValueEnumerator<TSource>
+            => new(new(source.Enumerator,Throws.IfNull(second).AsValueEnumerable().Enumerator,comparer));
+    }
+}
+
+namespace Seamless.Linq {
+    [StructLayout(LayoutKind.Auto)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public struct Union<TEnumerator, TEnumerator2, TSource>(TEnumerator source,TEnumerator2 second,IEqualityComparer<TSource>? comparer)
+       :IValueEnumerator<TSource>
+       where TEnumerator : struct, IValueEnumerator<TSource>
+        where TEnumerator2 : struct, IValueEnumerator<TSource> {
+        private TEnumerator source = source;
+        private TEnumerator2 second = second;
+        private HashSetSlim<TSource>? set;
+        private byte state = 0;
+
+        public bool TryGetNonEnumeratedCount(out int count) {
+            count=0;
+            return false;
+        }
+
+        public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
+            span=default;
+            return false;
+        }
+
+        public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
+            if(destination.Length==1&&offset.Value==0) // as TryGetFirst
+            {
+                return this.source.TryCopyTo(destination,offset);
+            }
+
+            return false;
+        }
+
+        public bool TryGetNext(out TSource current) {
+            if(this.state==0) {
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref this.source)
+                    +EnumeratorHelper.GetCapacityHint<TEnumerator2,TSource>(ref this.second);
+                this.set=hint>0 ? new HashSetSlim<TSource>(hint,comparer) : new HashSetSlim<TSource>(comparer);
+                this.state=1;
+            }
+
+            if(this.state==1) {
+                while(this.source.TryGetNext(out var value)) {
+                    if(this.set!.Add(value)) {
+                        current=value;
+                        return true;
+                    }
+                }
+                this.state=2;
+            }
+
+            if(this.state==2) {
+                while(this.second.TryGetNext(out var value)) {
+                    if(this.set!.Add(value)) {
+                        current=value;
+                        return true;
+                    }
+                }
+
+                this.state=3;
+            }
+
+            Unsafe.SkipInit(out current);
+            return false;
+        }
+
+        public void Dispose() {
+            this.state=3;
+            this.set?.Dispose();
+            this.source.Dispose();
+            this.second.Dispose();
+        }
+    }
+}

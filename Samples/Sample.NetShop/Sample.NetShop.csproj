@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Windows の版は対象フレームワークに直接書く(共通の Directory.Build.props に名前を足さずに済む)。 -->
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <OutputType>WinExe</OutputType>
     <RootNamespace>Sample.NetShop</RootNamespace>
@@ -18,13 +17,10 @@
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
   </ItemGroup>
-
   <ItemGroup>
-    <!-- ライブラリを使う処理はすべて Core にある。画面は FLinq の置き換え対象にしない。 -->
-    <ProjectReference Include="..\Sample.NetShop.Core\Sample.NetShop.Core.csproj" />
+    <ProjectReference Include="../Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
   </ItemGroup>
 </Project>

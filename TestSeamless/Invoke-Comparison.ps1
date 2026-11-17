@@ -59,7 +59,7 @@ function Build-Consumer($packages,[string]$directory){
     $restoreConfig=Join-Path $directory 'NuGet.Config'; & (Join-Path $PSScriptRoot 'Write-RestoreConfiguration.ps1') -Sources @($sources.Split(';')) -Output $restoreConfig
     $arguments=@('build',(Join-Path $PSScriptRoot 'TestSeamless.csproj'),'-c',$Configuration,'--nologo','-m:1','-nr:false','-p:UseSharedCompilation=false',"-p:SeamlessPackageVersion=$($packages.Version)","-p:GenerationDirectory=$directory","-p:ComparisonBuildRoot=$directory\build","-p:ComparisonPackageRoot=$packageRoot",'-p:NuGetAudit=false',"-p:RestoreConfigFile=$restoreConfig",("-p:RestoreSources="+$sources.Replace(';','%3B')))
     [void](Invoke-Step 'build-package-consumer' $dotnet $arguments (Build-Locks))
-    return Join-Path $directory "build\bin\TestSeamless\$Configuration\net10.0\TestSeamless.dll"
+    return Join-Path $directory "build\bin\TestSeamless\$Configuration\net10.0\TestRuntime.dll"
 }
 function Verify-Provenance($packages,[string]$directory){
     $assets=Join-Path $directory 'build\obj\TestSeamless\project.assets.json';$document=Get-Content -Raw -LiteralPath $assets|ConvertFrom-Json
@@ -156,7 +156,7 @@ function Get-ValidatedGeneration([string]$id){
     foreach($q in @($mod.Queries)){$db=@($m.Databases|Where-Object {$_.Name -ceq $q.Database});if($db.Count -ne 1 -or $db[0].Fingerprint -cne $q.SchemaFingerprint){throw 'Native module fingerprint mismatch.'}}
     $schema=Resolve-Managed ($entries[0].RelativePath+'\'+$m.SchemaAssembly)
     if(-not $schema.StartsWith($generationPrefix,[StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $schema -PathType Leaf)){throw 'Schema assembly missing or outside generation.'}
-    $exe=Join-Path $dir "build\bin\TestSeamless\$Configuration\net10.0\TestSeamless.dll"
+    $exe=Join-Path $dir "build\bin\TestSeamless\$Configuration\net10.0\TestRuntime.dll"
     if(-not (Test-Path -LiteralPath $exe -PathType Leaf)){throw 'Generation executable missing.'}
     return @{Id=$id;Directory=$dir;Executable=$exe;Packages=@{Version=$m.ProductVersion;Feed=$feed}}
 }

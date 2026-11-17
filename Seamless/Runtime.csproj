@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Seamless</RootNamespace>
+    <AssemblyName>Runtime</AssemblyName>
+    <SeamlessFLinqGeneration>false</SeamlessFLinqGeneration>
+    <SeamlessLinqAnalysis>false</SeamlessLinqAnalysis>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;Collections/**;Execution/**;Transactions/**;Collections/Persisted/**;Collections/Tsavorite/**;Transactions/Collections/**;Linq/**;Database/**;Database/Rdbms/**;Database/Query/**;Database/Compilation/**;Database/Transfer/**;Database/SqlServer/**;Database/SqlTranslation/**;Database/SqlServer/Functions/**;Database/Client/**;Database/Client/Results/**;Security/**;Authentication/**;Management/**;Database/Server/**;Database/Gateway/**;Transport/Kestrel/**;Management/Server/**;Management/Components/**;Database/Tool/**;FLinq/Generator/**;Linq/Analyzers/**;Database/Generator/**;Tsavorite/Core/**" />
+    <Compile Include="Collections/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;Collections/Persisted/**;Collections/Tsavorite/**" />
+    <Compile Include="Execution/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="Transactions/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;Transactions/Collections/**" />
+    <Compile Include="Collections/Persisted/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="Collections/Persisted/Work/*.cs" />
+    <Compile Include="Collections/Tsavorite/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="Transactions/Collections/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="Linq/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;Linq/Analyzers/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="FLinq/Generator/Compiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <Compile Update="Linq/**/*.cs" SeamlessLinqAnalysis="true" />
+    <CompilerVisibleItemMetadata Include="Compile" MetadataName="SeamlessLinqAnalysis" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Execution/Profiles/measured.json" TargetPath="Seamless.Execution.Profiles/measured.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="true" PackagePath="contentFiles/any/any/Seamless.Execution.Profiles/measured.json" PackageCopyToOutput="true" PackageFlatten="false" />
+    <EmbeddedResource Include="Execution/Profiles/measured.json" LogicalName="Seamless.Execution.Profiles.measured.json" />
+    <EmbeddedResource Include="Execution/LegacyAssemblyTypes.json" LogicalName="Seamless.Execution.LegacyAssemblyTypes.json" />
+    <EmbeddedResource Include="Execution/LegacyAssemblyNames.json" LogicalName="Seamless.Execution.LegacyAssemblyNames.json" />
+  </ItemGroup>
+  <Target Name="GenerateProfileBuildIdentity" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_ProfileSource Include="../Seamless*/**/*.cs;../Seamless*/**/*.csproj;../Shared/Common/**/*.cs" Exclude="../Seamless*/**/bin/**;../Seamless*/**/obj/**" />
+      <_ProfileSource Include="../Directory.Build.props;../Directory.Build.targets" />
+      <_ProfileSource Include="Execution/LegacyAssemblyTypes.json;Execution/LegacyAssemblyNames.json" />
+      <_ProfileSource Include="../Directory.Packages.props" Condition="Exists('../Directory.Packages.props')" />
+      <_ProfileSource Include="../global.json" Condition="Exists('../global.json')" />
+    </ItemGroup>
+    <GetFileHash Files="@(_ProfileSource)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_ProfileHashedSource" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(IntermediateOutputPath)ProfileSources.sha256" Lines="@(_ProfileHashedSource-&gt;'%(Identity)|%(FileHash)');@(ReferencePath-&gt;'Package:%(NuGetPackageId)|%(NuGetPackageVersion)');@(Analyzer-&gt;'Analyzer:%(NuGetPackageId)|%(NuGetPackageVersion)|%(Filename)');SDK=$(NETCoreSdkVersion)|Configuration=$(Configuration)|Framework=$(TargetFramework)|Constants=$(DefineConstants)|Optimize=$(Optimize)|Language=$(LangVersion)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <GetFileHash Files="$(IntermediateOutputPath)ProfileSources.sha256" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="_ProfileSourceHash" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(IntermediateOutputPath)ProfileBuildIdentity.g.cs" Lines="namespace Seamless.Execution%3B internal static class ProfileBuildIdentity{internal const string Value=&quot;$(_ProfileSourceHash)&quot;%3B}" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)ProfileBuildIdentity.g.cs" />
+      <FileWrites Include="$(IntermediateOutputPath)ProfileBuildIdentity.g.cs;$(IntermediateOutputPath)ProfileSources.sha256" />
+    </ItemGroup>
+  </Target>
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="10.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Garnet" Version="[2.2.8]" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Tsavorite/Core/Tsavorite.Core.csproj" />
+    <Reference Include="Garnet.common">
+      <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Tsavorite.devices.AzureStorageDevice">
+      <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <Import Project="Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+</Project>

@@ -3,7 +3,7 @@
     "Name": "Seamless Server + Browser Manager",
     "Projects": [
       {
-        "Path": "Seamless.Management.Server\\WindowsServer.csproj",
+        "Path": "Seamless\\Database\\Server\\Server.csproj",
         "Action": "Start"
       }
     ]

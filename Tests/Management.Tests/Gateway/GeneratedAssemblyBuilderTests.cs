@@ -29,13 +29,17 @@ public sealed class GeneratedAssemblyBuilderTests{
         var path=Path.Combine(packages,"memorypack.generator",version,"analyzers","dotnet","cs","MemoryPack.Generator.dll");
         return File.Exists(path)?path:throw new InvalidOperationException("The MemoryPack generator of the loaded version is missing: "+path);
     }
+    internal static string[] RuntimeReferences()=>Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(path=>{
+        var name=Path.GetFileName(path);
+        return name is "Runtime.dll" or "Database.dll" or "Client.dll" or "Server.dll" or "Tsavorite.core.dll" or "Garnet.common.dll" or "Tsavorite.devices.AzureStorageDevice.dll"||name.StartsWith("MemoryPack",StringComparison.Ordinal);
+    }).ToArray();
     internal static GeneratedAssemblyBuilder Compiler(string data,string cache,bool nativeSerialization=false,bool nativeFLinq=false){
         var configuration=new DirectoryInfo(AppContext.BaseDirectory).Name;
-        var generator=Environment.GetEnvironmentVariable("SEAMLESS_TEST_GENERATOR_ASSEMBLY")??Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","Seamless.Database.Generator",configuration,"Seamless.Database.Generator.dll"));
-        var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(path=>{var name=Path.GetFileName(path);return name.StartsWith("Seamless.",StringComparison.Ordinal)&&!name.Contains("Tests",StringComparison.Ordinal)&&!name.Contains("Generator",StringComparison.Ordinal)||name.StartsWith("MemoryPack",StringComparison.Ordinal);}).ToArray();
+        var generator=Environment.GetEnvironmentVariable("SEAMLESS_TEST_GENERATOR_ASSEMBLY")??Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","Generator",configuration,"Seamless.Database.Generator.dll"));
+        var references=RuntimeReferences();
         var analyzers=new List<string>();
         if(nativeSerialization){analyzers.Add(Environment.GetEnvironmentVariable("SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY")??MemoryPackGenerator());}
-        if(nativeFLinq){analyzers.Add(Environment.GetEnvironmentVariable("SEAMLESS_TEST_FLINQ_GENERATOR_ASSEMBLY")??generator.Replace("Seamless.Database.Generator","Seamless.FLinq.Generator",StringComparison.Ordinal).Replace("net10.0","netstandard2.0",StringComparison.Ordinal));}
+        if(nativeFLinq){analyzers.Add(Environment.GetEnvironmentVariable("SEAMLESS_TEST_FLINQ_GENERATOR_ASSEMBLY")??Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","Compiler",configuration,"Seamless.FLinq.Generator.dll")));}
         return new(new(Path.Combine(data,"generated"),Path.Combine(cache,"generated"),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"dotnet","dotnet.exe"),generator,references){NativeAnalyzerPaths=analyzers});
     }
 

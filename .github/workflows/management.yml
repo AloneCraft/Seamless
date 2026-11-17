@@ -1,7 +1,7 @@
 name: Seamless management
 on:
   pull_request:
-    paths: ['Seamless.Management*/**', 'Seamless.FLinq.Generator/**', 'Seamless.Transport.Kestrel/**', 'Seamless.Database.Gateway/**', 'Seamless.Database.Client*/**', 'Tests/Management.Tests/**', 'Tests/Seamless.Database.Gateway.Tests/**', '.github/workflows/management.yml']
+    paths: ['Seamless.Management*/**', 'Seamless/FLinq/Generator/**', 'Seamless/Transport/Kestrel/**', 'Seamless/Database/Gateway/**', 'Seamless.Database.Client*/**', 'Tests/Management.Tests/**', 'Tests/Seamless.Database.Gateway.Tests/**', '.github/workflows/management.yml']
   workflow_dispatch:
 jobs:
   management:
@@ -21,7 +21,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Build shared Manager web host
-        run: dotnet build Seamless.Management.Server/WindowsServer.csproj -c ${{ matrix.configuration }} --artifacts-path "${{ runner.temp }}/management-artifacts" -p:UseSharedCompilation=false -m:1
+        run: dotnet build Seamless/Database/Server/Server.csproj -c ${{ matrix.configuration }} --artifacts-path "${{ runner.temp }}/management-artifacts" -p:UseSharedCompilation=false -m:1
       - name: Server contracts, TLS, persistence and publication recovery
         shell: pwsh
         run: |

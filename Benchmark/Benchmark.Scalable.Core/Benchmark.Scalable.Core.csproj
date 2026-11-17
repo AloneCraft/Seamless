@@ -7,9 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
-    <ProjectReference Include="../../Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
-    <ProjectReference Include="../../Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
-    <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
+    <ProjectReference Include="../../Seamless/Runtime.csproj" />
   </ItemGroup>
   <PropertyGroup>
     <LangVersion>preview</LangVersion>
@@ -22,7 +20,7 @@
     <ProjectReference Include="../../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
     <Reference Include="Garnet.common">
       <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
       <Private>true</Private>
@@ -32,5 +30,5 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <Import Project="../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <Import Project="../../Seamless/Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
 </Project>

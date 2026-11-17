@@ -9,7 +9,7 @@
     <RootNamespace>DataGrip.Stage1.Server</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../../Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
-    <ProjectReference Include="../../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../../Seamless/Database/Server/Server.csproj" />
+    <ProjectReference Include="../../../Seamless/Database/Generator/Generator.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

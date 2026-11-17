@@ -1,0 +1,42 @@
+<Project>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="SeamlessLinqAnalysis" />
+    <CompilerVisibleProperty Include="SeamlessFLinqGeneration" />
+  </ItemGroup>
+  <Target Name="IncludeSeamlessSourcePackageFeed" BeforeTargets="AssignTargetPaths" Condition="'$(OutputType)'=='Exe' And '$(SeamlessSourcePackageFeed)'!=''">
+    <Error Condition="!Exists('$(SeamlessSourcePackageFeed)/source-packages.json')" Text="SeamlessSourcePackageFeed must contain a verified SDK feed manifest." />
+    <ItemGroup>
+      <_SeamlessSourcePackageFile Include="$(SeamlessSourcePackageFeed)/*.nupkg;$(SeamlessSourcePackageFeed)/source-packages.json" />
+      <None Include="@(_SeamlessSourcePackageFile)">
+        <Link>packages/%(_SeamlessSourcePackageFile.Filename)%(_SeamlessSourcePackageFile.Extension)</Link>
+        <TargetPath>packages/%(_SeamlessSourcePackageFile.Filename)%(_SeamlessSourcePackageFile.Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </None>
+    </ItemGroup>
+  </Target>
+  <Target Name="EmbedSeamlessCompilationReferences" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences" Condition="'$(PublishSingleFile)'=='true' And '$(OutputType)'=='Exe'">
+    <ItemGroup>
+      <_SeamlessCompilationReference Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Extension)'=='.dll' And '%(ReferenceCopyLocalPaths.AssetType)'!='native' And !$([System.String]::Copy('%(ReferenceCopyLocalPaths.Filename)').EndsWith('.resources'))" />
+      <EmbeddedResource Include="@(_SeamlessCompilationReference)" LogicalName="Seamless.CompilationReference.%(Filename)%(Extension)" WithCulture="false" />
+      <EmbeddedResource Include="@(ReferencePath)" Condition="'%(ReferencePath.NuGetPackageId)'=='Microsoft.NETCore.App.Ref' Or '%(ReferencePath.NuGetPackageId)'=='Microsoft.AspNetCore.App.Ref'" LogicalName="Seamless.FrameworkReference.%(Filename)%(Extension)" WithCulture="false" />
+    </ItemGroup>
+  </Target>
+  <Target Name="BundleSeamlessStaticWebAssets" BeforeTargets="_GenerateSingleFileBundleInputCache" DependsOnTargets="GenerateStaticWebAssetsPublishManifest;_SplitPublishStaticWebAssetsByCopyOptions" Condition="'$(PublishSingleFile)'=='true' And '$(StaticWebAssetEndpointsPublishManifestPath)'!=''">
+    <ItemGroup>
+      <_SeamlessStaticAssetToBundle Include="@(_PublishStaticWebAssetsTargetPath)">
+        <RelativePath>%(_PublishStaticWebAssetsTargetPath.TargetPath)</RelativePath>
+      </_SeamlessStaticAssetToBundle>
+      <_SeamlessStaticAssetToBundle Include="$(StaticWebAssetEndpointsPublishManifestPath)">
+        <RelativePath>$(TargetName).staticwebassets.endpoints.json</RelativePath>
+      </_SeamlessStaticAssetToBundle>
+      <_SeamlessStaticAssetToBundle Remove="@(FilesToBundle)" MatchOnMetadata="RelativePath" MatchOnMetadataOptions="PathLike" />
+      <FilesToBundle Include="@(_SeamlessStaticAssetToBundle)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="ConfigureSeamlessGenerationSymbols" BeforeTargets="CoreCompile" Condition="'$(SeamlessFLinqGeneration)'=='false'">
+    <PropertyGroup>
+      <DefineConstants>$(DefineConstants);SEAMLESS_FLINQ_GENERATION_DISABLED</DefineConstants>
+    </PropertyGroup>
+  </Target>
+</Project>

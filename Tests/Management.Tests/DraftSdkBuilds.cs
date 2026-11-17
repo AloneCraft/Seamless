@@ -62,10 +62,15 @@ public sealed class DraftSdkBuilds{
         NativeWorkflow.Publish(service,user,sum);
         var published=service.GetDefinition(user,"sum");
         Assert.True(Directory.Exists(Path.Combine(root,"source-builds",published.ArtifactHash)),"登録クエリの SDK のビルドの成果物が保管されていません。");
-        // 実行の文脈の型は Seamless.Database にあるので、成果物にサーバーの部品や Roslyn は入らない(入ると約50MB になり、実行のたびに読む)。
+        // 共有依存は版とハッシュを記録し、利用者の成果物へ重複保存しない。
         var bundled=Directory.EnumerateFiles(Path.Combine(root,"source-builds",published.ArtifactHash),"*",SearchOption.AllDirectories).ToArray();
-        Assert.DoesNotContain(bundled,file=>Path.GetFileName(file) is "Seamless.Management.Server.dll"||Path.GetFileName(file).StartsWith("Microsoft.CodeAnalysis",StringComparison.Ordinal));
+        Assert.DoesNotContain(bundled,file=>Path.GetFileName(file) is "Server.dll"||Path.GetFileName(file).StartsWith("Microsoft.CodeAnalysis",StringComparison.Ordinal));
         Assert.True(bundled.Sum(file=>new FileInfo(file).Length)<20L<<20,"登録クエリの成果物が大きすぎます。");
+        using var packageManifest=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(root,"source-builds",published.ArtifactHash,"manifest.json")));
+        Assert.Equal(2,packageManifest.RootElement.GetProperty("format").GetInt32());
+        var sharedFiles=packageManifest.RootElement.GetProperty("files").EnumerateArray().Where(file=>file.GetProperty("shared").GetBoolean()).ToArray();
+        Assert.Contains(sharedFiles,file=>file.GetProperty("name").GetString()=="Database");
+        Assert.All(sharedFiles,file=>Assert.False(File.Exists(Path.Combine(root,"source-builds",published.ArtifactHash,file.GetProperty("file").GetString()!))));
         Assert.Equal(9,Assert.Single(service.Execute(user,Request("sum"),CancellationToken.None)).Value.GetInt32());
         var method=service.DefinitionInfo(user,"sum").Method;
         Assert.NotNull(method);

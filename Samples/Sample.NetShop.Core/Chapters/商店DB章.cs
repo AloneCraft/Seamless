@@ -62,7 +62,7 @@ public sealed class 商店DB章:物語の章{
         using var 読み=商店.BeginRead();
         文脈.コードを指す("読み.在庫切れ商品");
         // ビューは集合なので並びを持たない。表示は商品IDの順にする。
-        var 切れ=読み.在庫切れ商品.OrderBy(行=>行.商品ID).ToList();
+        var 切れ=読み.在庫切れ商品.AsEnumerable().OrderBy(行=>行.商品ID).ToList();
         if(切れ.Count==0){
             文脈.ログ("ビュー 在庫切れ商品: ありません。");
         }else{

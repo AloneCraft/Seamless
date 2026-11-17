@@ -101,7 +101,7 @@ class A:IDisposable{
 - 分類専用のサブフォルダーは名前空間セグメントを増やす必要はありません(`.editorconfig` で `IDE0130` を無効化しています)。
 - この規約変更だけを理由に既存コードを一括移行しないでください。
 - プロジェクト名の末尾セグメントを第一階層フォルダーとして繰り返さないでください。
-  `Seamless.Collections.Tsavorite/Tsavorite/Stores/` ではなく `Seamless.Collections.Tsavorite/Stores/` です。
+  `Seamless/Collections/Tsavorite/Tsavorite/Stores/` ではなく `Seamless/Collections/Tsavorite/Stores/` です。
 - 出荷パッケージの `Seamless.` 接頭辞は、非出荷アセンブリ (テスト・ベンチマーク・共有) では使わないでください。
 
 例外は次だけです。
@@ -124,7 +124,7 @@ class A:IDisposable{
 - partial 分割は `Type.Aspect.cs` にしてください
   (`FLinqIncrementalGenerator.ProviderFacts.cs`、`PipelineBuilder.Stages.cs`)。
 - ただし演算子ごとに partial 分割する LINQ 実装は、演算子名をファイル名にしてください
-  (`Seamless.Linq/Where.cs` が `partial class Enumerable` の `Where` を持つ形)。
+  (`Seamless/Linq/Where.cs` が `partial class Enumerable` の `Where` を持つ形)。
 
 ## Project And Solution Registration
 
@@ -137,7 +137,7 @@ class A:IDisposable{
 
 ## File Layout Rules
 
-- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。
+- `Seamless/FLinq/Generator/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。
 - `Bases` には、`abstract` または `virtual` を持つ共通基底クラスだけを置いてください。
 - `Helpers` には、複数クラスから使う純粋な共通ヘルパーだけを置いてください。
 - 1 つのクラスからしか使われない共通処理は、可能ならそのクラスのファイル内に file-scoped でまとめてください。

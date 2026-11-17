@@ -134,14 +134,14 @@
             "label": "build-management-server-debug",
             "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
             "type": "process",
-            "args": ["build", "${workspaceFolder}/Seamless.Management.Server/WindowsServer.csproj", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+            "args": ["build", "${workspaceFolder}/Seamless/Database/Server/Server.csproj", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
             "problemMatcher": "$msCompile"
         },
         {
             "label": "build-management-server-release",
             "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
             "type": "process",
-            "args": ["build", "${workspaceFolder}/Seamless.Management.Server/WindowsServer.csproj", "-c", "Release", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+            "args": ["build", "${workspaceFolder}/Seamless/Database/Server/Server.csproj", "-c", "Release", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
             "problemMatcher": "$msCompile"
         },
         {

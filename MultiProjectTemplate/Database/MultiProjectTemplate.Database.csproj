@@ -1,9 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="Seamless" Version="[$(SeamlessPackageVersion)]" />
-    <PackageReference Include="Seamless.Database.Client" Version="[$(SeamlessPackageVersion)]" />
-    <PackageReference Include="Seamless.Database.Generator" Version="[$(SeamlessPackageVersion)]" />
-    <PackageReference Include="Seamless.FLinq.Generator" Version="[$(SeamlessPackageVersion)]" />
     <PackageReference Include="MemoryPack" Version="1.*" />
   </ItemGroup>
 </Project>

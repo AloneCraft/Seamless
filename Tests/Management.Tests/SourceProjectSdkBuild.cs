@@ -46,8 +46,13 @@ public sealed partial class SourceProjectBuildInspection{
         }finally{await File.WriteAllTextAsync(document.ProjectPath,project.ToString());}
     }
 
+    private static IEnumerable<string> ReferencePaths(){
+        var runtime=global::Seamless.Execution.CompilationReferences.Paths.ToDictionary(path=>Path.GetFileName(path)!,StringComparer.OrdinalIgnoreCase);
+        return Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Select(path=>runtime.GetValueOrDefault(Path.GetFileName(path),path));
+    }
+
     private static XElement DirectReferenceProject(SourceProjectDocument document){
-        var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Select(path=>
+        var references=ReferencePaths().Select(path=>
             new XElement("Reference",new XAttribute("Include",Path.GetFileNameWithoutExtension(path)),new XElement("HintPath",path),new XElement("Private","true")));
         return new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),

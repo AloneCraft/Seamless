@@ -17,18 +17,15 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Management/Seamless.Management.csproj" />
-    <ProjectReference Include="../../Seamless.Management.Server/WindowsServer.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Client/Client.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Server/Server.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Management.Components/Seamless.Management.Components.csproj" />
-  </ItemGroup>
+    </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
-  </ItemGroup>
+    </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Database.Server/Seamless.Database.Server.csproj" />
-  </ItemGroup>
+    </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
   </ItemGroup>
@@ -58,10 +55,8 @@
     <EmbeddedResource Include="Gateway/SsmsCorpus/TemporalTable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.TemporalTable.sql" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Database/Seamless.Database.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Client.Results/Seamless.Database.Client.Results.csproj" />
-    <ProjectReference Include="../../Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Generator/Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="../../Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
   </ItemGroup>
 </Project>

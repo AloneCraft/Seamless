@@ -1,0 +1,181 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+namespace Seamless.FLinq.Generator;
+
+/*
+First は source.First() を、最初の1要素だけ読む Compute に変換する。
+
+入力例:
+  source.First()
+  source.First(predicate)
+
+生成例:
+  if(source.TryGetNext(out var v)) return v;
+  throw NoElements();
+
+バリエーション:
+  - RangeRoot は start 式だけで inline できる。
+  - predicate 付きは predicate(item) が true の最初の item を返す。
+  - predicate が直接 lambda 化できる場合は DirectEnumerableExpression 経由で
+    BufferedScalar の Compute インライン展開に乗る(System.Linq への委譲ではない。
+    唯一の RenderDirectEnumerableCallInline override である BufferedScalar.cs 参照)。
+*/
+internal class First(int 番号,Enumerable sourceFragment,string resultType):BufferedScalar(番号,resultType) {
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==0;
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => string.Empty;
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source is GroupJoin groupJoin) {
+            return groupJoin.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
+        if(source is Join join) {
+            return join.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
+        if(source is Zip zip) {
+            return zip.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
+        if(source is Zip_resultSelector zipSel) {
+            return zipSel.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
+        if(source is RangeRoot range) {
+            return RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType);
+        }
+        if(this.RenderDirectSpanFirstInline(destVar,destType) is { } directSpan) {
+            return directSpan;
+        }
+        if(this.RenderConsumeBasedFirstInline(destVar,destType) is { } directConsume) {
+            return directConsume;
+        }
+        if(this.RenderDirectEnumerableCallInline(source,destVar,destType,"First") is { } directCall) {
+            return directCall;
+        }
+        return this.RenderComputeInline(destVar,destType);
+    }
+    private string? RenderConsumeBasedFirstInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_FIRST_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var foundVar = $"__found{番号}";
+        var endLabel = $"__firstEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{destVar}={arg};\n{indent}{foundVar}=true;\n{indent}goto {endLabel};";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            var {{foundVar}}=false;
+            {{replaced}}
+            {{endLabel}}:;
+            if(!{{foundVar}}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            """;
+    }
+    private string? RenderDirectSpanFirstInline(string destVar,string destType) {
+        var sourceName = $"__firstSource{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+        var spanName = $"__firstSpan{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{sourceName}}={{source.GetEnumeratorExpression}}){
+                var {{spanName}}={{directSpanExpression}};
+                if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{destVar}}={{spanName}}[0];
+            }
+            """;
+    }
+    protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
+        private static {{resultType}} Compute(ref TEnum source){
+            if(source.TryGetNext(out var __mn30)) return __mn30;
+            throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+        }
+        """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}
+
+internal class First_predicate(int 番号,Enumerable sourceFragment,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+    // 述語付きFirst系はordered sourceを列挙するため単一keyも評価する。
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
+        method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
+    private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression =>
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
+    protected override string ComputeExpression =>
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"First",lambda)
+            : this.RenderComputeInline(destVar,destType);
+    protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
+        private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            while(source.TryGetNext(out var __mn31)){
+                var {{this.item}} = __mn31;
+                bool {{this.temp}} = default!;
+                {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
+                if({{this.temp}}) return {{this.item}};
+            }
+            throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+        }
+        """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}

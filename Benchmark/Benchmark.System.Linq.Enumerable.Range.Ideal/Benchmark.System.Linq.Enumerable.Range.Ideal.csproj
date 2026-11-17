@@ -11,7 +11,6 @@
     <RootNamespace>Benchmark.System.Linq.Enumerable.Range.Ideal</RootNamespace>
     <AssemblyName>Benchmark.System.Linq.Enumerable.Range.Ideal</AssemblyName>
   </PropertyGroup>
-  <!-- Range 起点の手書き理想ループ版。FLinq の生成器は参照しない。ZLinq は共通基盤(Common)のコンパイルに必要なだけで使わない。 -->
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="ZLinq" Version="1.5.6" />
@@ -23,7 +22,7 @@
     <Using Include="Common" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\Shared\Linq.Ideal\IdealCollections.cs" Link="Shared\IdealCollections.cs" />
+    <Compile Include="../../Shared/Linq.Ideal/IdealCollections.cs" Link="Shared\IdealCollections.cs" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Common\Common.projitems" Label="Shared" />
+  <Import Project="../../Shared/Common/Common.projitems" Label="Shared" />
 </Project>

@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$SnapshotManifest,
     [Parameter(Mandatory)][string]$ArtifactRoot,
@@ -123,8 +123,8 @@ $stages=@(foreach($suite in 'Gateway','Management'){
         if($suite -eq 'Management'){$name='Management.Tests'}
         $directory=Join-Path $artifacts "bin/$name/$config"
         $assembly=Join-Path $directory "$name.dll"
-        $generator=Join-Path $artifacts "bin/Seamless.Database.Generator/$config/Seamless.Database.Generator.dll"
-        $flinq=Join-Path $artifacts "bin/Seamless.FLinq.Generator/$config/Seamless.FLinq.Generator.dll"
+        $generator=Join-Path $artifacts "bin/Seamless/Database/Generator/$config/Seamless.Database.Generator.dll"
+        $flinq=Join-Path $artifacts "bin/Seamless/FLinq/Generator/$config/Seamless.FLinq.Generator.dll"
         $prepared=@($directory,$generator,[IO.Path]::ChangeExtension($generator,'.pdb'),$flinq,[IO.Path]::ChangeExtension($flinq,'.pdb'),$packGenerator)
         $stage=[ordered]@{
             Name="$suite-$configuration";Executable=$dotnet;WorkingDirectory=$source
@@ -146,7 +146,7 @@ $stages=@(foreach($suite in 'Gateway','Management'){
             $stage.RequiredPassedTest=$gatewayTests
             $stage.AllowedSkippedTest=$sqlServerSkips
         }else{
-            $ui=Join-Path $artifacts "bin/WindowsServer/$config/Seamless.Management.Server.exe"
+            $ui=Join-Path $artifacts "bin/Server/$config/Server.exe"
             $stage.PathEnvironment.SEAMLESS_MANAGEMENT_SERVER_TEST_EXE=$ui
             $requiredPaths+=@($ui)
             $entryAssemblies+=[IO.Path]::ChangeExtension($ui,'.dll')
