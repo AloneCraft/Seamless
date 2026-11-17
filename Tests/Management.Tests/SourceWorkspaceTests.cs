@@ -3,6 +3,24 @@ using Seamless.Management;
 namespace Management.Tests;
 
 public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper output){
+    [Fact]public void PackagedProjectVerifiesTheNativeStoreDependencies(){
+        var root=DirectoryPath();var feed=Path.Combine(root,"feed");Directory.CreateDirectory(feed);
+        var hashes=RuntimePackageHashes();
+        foreach(var name in new[]{"Tsavorite.core.dll","Garnet.common.dll","Tsavorite.devices.AzureStorageDevice.dll"}){
+            hashes.Add(name,Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,name)))));
+        }
+        const string version="0.0.0-build.h1234567890abcdef1234567890abcdef";
+        var manifest=Path.Combine(feed,"source-packages.json");var definition=Definition();
+        File.WriteAllText(manifest,System.Text.Json.JsonSerializer.Serialize(new{format=1,version,assemblies=hashes}));
+        var created=SourceWorkspace.CreatePackageProject(Path.Combine(root,"native"),new(definition,1,0),definition.Source,"Customers",packageFeed:feed);
+        Assert.True(File.Exists(created.ProjectPath));
+        hashes["Tsavorite.core.dll"]=new string('0',64);
+        File.WriteAllText(manifest,System.Text.Json.JsonSerializer.Serialize(new{format=1,version,assemblies=hashes}));
+        var rejected=Path.Combine(root,"mismatched");
+        Assert.Equal("PackageFeed",Assert.Throws<ManagementException>(()=>SourceWorkspace.CreatePackageProject(rejected,new(definition,1,0),definition.Source,"Customers",packageFeed:feed)).Code);
+        Assert.False(Directory.Exists(rejected));
+    }
+
     [Fact]public void PackagedProjectSelectsMatchingCohortAndPreservesExplicitAndLegacyVersions(){
         var root=DirectoryPath();var feed=Path.Combine(root,"feed");Directory.CreateDirectory(feed);
         const string version="0.0.0-build.h1234567890abcdef1234567890abcdef";
@@ -31,6 +49,7 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
             System.Text.Json.JsonSerializer.Serialize(new{format=1,version="1.0.0] <invalid",assemblies=hashes}),
             System.Text.Json.JsonSerializer.Serialize(new{format=1,version="1.0.0",assemblies=mismatched}),
             System.Text.Json.JsonSerializer.Serialize(new{format=1,version="1.0.0",assemblies=unsafeName}),
+            System.Text.Json.JsonSerializer.Serialize(new{format=1,version="1.0.0",assemblies=new Dictionary<string,string>(hashes){["Other.dll"]=new string('0',64)}}),
             new string('x',65537)
         };
         var definition=Definition();var index=0;

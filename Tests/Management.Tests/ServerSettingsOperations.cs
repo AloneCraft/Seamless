@@ -59,7 +59,7 @@ public sealed class ServerSettingsOperations{
         using var service=new Seamless.Management.Server.ManagementService(store,null,startAuditWorker:false);
         service.AttachServerSettings(new(new(),new(),[],"certificate.pfx",null,14336,"http://127.0.0.1:24503/"));
         await using var operations=new ConcurrentManagementOperations(service);
-        using var provider=new ServiceCollection().AddLogging().AddSingleton<IManagementOperations>(operations).BuildServiceProvider();
+        using var provider=new ServiceCollection().AddLogging().AddSingleton<IManagementOperations>(operations).AddSingleton<Microsoft.JSInterop.IJSRuntime,StaticRenderScripts>().BuildServiceProvider();
         await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async()=>{
             TestView? view=null;var dirty=false;

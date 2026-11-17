@@ -14,7 +14,7 @@
     <None Remove="Artifacts\**;Work\**" />
   </ItemGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Benchmark.TpcC.Tests" />
+    <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
   </ItemGroup>
   <ItemGroup>
     <!-- 行の型に [MemoryPackable] を付けるため、生成器が届くよう利用側で直接参照する。 -->

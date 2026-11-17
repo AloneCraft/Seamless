@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Source,
     [Parameter(Mandatory)][string]$Manifest,
@@ -10,7 +10,7 @@ $ErrorActionPreference='Stop'
 & (Join-Path $PSScriptRoot 'Invoke-LocalProcess.ps1') -InitializeOnly|Out-Null
 $Source=[IO.Path]::GetFullPath($Source)
 $LogRoot=[IO.Path]::GetFullPath($LogRoot)
-if([IO.Path]::GetPathRoot($Source) -ne 'D:\' -or [IO.Path]::GetPathRoot($LogRoot) -ne 'F:\'){
+if([IO.Path]::GetPathRoot($Source) -ne 'F:\' -or [IO.Path]::GetPathRoot($LogRoot) -ne 'F:\'){
     throw 'Use D for frozen sources and F for trace evidence.'
 }
 [IO.Directory]::CreateDirectory($LogRoot)|Out-Null
@@ -21,9 +21,9 @@ $env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home'
 $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
 $env:DOTNET_TieredCompilation='0'
 $trace=(Get-Command dotnet-trace -CommandType Application).Source
-$dll=Join-Path $Source 'Benchmark/Experiments/ProductTransactions/bin/Release/net10.0/ProductTransactions.dll'
+$dll=Join-Path $Source 'Benchmark/Experiments/bin/ProductTransactions/Release/net10.0/ProductTransactions.dll'
 $sourceHash=(Get-FileHash -LiteralPath $Manifest).Hash
-$data=Join-Path 'D:\CodexTemp\o' ([Guid]::NewGuid().ToString('N').Substring(0,12))
+$data=Join-Path 'F:\Seamless\o' ([Guid]::NewGuid().ToString('N').Substring(0,12))
 $traceFile=Join-Path $LogRoot 'join.nettrace'
 $profileReport=Join-Path $LogRoot 'profile-report.json'
 $argsForTrace=@('collect','--profile','dotnet-sampled-thread-time','--output',$traceFile,'--',

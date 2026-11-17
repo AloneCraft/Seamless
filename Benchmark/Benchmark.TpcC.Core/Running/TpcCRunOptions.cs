@@ -18,8 +18,8 @@ public sealed record TpcCRunOptions{
     public long Transactions{get;init;}=15_000;
     /// <summary>時間の集計から外す最初の取引の件数(正しさの検査には含める)。</summary>
     public long Warmup{get;init;}=1_000;
-    /// <summary>流す組み合わせ(略称 TL,TF,PL,PF)。</summary>
-    public IReadOnlyList<string> Variants{get;init;}=["TL","TF","PL","PF"];
+    /// <summary>流す組み合わせ(略称 TL,TF)。</summary>
+    public IReadOnlyList<string> Variants{get;init;}=["TL","TF"];
     /// <summary>区画が 2 つ以上のとき、区画 1 つの TF を加えて突き合わせる(区画の数に依らない結果・状態になることの確認)。</summary>
     public bool Shadow{get;init;}=true;
     /// <summary>runの各取引を専用threadへ所有移管して実行する。</summary>
@@ -207,13 +207,13 @@ public sealed record TpcCRunOptions{
     }
     private static IReadOnlyList<string> ParseVariants(string text){
         if(string.Equals(text,"all",StringComparison.OrdinalIgnoreCase)){
-            return ["TL","TF","PL","PF"];
+            return ["TL","TF"];
         }
         var result=new List<string>();
         foreach(var part in text.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)){
             var upper=part.ToUpperInvariant();
-            if(upper is not ("TL" or "TF" or "PL" or "PF")){
-                throw new ArgumentException($"Unknown variant {part}. Use TL, TF, PL, PF or all.");
+            if(upper is not ("TL" or "TF")){
+                throw new ArgumentException($"Unknown variant {part}. Use TL, TF or all.");
             }
             if(!result.Contains(upper)){
                 result.Add(upper);

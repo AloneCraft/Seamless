@@ -18,12 +18,10 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" Condition="'$(CoreOnly)'!='true'" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" Condition="'$(CoreOnly)'!='true'" />
-    <!-- yield return の書き換え(Seamless.Linq.Analyzers)の試験が CodeAction を使う。 -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.6.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
@@ -31,24 +29,22 @@
       <IncludeAssets>runtime;build;native;contentfiles;analyzers;buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-
   <ItemGroup Condition="'$(CoreOnly)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Core*.cs" />
     <Compile Include="Migration/**/*.cs;MigrationGlobalUsings.cs;RegressionSuiteTests.cs;ArchitectureContract.cs" />
     <Compile Include="DynamicFallbackCaptureTests.cs" />
     <Compile Include="DynamicFixedDefectTests.cs" />
+    <Compile Include="DynamicQueryValidator.cs" />
     <Compile Include="DynamicWorkerTestCollection.cs" />
     <Compile Include="StaticBuild*.cs" />
     <Compile Include="RegressionRunStoreTests.cs" />
     <Compile Include="QueryExpressionFormatter.cs" />
   </ItemGroup>
-
   <ItemGroup>
     <None Include="Corpus\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Corpus\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-
   <ItemGroup>
     <Using Include="Xunit" />
     <ProjectReference Include="../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
@@ -56,10 +52,9 @@
     <ProjectReference Include="../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj" Condition="'$(CoreOnly)'!='true'" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
-    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Infrastructure\Benchmark.Dynamic.Infrastructure.csproj" Condition="'$(CoreOnly)'!='true'" />
+    <ProjectReference Include="../Benchmark/Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" Condition="'$(CoreOnly)'!='true'" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" />
   </ItemGroup>
-  <!-- 試験が Garnet.common の型を直接使う。元packageはsupport DLLの取得専用。Coreは修正済みprojectを参照する。 -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Garnet" Version="[2.2.8]" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
     <ProjectReference Include="../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
@@ -73,4 +68,8 @@
     </Reference>
   </ItemGroup>
   <Import Project="../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <ItemGroup Condition="'$(CoreOnly)'!='true'">
+    <PackageReference Include="Appium.WebDriver" Version="5.1.0" />
+    <PackageReference Include="Selenium.Support" Version="4.35.0" />
+  </ItemGroup>
 </Project>

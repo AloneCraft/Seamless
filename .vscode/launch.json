@@ -68,12 +68,6 @@
       "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Headless/Benchmark.Headless.csproj"
     },
     {
-      "name": "▶ Benchmark.Scalable.Headless",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj"
-    },
-    {
       "name": "▶ Benchmark.Scalable.UI",
       "type": "dotnet",
       "request": "launch",
@@ -104,34 +98,16 @@
       "projectPath": "${workspaceFolder}/Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj"
     },
     {
-      "name": "▶ Benchmark.Tsavorite.ParameterSweep.Headless",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj"
-    },
-    {
       "name": "▶ DataGrip.Stage1.Server",
       "type": "dotnet",
       "request": "launch",
       "projectPath": "${workspaceFolder}/tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj"
     },
     {
-      "name": "▶ GroupByLazyBench",
+      "name": "▶ Experiments",
       "type": "dotnet",
       "request": "launch",
-      "projectPath": "${workspaceFolder}/Benchmark/Experiments/GroupByLazyBench/GroupByLazyBench.csproj"
-    },
-    {
-      "name": "▶ HistoryStoreModes",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Benchmark/Experiments/HistoryStoreModes/HistoryStoreModes.csproj"
-    },
-    {
-      "name": "▶ ProductTransactions",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj"
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/Experiments.csproj"
     },
     {
       "name": "▶ Sample.NetShop",
@@ -162,12 +138,6 @@
       "type": "dotnet",
       "request": "launch",
       "projectPath": "${workspaceFolder}/TestSeamless/TestSeamless.csproj"
-    },
-    {
-      "name": "▶ TransactionModes",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Benchmark/Experiments/TransactionModes/TransactionModes.csproj"
     },
     {
       "name": "▶ WindowsServer",

@@ -2,7 +2,7 @@ using Benchmark.Dynamic.Worker;
 
 namespace Benchmark.Dynamic.Tests;
 
-// 同じランナーをGUIのWorkerコマンドと自動検証から使う。
+// 共通回帰のランナーをWorkerの明示コマンドと自動検証から使う。
 [CollectionDefinition("Dynamic regression sources",DisableParallelization=true)]
 public sealed class RegressionSuiteCollection:ICollectionFixture<RegressionSuiteFixture>;
 

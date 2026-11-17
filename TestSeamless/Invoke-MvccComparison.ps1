@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$TaskRoot,
     [Parameter(Mandatory)][string]$LogRoot,
@@ -11,9 +11,9 @@ param(
 $ErrorActionPreference='Stop'
 & (Join-Path $PSScriptRoot 'Invoke-LocalProcess.ps1') -InitializeOnly|Out-Null
 $TaskRoot=[IO.Path]::GetFullPath($TaskRoot);$LogRoot=[IO.Path]::GetFullPath($LogRoot)
-if([IO.Path]::GetPathRoot($TaskRoot) -ne 'D:\' -or [IO.Path]::GetPathRoot($LogRoot) -ne 'F:\'){throw 'Use D work and F logs'}
+if([IO.Path]::GetPathRoot($TaskRoot) -ne 'F:\' -or [IO.Path]::GetPathRoot($LogRoot) -ne 'F:\'){throw 'Use F work and logs'}
 $snapshot=Join-Path $TaskRoot 'source'
-$dll=Join-Path $snapshot 'Benchmark/Experiments/ProductTransactions/bin/Release/net10.0/ProductTransactions.dll'
+$dll=Join-Path $snapshot 'Benchmark/Experiments/bin/ProductTransactions/Release/net10.0/ProductTransactions.dll'
 $buildFile=Join-Path $LogRoot 'comparison-build.json'
 if($UseExistingBuild){
     $cached=Get-Content -LiteralPath $buildFile -Raw|ConvertFrom-Json
@@ -21,17 +21,17 @@ if($UseExistingBuild){
     $build=$cached.Build
     $env:TEMP=Join-Path $TaskRoot 'temp';$env:TMP=$env:TEMP;$env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:NUGET_PACKAGES=Join-Path $LogRoot 'packages';$env:NUGET_HTTP_CACHE_PATH=Join-Path $LogRoot 'http-cache'
 }else{
-    $build=& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project 'Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj' -Configuration Release -BuildOnly
+    $build=& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project 'Benchmark/Experiments/Experiments.csproj' -ExperimentMode ProductTransactions -Configuration Release -BuildOnly
     if($build.Outcome -ne 'Passed'){throw 'Comparison build did not pass'}
     @{TaskRoot=$TaskRoot;Build=$build;RunnerSha256=(Get-FileHash -LiteralPath $PSCommandPath).Hash;AssemblySha256=(Get-FileHash -LiteralPath $dll).Hash}|ConvertTo-Json -Depth 7|Set-Content -LiteralPath $buildFile
 }
 if(@(Select-String -LiteralPath (Join-Path $build.Task.artifactDirectory 'stdout.log') -Pattern ': warning ').Count){throw 'Comparison build has warnings'}
 $identity=[Guid]::NewGuid().ToString('N')
 $artifacts=Join-Path $LogRoot ('comparison-'+$StorageMode+'-'+$Rows+'-'+$Stage+'-'+$identity)
-$data=Join-Path 'D:\CodexTemp\m' $identity.Substring(0,12)
+$data=Join-Path 'F:\Seamless\m' $identity.Substring(0,12)
 $manifest=Join-Path $build.Task.artifactDirectory 'source-manifest.json'
 $hash=(Get-FileHash -LiteralPath $manifest).Hash
-$generated=@(Get-ChildItem -LiteralPath (Join-Path $snapshot 'Benchmark/Experiments/ProductTransactions/obj/Release/generated') -Recurse -Filter '*.cs')
+$generated=@(Get-ChildItem -LiteralPath (Join-Path $snapshot 'Benchmark/Experiments/obj/ProductTransactions/Release/generated') -Recurse -Filter '*.cs')
 $plans=($generated|ForEach-Object{Get-Content -LiteralPath $_.FullName -Raw})-join "`n"
 foreach($proof in @('.Iterate(ref','[GroupBy/取引]','[Join/取引]')){if(-not $plans.Contains($proof)){throw ('Missing generated proof '+$proof)}}
 $comparisonPlans=($generated|Where-Object {$_.Name -like '*ComparisonQueries*'}|ForEach-Object{Get-Content -LiteralPath $_.FullName -Raw})-join "`n"

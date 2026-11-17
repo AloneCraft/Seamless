@@ -29,7 +29,7 @@ public static class Program{
             TpcCFaultInjection.Parse(options.InjectFault);
         }catch(Exception error) when(error is ArgumentException or FormatException or OverflowException){
             Console.Error.WriteLine(error.Message);
-            Console.Error.WriteLine("使い方: Benchmark.TpcC [run|generate|describe|replay] [--seed N] [--warehouses N] [--partitions N] [--transactions N] [--variants TL,TF,PL,PF] ...(README.md)");
+            Console.Error.WriteLine("使い方: Benchmark.TpcC [run|generate|describe|replay] [--seed N] [--warehouses N] [--partitions N] [--transactions N] [--variants TL,TF] ...(README.md)");
             return 3;
         }
         if(options.Command=="crash"){
@@ -37,7 +37,7 @@ public static class Program{
                 options=options with{SaveEvery=300};
             }
             if(!args.Contains("--variants")){
-                options=options with{Variants=["TF","PF"]};
+                options=options with{Variants=["TL","TF"]};
             }
         }
         ApplyProcessSettings(options);

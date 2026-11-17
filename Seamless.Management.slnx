@@ -19,6 +19,7 @@
     <Project Path="Seamless/Seamless.csproj" />
     <Project Path="Seamless.Database.Query/Seamless.Database.Query.csproj" />
     <Project Path="Seamless.Database.Client/Seamless.Database.Client.csproj" />
+    <Project Path="Seamless.Database.Client.Results/Seamless.Database.Client.Results.csproj" />
     <Project Path="Seamless.Transport.Kestrel/Seamless.Transport.Kestrel.csproj" />
     <Project Path="Seamless.Security/Seamless.Security.csproj" />
     <Project Path="Seamless.Authentication/Seamless.Authentication.csproj" />

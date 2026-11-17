@@ -2,7 +2,7 @@
 [assembly: InternalsVisibleTo("Seamless.TestKit")]
 [assembly: InternalsVisibleTo("Seamless.Database")]
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Test.Tsavorite.Collections")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Seamless.Core.Tests")]
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Dynamic.RegressionCases")]
 

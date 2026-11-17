@@ -14,14 +14,12 @@
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Benchmark.TpcC.Tests" />
+    <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.TpcC.Core\Benchmark.TpcC.Core.csproj" />
     <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.Linq\Benchmark.TpcC.Tsavorite.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.FLinq\Benchmark.TpcC.Tsavorite.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.TpcC.Persisted.Linq\Benchmark.TpcC.Persisted.Linq.csproj" />
-    <ProjectReference Include="..\Benchmark.TpcC.Persisted.FLinq\Benchmark.TpcC.Persisted.FLinq.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->

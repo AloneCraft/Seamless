@@ -1,7 +1,7 @@
 using System.Globalization;
 namespace Benchmark.TpcC.Core;
 /// <summary>
-/// 故障注入(検出できるかの確認用)。書式は ENGINE:TXN:KIND(例 PF:500:Output)。ENGINE は組み合わせの略称(シャドーは TFp1)。ライブラリには手を入れず、ハーネス側で壊す。
+/// 故障注入(検出できるかの確認用)。書式は ENGINE:TXN:KIND(例 TF:500:Output)。ENGINE は組み合わせの略称(シャドーは TFp1)。ライブラリには手を入れず、ハーネス側で壊す。
 /// Output=出力の RolledBack を反転する(L1 で検出)、DropWrite=書いた行を生で消す(L3 で検出)、
 /// RouteWrong=書いた行を別の区画の同じ表へも書く(区画が 2 つ以上のとき。状態の比較で検出)、
 /// SkipUndo=巻き戻した取引で、戻したはずの行を残す(状態の比較で検出)、
@@ -22,7 +22,7 @@ public static class TpcCFaultInjection{
             throw new ArgumentException($"Unknown fault kind {parts[2]}. Use {string.Join(", ",Kinds)}.");
         }
         var txn=long.Parse(parts[1],CultureInfo.InvariantCulture);
-        if(txn<=0||parts[0].ToUpperInvariant() is not ("TL" or "TF" or "PL" or "PF" or "TLP1" or "TFP1" or "PLP1" or "PFP1")){
+        if(txn<=0||parts[0].ToUpperInvariant() is not ("TL" or "TF" or "TLP1" or "TFP1")){
             throw new ArgumentException("Fault injection needs a known engine and a positive transaction index.");
         }
         return new(parts[0].ToUpperInvariant(),txn,parts[2]);

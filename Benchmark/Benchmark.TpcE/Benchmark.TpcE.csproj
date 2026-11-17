@@ -14,7 +14,7 @@
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Benchmark.TpcE.Tests" />
+    <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.TpcE.Core\Benchmark.TpcE.Core.csproj" />
@@ -22,8 +22,6 @@
     <ProjectReference Include="..\Benchmark.TpcE.Mvcc.FLinq\Benchmark.TpcE.Mvcc.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcE.Tsavorite.Linq\Benchmark.TpcE.Tsavorite.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcE.Tsavorite.FLinq\Benchmark.TpcE.Tsavorite.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.TpcE.Persisted.Linq\Benchmark.TpcE.Persisted.Linq.csproj" />
-    <ProjectReference Include="..\Benchmark.TpcE.Persisted.FLinq\Benchmark.TpcE.Persisted.FLinq.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->

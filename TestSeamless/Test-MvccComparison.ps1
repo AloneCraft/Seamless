@@ -30,7 +30,7 @@ $sourceHash=$null;$assemblyHash=$null;$tsavoriteHash=$null;$runnerHash=$null;$ch
 $documentationChanges=[Collections.Generic.HashSet[string]]::new();$evidence=[Collections.Generic.List[object]]::new()
 $executableChanges=[Collections.Generic.List[object]]::new()
 $cache=Get-Content -LiteralPath (Join-Path (Split-Path $MatrixFile) 'comparison-build.json') -Raw|ConvertFrom-Json
-$binaryDirectory=Join-Path $cache.TaskRoot 'source/Benchmark/Experiments/ProductTransactions/bin/Release/net10.0'
+$binaryDirectory=Join-Path $cache.TaskRoot 'source/Benchmark/Experiments/bin/ProductTransactions/Release/net10.0'
 Require ($cache.Build.Outcome -eq 'Passed' -and $cache.Build.Task.exitCode -eq 0) 'No successful comparison build'
 Require (@(Select-String -LiteralPath (Join-Path $cache.Build.Task.artifactDirectory 'stdout.log') -Pattern ': warning ').Count -eq 0) 'Comparison build has warnings'
 foreach($cell in $matrix){
@@ -118,7 +118,7 @@ foreach($cell in $matrix){
                 Require ($record.Domain.ActiveOperations -eq 0 -and -not $record.Domain.Reclaiming -and $record.Domain.HistoryMemoryBytes -le $report.HistoryLimitBytes -and $record.Domain.HistoryStorageBytes -le $report.HistoryLimitBytes) 'History or operation invariant failed'
                 $expectedReaders=0;if($record.TransactionVersionDepth -eq 8){$expectedReaders=1;Require ($record.Domain.HistoryMemoryBytes+$record.Domain.HistoryStorageBytes -gt 0) 'Old-snapshot profile retained no history'}
                 Require ($record.Domain.ActiveTransactions -eq $expectedReaders -and $record.Cpu.Active -eq 0 -and $record.Cpu.Outstanding -eq 0 -and $record.Cpu.Waiting -eq 0 -and $record.Cpu.PeakActive -le 8) 'Unreleased transaction/CPU lease'
-                Require ([IO.Path]::GetPathRoot($spec.DataRoot) -eq 'D:\') 'Expected D data root'
+                Require ([IO.Path]::GetPathRoot($spec.DataRoot) -eq 'F:\') 'Expected D data root'
                 $queryRoot=Join-Path $spec.DataRoot ("query-$($record.TransactionVersionDepth)-$($record.QueryWorkerLimit)")
                 $afterRun=[pscustomobject]@{Native=FileFootprint (Join-Path $spec.DataRoot 'native');DatabaseStore=FileFootprint (Join-Path $queryRoot 'database/store-mvcc-v1');DatabaseWal=FileFootprint (Join-Path $queryRoot 'database/wal-mvcc-v1');PrivateTemporary=FileFootprint (Join-Path $queryRoot 'temporary')}
                 $resources.Add([pscustomobject]@{Rows=$report.Rows;Storage=$report.StorageMode;Sample=$record;FilesAfterRun=$afterRun})

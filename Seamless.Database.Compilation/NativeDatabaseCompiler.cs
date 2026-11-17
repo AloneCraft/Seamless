@@ -170,6 +170,7 @@ public sealed class NativeDatabaseCompiler{
                         // 生成された表のプロパティの row=>row.Key。キーの型の列と同じ名前の行の列が主キー。
                         foreach(var keyColumn in recordKey.Type.GetMembers().OfType<IPropertySymbol>().Where(static p=>!p.IsStatic&&p.DeclaredAccessibility==Accessibility.Public)){
                             var column=record.GetMembers(keyColumn.Name).OfType<IPropertySymbol>().FirstOrDefault();
+                            if(column is not null&&column.GetAttributes().Any(a=>a.AttributeClass?.ToDisplayString()=="Seamless.Database.ImportedDatabaseColumnAttribute"&&a.NamedArguments.Any(v=>v.Key=="IsSynthetic"&&v.Value.Value is true))){synthetic=true;continue;}
                             if(column is null||!this.columns.TryGetValue(column,out var name)){throw new Unsupported("NATIVE_PRIMARY_KEY","The generated key column is not an exported column.",part);}
                             keys.Add(name);
                         }

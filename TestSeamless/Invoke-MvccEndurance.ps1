@@ -8,17 +8,17 @@ param(
     [switch]$ForceCompile
 )
 $ErrorActionPreference='Stop'
-$project='Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj'
-$build=& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project $project -Configuration $Configuration -BuildOnly -ForceCompile:$ForceCompile
+$project='Benchmark/Experiments/Experiments.csproj'
+$build=& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project $project -ExperimentMode ProductTransactions -Configuration $Configuration -BuildOnly -ForceCompile:$ForceCompile
 if($build.Outcome -ne 'Passed'){throw 'Endurance build did not pass.'}
 $identity=[Guid]::NewGuid().ToString('N')
 $artifacts=Join-Path $LogRoot ('endurance-'+$Configuration+'-'+$identity)
-$data=Join-Path 'D:\CodexTemp\m' $identity.Substring(0,12)
+$data=Join-Path 'F:\Seamless\m' $identity.Substring(0,12)
 $snapshot=Join-Path $TaskRoot 'source'
-$dll=Join-Path $snapshot ('Benchmark/Experiments/ProductTransactions/bin/'+$Configuration+'/net10.0/ProductTransactions.dll')
+$dll=Join-Path $snapshot ('Benchmark/Experiments/bin/ProductTransactions/'+$Configuration+'/net10.0/ProductTransactions.dll')
 $sourceManifest=Join-Path $build.Task.artifactDirectory 'source-manifest.json'
 $manifestHash=(Get-FileHash -LiteralPath $sourceManifest -Algorithm SHA256).Hash
-$generated=@(Get-ChildItem -LiteralPath (Join-Path $snapshot ('Benchmark/Experiments/ProductTransactions/obj/'+$Configuration+'/generated')) -Recurse -Filter '*.cs')
+$generated=@(Get-ChildItem -LiteralPath (Join-Path $snapshot ('Benchmark/Experiments/obj/ProductTransactions/'+$Configuration+'/generated')) -Recurse -Filter '*.cs')
 $plans=($generated|ForEach-Object{Get-Content -LiteralPath $_.FullName -Raw})-join "`n"
 foreach($proof in @('.Iterate(ref','.IterateParallel(ref','[GroupBy/取引]','[Join/取引]')){
     if(-not $plans.Contains($proof)){throw "Missing generated execution proof: $proof"}

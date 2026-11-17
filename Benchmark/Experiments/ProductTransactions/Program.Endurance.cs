@@ -9,7 +9,7 @@ using Seamless.Transactions;
 internal sealed partial class Program{
     private static async Task Endurance(string root,string report,string sourceHash,int cycles,bool churn=false){
         root=Path.GetFullPath(root);report=Path.GetFullPath(report);
-        if(Path.GetPathRoot(root)!="D:\\"||Path.GetPathRoot(report)!="F:\\"||cycles is<1 or>512){throw new ArgumentException("Use D data, F evidence and 1..512 cycles.");}
+        if(Path.GetPathRoot(root)!="F:\\"||Path.GetPathRoot(report)!="F:\\"||cycles is<1 or>512){throw new ArgumentException("Use F data, F evidence and 1..512 cycles.");}
         if(Directory.Exists(root)&&Directory.EnumerateFileSystemEntries(root).Any()){throw new InvalidOperationException("Endurance requires a new private data root.");}
         Directory.CreateDirectory(root);Directory.CreateDirectory(Path.GetDirectoryName(report)!);var records=new List<object>();var finalStates=new List<object>();
         foreach(var storage in new[]{DatabaseStorageMode.Memory,DatabaseStorageMode.Storage}){
@@ -83,7 +83,7 @@ internal sealed partial class Program{
     }
     private static void VerifyEnduranceRows(Database.TypedTransaction tx,long[] model,bool[] present){
         var seen=new bool[model.Length];var count=0;long total=0;long evenTotal=0;
-        foreach(var row in tx.Accounts.Rows){
+        foreach(var row in tx.Accounts){
             if(row.Id<0||row.Id>=model.Length||!present[row.Id]||seen[row.Id]||row.Balance!=model[row.Id]){throw new InvalidDataException("Endurance rows disagree with the independent model.");}
             seen[row.Id]=true;count++;total+=row.Balance;if(row.Id%2==0){evenTotal+=row.Balance;}
         }

@@ -7,15 +7,15 @@ param(
     [ValidateRange(8,4096)][int]$OperationsPerWorker=128
 )
 $ErrorActionPreference='Stop'
-$project='Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj'
-& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project $project -Configuration Release -BuildOnly
+$project='Benchmark/Experiments/Experiments.csproj'
+& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project $project -ExperimentMode ProductTransactions -Configuration Release -BuildOnly
 $manifest=Get-FileHash -LiteralPath (Join-Path $LogRoot 'source-manifest.json')
 $identity=[Guid]::NewGuid().ToString('N')
 $artifacts=Join-Path $LogRoot ('product-probe-'+$identity)
-$data=Join-Path 'D:\CodexTemp\Seamless\MvccData' $identity.Substring(0,12)
+$data=Join-Path 'F:\Seamless\MvccData' $identity.Substring(0,12)
 $snapshot=Join-Path $TaskRoot 'source'
-$dll=Join-Path $snapshot 'Benchmark/Experiments/ProductTransactions/bin/Release/net10.0/ProductTransactions.dll'
-$generated=Get-ChildItem -LiteralPath (Join-Path $snapshot 'Benchmark/Experiments/ProductTransactions/obj/Release/generated') -Recurse -Filter '*.cs'
+$dll=Join-Path $snapshot 'Benchmark/Experiments/bin/ProductTransactions/Release/net10.0/ProductTransactions.dll'
+$generated=Get-ChildItem -LiteralPath (Join-Path $snapshot 'Benchmark/Experiments/obj/ProductTransactions/Release/generated') -Recurse -Filter '*.cs'
 $plans=($generated|ForEach-Object{Get-Content -LiteralPath $_.FullName -Raw})-join "`n"
 foreach($proof in @('.Iterate(ref','.IterateParallel(ref','[GroupBy/取引]','[Join/取引]')){
     if(-not $plans.Contains($proof)){throw "Missing generated execution proof: $proof"}

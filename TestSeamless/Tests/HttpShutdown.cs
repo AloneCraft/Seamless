@@ -7,11 +7,16 @@ namespace TestSeamless.Tests;
     [Fact]public async Task StopWaitsForActiveEnumeratorDisposal(){
         using var adapter=new Adapter();var registry=new DatabaseRegistry();registry.Register(adapter.DatabaseName,adapter);
         using var server=new HttpServer(14944,adapter,new SqlExecutionEngine(registry));server.Start();using var client=new HttpClient();
-        using var response=await client.GetAsync("http://localhost:14944/api/tables/dbo.Slow",HttpCompletionOption.ResponseHeadersRead);
-        response.EnsureSuccessStatusCode();await adapter.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));var stopping=server.StopAsync();
+        using(var metadata=await client.GetAsync("http://localhost:14944/api/tables")){
+            metadata.EnsureSuccessStatusCode();Assert.Contains("Slow",await metadata.Content.ReadAsStringAsync());
+        }
+        var request=client.GetAsync("http://localhost:14944/api/tables/dbo.Slow",HttpCompletionOption.ResponseHeadersRead);
+        await adapter.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));var stopping=server.StopAsync();
         try{await adapter.Disposing.Task.WaitAsync(TimeSpan.FromSeconds(10));Assert.False(stopping.IsCompleted,"Stop returned before the HTTP query enumerator finished disposing.");}
         finally{adapter.Release.Set();await stopping.WaitAsync(TimeSpan.FromSeconds(10));}
         Assert.True(adapter.Disposed);
+        try{using var response=await request.WaitAsync(TimeSpan.FromSeconds(10));}
+        catch(HttpRequestException error)when(error.StatusCode is null){}
     }
     private sealed class Adapter:IDatabaseAdapter,IDisposable{
         private static readonly ColumnMetadata[] Columns=[new("Value",typeof(string),"nvarchar",false,false,0,-1)];

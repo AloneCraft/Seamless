@@ -47,12 +47,11 @@
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
-    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Core/Benchmark.Scalable.Core.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
-    <Project Path="Benchmark/Benchmark.Dynamic.Infrastructure/Benchmark.Dynamic.Infrastructure.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />
     <Project Path="Benchmark/Benchmark.Headless/Benchmark.Headless.csproj" />
     <Project Path="Benchmark/Benchmark.Audit/Benchmark.Audit.csproj" />

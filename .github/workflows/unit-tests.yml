@@ -26,11 +26,11 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore .\Test.Tsavorite.Collections\Test.Tsavorite.Collections.csproj
+        run: dotnet restore .\Tests\Seamless.Core.Tests\Seamless.Core.Tests.csproj
 
       - name: Test
         run: >
-          dotnet test .\Test.Tsavorite.Collections\Test.Tsavorite.Collections.csproj
+          dotnet test .\Tests\Seamless.Core.Tests\Seamless.Core.Tests.csproj
           -c Release
           --no-restore
           --logger "trx;LogFileName=tsavorite-collections.trx"

@@ -36,18 +36,10 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Management.Tests/Management.Tests.csproj" />
-    <Project Path="Tests/Database.Compilation.Tests/Database.Compilation.Tests.csproj" />
-    <Project Path="Tests/Database.Verification.Tests/Database.Verification.Tests.csproj" />
     <Project Path="Tests/Database.Query.Tests/Database.Query.Tests.csproj" />
-    <Project Path="Tests/Database.SqlServer.Functions.Tests/Database.SqlServer.Functions.Tests.csproj" />
     <Project Path="Tests/Database.SqlTranslation.Tests/Database.SqlTranslation.Tests.csproj" />
-    <Project Path="Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj" />
-    <Project Path="Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj" />
-    <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
-    <Project Path="Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
     <Project Path="Tests/Seamless.Core.Tests/Seamless.Core.Tests.csproj" />
-    <Project Path="Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj" />
   </Folder>
   <Folder Name="/Template/">
     <File Path="Template/README.md" />

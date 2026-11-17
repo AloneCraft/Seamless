@@ -51,7 +51,7 @@ jobs:
           "draft=$(($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch').ToString().ToLower())" >> $env:GITHUB_OUTPUT
 
       - name: Test
-        run: dotnet test .\Test.Tsavorite.Collections\Test.Tsavorite.Collections.csproj -c Release
+        run: dotnet test .\Tests\Seamless.Core.Tests\Seamless.Core.Tests.csproj -c Release
 
       - name: Pack
         shell: pwsh

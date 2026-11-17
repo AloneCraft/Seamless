@@ -35,7 +35,7 @@ internal sealed partial class Program{
     }
     private static async Task CompareSources(string root,string report,string sourceHash,int rows,DatabaseStorageMode storage,int operations,string stage){
         root=Path.GetFullPath(root);report=Path.GetFullPath(report);
-        if(Path.GetPathRoot(root)!="D:\\"||Path.GetPathRoot(report)!="F:\\"||rows is<64 or>100000||operations is<8 or>4096||!Enum.IsDefined(storage)||stage is not("queries" or "mixed" or "all")){throw new ArgumentException("Use D data, F report, 64..100000 rows, 8..4096 operations and queries/mixed/all.");}
+        if(Path.GetPathRoot(root)!="F:\\"||Path.GetPathRoot(report)!="F:\\"||rows is<64 or>100000||operations is<8 or>4096||!Enum.IsDefined(storage)||stage is not("queries" or "mixed" or "all")){throw new ArgumentException("Use F data, F report, 64..100000 rows, 8..4096 operations and queries/mixed/all.");}
         if(Directory.Exists(root)&&Directory.EnumerateFileSystemEntries(root).Any()){throw new InvalidOperationException("Comparison requires a fresh private root.");}
         Directory.CreateDirectory(root);Directory.CreateDirectory(Path.GetDirectoryName(report)!);var records=new List<object>();
         async Task Save(){
@@ -93,17 +93,17 @@ internal sealed partial class Program{
                             value=sample.Value;milliseconds=sample.Milliseconds;allocated=sample.Allocated;
                         }else if(flavor<4){
                             if(retained is{} snapshot){
-                                var sample=Measure(()=>{if(flavor==2){return ComparisonQueries.Transaction(snapshot,query);}return ComparisonQueries.Linq(snapshot.Accounts.Rows,query);});
+                                var sample=Measure(()=>{if(flavor==2){return ComparisonQueries.Transaction(snapshot,query);}return ComparisonQueries.Linq(snapshot.Accounts,query);});
                                 value=sample.Value;milliseconds=sample.Milliseconds;allocated=sample.Allocated;
                             }else{
                                 await using var tx=await db.BeginReadOnlyTransactionAsync();
-                                var sample=Measure(()=>{if(flavor==2){return ComparisonQueries.Transaction(tx,query);}return ComparisonQueries.Linq(tx.Accounts.Rows,query);});
+                                var sample=Measure(()=>{if(flavor==2){return ComparisonQueries.Transaction(tx,query);}return ComparisonQueries.Linq(tx.Accounts,query);});
                                 value=sample.Value;milliseconds=sample.Milliseconds;allocated=sample.Allocated;await tx.CommitAsync();
                             }
                         }else{
                             var before=GC.GetTotalAllocatedBytes(true);var started=Stopwatch.GetTimestamp();
                             await using(var tx=await db.BeginReadOnlyTransactionAsync()){
-                                if(flavor==4){value=ComparisonQueries.Transaction(tx,query);}else{value=ComparisonQueries.Linq(tx.Accounts.Rows,query);}await tx.CommitAsync();
+                                if(flavor==4){value=ComparisonQueries.Transaction(tx,query);}else{value=ComparisonQueries.Linq(tx.Accounts,query);}await tx.CommitAsync();
                             }
                             milliseconds=Stopwatch.GetElapsedTime(started).TotalMilliseconds;allocated=GC.GetTotalAllocatedBytes(true)-before;
                         }
@@ -175,7 +175,7 @@ internal sealed partial class Program{
     private static double Percentile(double[] sorted,double quantile){if(sorted.Length==0){return 0;}return sorted[Math.Min(sorted.Length-1,(int)Math.Ceiling(sorted.Length*quantile)-1)];}
     private static async Task VerifyMixed(Database db,int[] model){
         var seen=new bool[model.Length];var count=0;await using var tx=await db.BeginReadOnlyTransactionAsync();
-        foreach(var row in tx.Accounts.Rows){if(row.Id<0||row.Id>=model.Length||seen[row.Id]||row.Balance!=InitialBalance(row.Id)+model[row.Id]){throw new InvalidDataException("Successful commits disagree with the independent per-key model.");}seen[row.Id]=true;count++;}
+        foreach(var row in tx.Accounts){if(row.Id<0||row.Id>=model.Length||seen[row.Id]||row.Balance!=InitialBalance(row.Id)+model[row.Id]){throw new InvalidDataException("Successful commits disagree with the independent per-key model.");}seen[row.Id]=true;count++;}
         if(count!=model.Length){throw new InvalidDataException("Mixed workload lost a row.");}await tx.CommitAsync();
     }
 }

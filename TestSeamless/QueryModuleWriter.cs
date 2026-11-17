@@ -5,6 +5,7 @@ using System.Text.Json;
 using Seamless.Database.Client;
 using Seamless.Database.Rdbms;
 
+using NativeQueryDefinition=Seamless.Database.Client.NativeQueryDefinition;
 namespace TestSeamless;
 
 public static class QueryModuleWriter{

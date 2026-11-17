@@ -25,8 +25,10 @@
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
   </Folder>
   <Folder Name="/Benchmark/">
-    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
-    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj" />
+    <Project Path="Benchmark/Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Core/Benchmark.Scalable.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Database.Generation/Database.Generation.shproj" />

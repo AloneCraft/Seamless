@@ -15,6 +15,7 @@ namespace TestSeamless.Tests;
 public sealed class ProtocolCipherDatabase:DatabaseContainer{
     [return:Seamless.Linq.UnorderedEnumerable]public Table<ProtocolCipherRow> GetRows()=>this.Table<ProtocolCipherRow>("Rows");
     public Table<ProtocolCipherRow> Rows{[return:Seamless.Linq.UnorderedEnumerable]get=>this.GetRows();}
+    protected override void EnsureTransactionSchema(){_=this.Rows;}
 }
 
 [Collection("Protocol serial")]public sealed class ProtocolCipherAndCollation{
@@ -44,7 +45,9 @@ public sealed class ProtocolCipherDatabase:DatabaseContainer{
         var old=JsonSerializer.Deserialize<DatabaseCatalog>("""{"Name":"first","Schemas":[]}""")!;
         var oldRoundTrip=JsonSerializer.Deserialize<DatabaseCatalog>(JsonSerializer.Serialize(old))!;
         static string Fingerprint(DatabaseCatalog catalog)=>CSharpDatabaseGenerator.Generate(catalog).SchemaFingerprint;
-        Assert.Equal("35BDF491F61088CFD874773D208657A2C10B86047CABFDB923610B3764C3D833",Fingerprint(old));
+        const string legacyCatalogFingerprint="35BDF491F61088CFD874773D208657A2C10B86047CABFDB923610B3764C3D833";
+        var declaredFingerprint=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(legacyCatalogFingerprint+"|DeclaredTablesV1")));
+        Assert.Equal(declaredFingerprint,Fingerprint(old));
         Assert.Equal(Fingerprint(old),Fingerprint(oldRoundTrip));
         Assert.NotEqual(Fingerprint(old),Fingerprint(old with{DefaultCollation="Japanese_CI_AS"}));
         var baseType=new DatabaseType(DatabaseTypeKind.Binary,true,SqlTypeName:"nvarchar",SourceMaximumLength:22);

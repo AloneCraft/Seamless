@@ -15,6 +15,7 @@ public readonly record struct ProtocolRow(int Id,int Value);
 public sealed class ProtocolDatabase:DatabaseContainer{
     public ProtocolDatabase():base(DatabaseContainerOptions.InMemory with{IndexSize=1L<<12,MemorySize=1L<<20}){}
     public Table<ProtocolRow> Rows{[return:Seamless.Linq.UnorderedEnumerable]get=>this.Table<ProtocolRow>();}
+    protected override void EnsureTransactionSchema(){_=this.Rows;}
 }
 
 public sealed class ProtocolModule:INativeQueryModule{
@@ -42,6 +43,10 @@ public sealed class ProtocolModule:INativeQueryModule{
 
 [Collection("Protocol serial")]public sealed class ProtocolTests{
     private const string Fingerprint="protocol-fingerprint";
+    private static InProcessDatabaseAdapter Adapter(ProtocolDatabase database)=>new(database,[new("Rows","dbo","Rows",[
+        new("Id","Id",new(Seamless.Database.Rdbms.DatabaseTypeKind.Int32,false,SqlTypeName:"int")),
+        new("Value","Value",new(Seamless.Database.Rdbms.DatabaseTypeKind.Int32,false,SqlTypeName:"int"))
+    ])]);
     private static SqlConnection Connect(string database="first",bool pooling=false){
         var builder=new SqlConnectionStringBuilder{DataSource="127.0.0.1,14943",InitialCatalog=database,UserID="sa",Password="test",Encrypt=false,TrustServerCertificate=true,Pooling=pooling,ConnectTimeout=5};
         var connection=new SqlConnection(builder.ConnectionString);connection.Open();return connection;
@@ -51,7 +56,7 @@ public sealed class ProtocolModule:INativeQueryModule{
 
     [Fact]public void TdsClient(){
         using var first=new ProtocolDatabase();using var second=new ProtocolDatabase();first.Rows.Add(new(1,10));first.Rows.Add(new(2,20));second.Rows.Add(new(3,30));
-        var adapter=new InProcessDatabaseAdapter(first);var registry=new DatabaseRegistry();registry.Register("first",adapter);registry.Register("second",new InProcessDatabaseAdapter(second));
+        var adapter=Adapter(first);var registry=new DatabaseRegistry();registry.Register("first",adapter);registry.Register("second",Adapter(second));
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();
         using var connection=Connect("second");Assert.Equal("second",Scalar(connection,"SELECT DB_NAME()"));Assert.Equal(30,Scalar(connection,"SELECT Value FROM dbo.Rows"));
         Execute(connection,"USE first");Assert.Equal("first",Scalar(connection,"SELECT DB_NAME()"));
@@ -65,7 +70,7 @@ public sealed class ProtocolModule:INativeQueryModule{
     }
 
     [Fact]public void TdsTransactions(){
-        using var database=new ProtocolDatabase();var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
+        using var database=new ProtocolDatabase();var adapter=Adapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();using var connection=Connect();
         Execute(connection,"BEGIN TRANSACTION");Execute(connection,"INSERT INTO dbo.Rows (Id,Value) VALUES (4,40)");Execute(connection,"ROLLBACK TRANSACTION");Assert.Null(Scalar(connection,"SELECT Value FROM dbo.Rows WHERE Id=4"));
         using(var transaction=connection.BeginTransaction()){
@@ -82,7 +87,7 @@ public sealed class ProtocolModule:INativeQueryModule{
 
     [Fact]public void TdsParameters(){
         using var database=new ProtocolDatabase();database.Rows.Add(new(1,10));database.Rows.Add(new(2,20));
-        var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
+        var adapter=Adapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();using var connection=Connect();
         using(var command=connection.CreateCommand()){
             command.CommandText="SELECT Value FROM dbo.Rows WHERE Id=@id";command.Parameters.Add("@id",SqlDbType.Int).Value=1;Assert.Equal(10,command.ExecuteScalar());command.Prepare();Assert.Equal(10,command.ExecuteScalar());command.Parameters[0].Value=2;Assert.Equal(20,command.ExecuteScalar());
@@ -90,13 +95,13 @@ public sealed class ProtocolModule:INativeQueryModule{
     }
 
     [Fact]public void TdsValues(){
-        using var database=new ProtocolDatabase();var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
+        using var database=new ProtocolDatabase();var adapter=Adapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();using var connection=Connect();
         using var command=connection.CreateCommand();command.CommandText="SELECT CAST(NULL AS int), CAST(123.45 AS decimal(10,2)), CAST('2025-01-02' AS date), CAST('12:34:56' AS time), N'日本語'";
         using var reader=command.ExecuteReader();Assert.True(reader.Read());Assert.True(reader.IsDBNull(0));Assert.Equal(123.45m,reader.GetDecimal(1));Assert.Equal(new DateTime(2025,1,2),reader.GetDateTime(2));Assert.Equal(new TimeSpan(12,34,56),reader.GetTimeSpan(3));Assert.Equal("日本語",reader.GetString(4));Assert.False(reader.Read());
     }
     [Fact]public void TdsPoolReset(){
-        using var first=new ProtocolDatabase();using var second=new ProtocolDatabase();var adapter=new InProcessDatabaseAdapter(first);var registry=new DatabaseRegistry();registry.Register("first",adapter);registry.Register("second",new InProcessDatabaseAdapter(second));
+        using var first=new ProtocolDatabase();using var second=new ProtocolDatabase();var adapter=Adapter(first);var registry=new DatabaseRegistry();registry.Register("first",adapter);registry.Register("second",Adapter(second));
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();
         using(var connection=Connect("second",true)){
             Execute(connection,"USE first");using(var command=connection.CreateCommand()){command.CommandText="SELECT Value FROM dbo.Rows WHERE Id=@id";command.Parameters.Add("@id",SqlDbType.Int).Value=1;command.Prepare();Assert.Null(command.ExecuteScalar());}
@@ -112,7 +117,7 @@ public sealed class ProtocolModule:INativeQueryModule{
 
     [Fact]public async Task TdsLargeResult(){
         using var database=new ProtocolDatabase();for(var i=0;i<2048;i++){database.Rows.Add(new(i,i));}
-        var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
+        var adapter=Adapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();using var connection=Connect();
         using(var command=connection.CreateCommand()){
             command.CommandText="SELECT Id, Value FROM dbo.Rows";using var reader=command.ExecuteReader();var count=0;while(reader.Read()){Assert.Equal(reader.GetInt32(0),reader.GetInt32(1));count++;}Assert.Equal(2048,count);
@@ -124,7 +129,7 @@ public sealed class ProtocolModule:INativeQueryModule{
     }
     [Fact]public async Task TdsAttention(){
         using var database=new ProtocolDatabase();for(var i=0;i<2048;i++){database.Rows.Add(new(i,i));}
-        var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
+        var adapter=Adapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();using var connection=Connect();
         using var transaction=connection.BeginTransaction();
         using(var command=connection.CreateCommand()){
@@ -138,18 +143,19 @@ public sealed class ProtocolModule:INativeQueryModule{
     }
 
     [Fact]public async Task NativeInterruptedTransaction(){
-        using var database=new ProtocolDatabase();database.Rows.Add(new(1,10));var registry=new DatabaseRegistry();registry.Register("first",new InProcessDatabaseAdapter(database),schemaFingerprint:Fingerprint);
+        using var database=new ProtocolDatabase();database.Rows.Add(new(1,10));var registry=new DatabaseRegistry();registry.Register("first",Adapter(database),schemaFingerprint:Fingerprint);
         var version=typeof(INativeQueryModule).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];var definitions=new[]{new NativeQueryDefinition("stream","first",Fingerprint,"int","int"),new NativeQueryDefinition("insert","first",Fingerprint,"int","int",false),new NativeQueryDefinition("rows","first",Fingerprint,"int","int")};
         var module=new ProtocolModule();using var server=new NativeQueryServer(registry,14945);server.Register(new NativeModuleManifest("test","","","",version,definitions),module,version);server.Start();
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(20));await using var client=new NativeQueryClient("127.0.0.1",14945);var transaction=await client.BeginTransactionAsync("first",timeout.Token);
         await foreach(var value in transaction.QueryAsync<int,int>("test","insert",Fingerprint,55,timeout.Token)){Assert.Equal(55,value);}
         var iterator=transaction.QueryAsync<int,int>("test","stream",Fingerprint,0,timeout.Token).GetAsyncEnumerator(timeout.Token);
         Assert.True(await iterator.MoveNextAsync());Assert.Equal(123,iterator.Current);await module.Blocked.Task.WaitAsync(timeout.Token);await iterator.DisposeAsync();await module.Exited.Task.WaitAsync(timeout.Token);
-        await Assert.ThrowsAsync<NativeQueryException>(()=>transaction.RollbackAsync(timeout.Token));
+        await transaction.RollbackAsync(timeout.Token);
+        var resumed=new List<int>();await foreach(var value in client.QueryAsync<int,int>("test","rows","first",Fingerprint,0,timeout.Token)){resumed.Add(value);}Assert.Equal(new[]{10},resumed);
         await using var verifier=new NativeQueryClient("127.0.0.1",14945);var values=new List<int>();await foreach(var value in verifier.QueryAsync<int,int>("test","rows","first",Fingerprint,0,timeout.Token)){values.Add(value);}Assert.Equal(new[]{10},values);
     }
     [Fact]public async Task LegacySqlClient(){
-        using var database=new ProtocolDatabase();database.Rows.Add(new(1,10));var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
+        using var database=new ProtocolDatabase();database.Rows.Add(new(1,10));var adapter=Adapter(database);var registry=new DatabaseRegistry();registry.Register("first",adapter);
         using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();
         var sourceRoot=Environment.GetEnvironmentVariable("SEAMLESS_PROTOCOL_SOURCE_ROOT");if(string.IsNullOrWhiteSpace(sourceRoot)){var directory=new DirectoryInfo(AppContext.BaseDirectory);while(directory is not null&&!File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))){directory=directory.Parent;}Assert.NotNull(directory);sourceRoot=directory!.FullName;}
         var script=Path.Combine(sourceRoot,"TestSeamless","Tests","Protocol-Legacy.ps1");var start=new System.Diagnostics.ProcessStartInfo{FileName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"WindowsPowerShell","v1.0","powershell.exe"),UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true,CreateNoWindow=true};
@@ -161,7 +167,7 @@ public sealed class ProtocolModule:INativeQueryModule{
     }
     [Fact]public async Task NativeClient(){
         using var database=new ProtocolDatabase();database.Rows.Add(new(1,10));database.Rows.Add(new(2,20));
-        var registry=new DatabaseRegistry();registry.Register("first",new InProcessDatabaseAdapter(database),schemaFingerprint:Fingerprint);registry.Register("readonly",new InProcessDatabaseAdapter(database),readOnly:true,schemaFingerprint:Fingerprint);
+        var registry=new DatabaseRegistry();registry.Register("first",Adapter(database),schemaFingerprint:Fingerprint);registry.Register("readonly",Adapter(database),readOnly:true,schemaFingerprint:Fingerprint);
         var version=typeof(INativeQueryModule).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
         var definitions=new[]{new NativeQueryDefinition("rows","first",Fingerprint,"int","int"),new NativeQueryDefinition("insert","first",Fingerprint,"int","int",false),new NativeQueryDefinition("insert","readonly",Fingerprint,"int","int",false)};
         var manifest=new NativeModuleManifest("test","","","",version,definitions);using var server=new NativeQueryServer(registry,14945);server.Register(manifest,new ProtocolModule(),version);server.Start();

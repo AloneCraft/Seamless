@@ -67,15 +67,19 @@ public sealed class RegressionSuite:IDisposable{
         if(contracts){return method.GetCustomAttribute<RegressionContractAttribute>() is not null;}
         return method.GetCustomAttribute<FactAttribute>() is not null;
     }
-    public static RegressionSuite Compile(RegressionSourceBundle? bundle=null,CancellationToken cancellationToken=default){
+    public static RegressionSuite Compile(RegressionSourceBundle? bundle=null,CancellationToken cancellationToken=default)=>CompileCore(bundle,cancellationToken,false,OptimizationLevel.Release);
+    // 元の生成形状試験は既定のCompilationOptionsを使い、構成に応じてDEBUG記号を切り替えていた。
+    public static RegressionSuite Compile(RegressionSourceBundle? bundle,CancellationToken cancellationToken,bool debug)=>CompileCore(bundle,cancellationToken,debug,OptimizationLevel.Debug);
+    private static RegressionSuite CompileCore(RegressionSourceBundle? bundle,CancellationToken cancellationToken,bool debug,OptimizationLevel optimization){
         bundle??=RegressionCaseSources.Legacy;
         // 実行時に必要なassertion・出力・fixtureのアセンブリを参照集合へ含める。
         _=typeof(Assert).Assembly;_=typeof(FactAttribute).Assembly;_=typeof(ITestOutputHelper).Assembly;_=typeof(global::Seamless.TestKit.ClassInt32).Assembly;
         var options=new CSharpParseOptions(LanguageVersion.Preview).WithFeatures([new("InterceptorsNamespaces","Intercept"),new("InterceptorsPreviewNamespaces","Intercept")]);
+        if(debug){options=options.WithPreprocessorSymbols("DEBUG");}
         const string globals="global using System;global using System.Collections;global using System.Collections.Generic;global using System.IO;global using System.Linq;global using System.Threading;global using System.Threading.Tasks;global using Xunit;global using Xunit.Abstractions;global using Seamless.Collections;global using Seamless.Collections.Tsavorite;global using Seamless.TestKit;global using LinqCounter=Seamless.Linq.LinqCounter;global using LinqCounterScope=Seamless.Linq.LinqCounterScope;";
         var documents=bundle.Documents.Append(new("RegressionGlobalUsings.cs",globals));
         var trees=documents.Select(document=>CSharpSyntaxTree.ParseText(SourceText.From(document.Text,Encoding.UTF8),options,document.Path,cancellationToken)).ToArray();
-        var compilation=CSharpCompilation.Create("Dynamic.RegressionCases",trees,new MetadataReferenceProvider().Get().References,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,allowUnsafe:true).WithConcurrentBuild(false));
+        var compilation=CSharpCompilation.Create("Dynamic.RegressionCases",trees,new MetadataReferenceProvider().Get().References,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:optimization,allowUnsafe:true).WithConcurrentBuild(false));
         compilation=RegressionExpectedTypeResolver.Resolve(compilation);
         var sourcePaths=compilation.SyntaxTrees.SelectMany(tree=>{
             var model=compilation.GetSemanticModel(tree);
@@ -98,7 +102,7 @@ public sealed class RegressionSuite:IDisposable{
         var expansionErrors=FLinqExpansionValidator.Validate(diagnostics.Select(d=>new DynamicCompilationDiagnostic("Generator",d.Severity.ToString(),d.Id,d.GetMessage(),d.Location.ToString())).ToArray(),generated).ToArray();
         if(expansionErrors.Length!=0){throw new InvalidDataException(string.Join(Environment.NewLine,expansionErrors.Select(error=>error.Message)));}
         var context=new DynamicAssemblyLoadContext("regression-"+Guid.NewGuid().ToString("N"),isolateAssertions:true);
-        try{stream.Position=0;return new(context,context.LoadFromStream(stream),generated,diagnostics.Select(d=>d.ToString()).ToArray(),sourcePaths:sourcePaths){generatedSources=generatedSources.Select(GeneratedCodeText.Executable).ToArray()};}
+        try{stream.Position=0;return new(context,context.LoadFromStream(stream),generated,diagnostics.Concat(output.GetDiagnostics(cancellationToken)).Distinct().Select(d=>d.ToString()).ToArray(),sourcePaths:sourcePaths){generatedSources=generatedSources.Select(GeneratedCodeText.Executable).ToArray()};}
         catch{context.Unload();throw;}
     }
     public RegressionCaseResult Run(string id,CancellationToken cancellationToken=default){

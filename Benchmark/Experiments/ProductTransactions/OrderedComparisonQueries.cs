@@ -5,49 +5,49 @@ namespace ProductTransactions;
 internal sealed class OrderedComparisonQueries{
     internal readonly record struct Joined(int Id,IEnumerable<Row> Matches);
     [LinqIntercept(true)]
-    internal static long[] JoinIdentity(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<64)
-        .Join(tx.Accounts.Rows,static row=>row.Id,static row=>row.Id%64,static(left,right)=>right.Id*257L+left.Balance)
+    internal static long[] JoinIdentity(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<64)
+        .Join(tx.Accounts,static row=>row.Id,static row=>row.Id%64,static(left,right)=>right.Id*257L+left.Balance)
         .OrderByDescending(static value=>value).ThenBy(static value=>value%17).ToArray();
     [LinqIntercept(true)]
-    internal static long[] JoinMultiple(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<64)
-        .Join(tx.Accounts.Rows,static row=>row.Id,static row=>row.Id%64,static(left,right)=>right.Id*257L+left.Balance)
+    internal static long[] JoinMultiple(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<64)
+        .Join(tx.Accounts,static row=>row.Id,static row=>row.Id%64,static(left,right)=>right.Id*257L+left.Balance)
         .OrderBy(static value=>value%17).Select(static value=>value+1)
         .OrderByDescending(static value=>value%13,LongComparer()).ThenBy(static value=>value).ToArray();
     [LinqIntercept(true)]
-    internal static long[] GroupIdentity(Database.TypedTransaction tx)=>tx.Accounts.Rows.GroupBy(static row=>row.Id%1024)
+    internal static long[] GroupIdentity(Database.TypedTransaction tx)=>tx.Accounts.GroupBy(static row=>row.Id%1024)
         .Select(static group=>group.Sum(static row=>row.Balance))
         .OrderByDescending(static value=>value).ThenBy(static value=>value%17).ToArray();
     [LinqIntercept(true)]
-    internal static IGrouping<int,Row>[] GroupEscapeMultiple(Database.TypedTransaction tx)=>tx.Accounts.Rows.GroupBy(static row=>row.Id%1024)
+    internal static IGrouping<int,Row>[] GroupEscapeMultiple(Database.TypedTransaction tx)=>tx.Accounts.GroupBy(static row=>row.Id%1024)
         .OrderByDescending(static group=>group.Count()).OrderBy(static group=>group.Key,IntComparer()).ToArray();
     [LinqIntercept(true)]
-    internal static long[] GroupJoinCounts(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<256)
-        .GroupJoin(tx.Accounts.Rows,static row=>row.Id%64,static row=>row.Id%64,static (row,group)=>row.Id*65536L+group.Count()).ToArray();
+    internal static long[] GroupJoinCounts(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<256)
+        .GroupJoin(tx.Accounts,static row=>row.Id%64,static row=>row.Id%64,static (row,group)=>row.Id*65536L+group.Count()).ToArray();
     [LinqIntercept(true)]
-    internal static Joined[] GroupJoinOwned(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<256)
-        .GroupJoin(tx.Accounts.Rows,static row=>row.Id%64,static row=>row.Id%64,static (row,group)=>new Joined(row.Id,group))
+    internal static Joined[] GroupJoinOwned(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<256)
+        .GroupJoin(tx.Accounts,static row=>row.Id%64,static row=>row.Id%64,static (row,group)=>new Joined(row.Id,group))
         .OrderBy(static joined=>joined.Id).ToArray();
     [LinqIntercept(true)]
-    internal static long[] GroupJoinSpillCounts(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<256)
-        .GroupJoin(tx.Accounts.Rows,static row=>row.Id&127,static row=>row.Id&8191,static (row,group)=>row.Id*65536L+group.Count()).ToArray();
+    internal static long[] GroupJoinSpillCounts(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<256)
+        .GroupJoin(tx.Accounts,static row=>row.Id&127,static row=>row.Id&8191,static (row,group)=>row.Id*65536L+group.Count()).ToArray();
     [LinqIntercept(true)]
-    internal static Joined[] GroupJoinSpillOwned(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<256)
-        .GroupJoin(tx.Accounts.Rows,static row=>row.Id&127,static row=>row.Id&8191,static (row,group)=>new Joined(row.Id,group))
+    internal static Joined[] GroupJoinSpillOwned(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<256)
+        .GroupJoin(tx.Accounts,static row=>row.Id&127,static row=>row.Id&8191,static (row,group)=>new Joined(row.Id,group))
         .OrderBy(static joined=>joined.Id).ToArray();
     [LinqIntercept(true)]
-    internal static long[] CarrierJoin(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<64)
-        .Join(tx.Accounts.Rows,static row=>new{Key=row.Id,Even=row.Id%2},static row=>new{Key=row.Id%64,Even=row.Id%2},
+    internal static long[] CarrierJoin(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<64)
+        .Join(tx.Accounts,static row=>new{Key=row.Id,Even=row.Id%2},static row=>new{Key=row.Id%64,Even=row.Id%2},
             static (left,right)=>new{Id=right.Id,Value=right.Id*257L+left.Balance})
         .OrderBy(static item=>item.Id).Select(static item=>item.Value).ToArray();
     [LinqIntercept(true)]
-    internal static long[] CarrierChain(Database.TypedTransaction tx)=>tx.Accounts.Rows
+    internal static long[] CarrierChain(Database.TypedTransaction tx)=>tx.Accounts
         .Select(static row=>new{row.Id,Value=row.Balance})
         .OrderBy(static item=>item.Id)
         .Select(static item=>new{Key=item.Id%17,Value=item.Value+item.Id})
         .OrderByDescending(static item=>item.Key)
         .Select(static item=>item.Value).ToArray();
     [LinqIntercept(true)]
-    internal static IGrouping<int,Row>[] GroupShape(Database.TypedTransaction tx,int mask,int hot)=>tx.Accounts.Rows
+    internal static IGrouping<int,Row>[] GroupShape(Database.TypedTransaction tx,int mask,int hot)=>tx.Accounts
         .GroupBy(row=>row.Id<hot?0:row.Id&mask)
         .OrderByDescending(static group=>group.Count()).OrderBy(static group=>group.Key,IntComparer()).ToArray();
     private static IComparer<long> LongComparer()=>Comparer<long>.Default;
@@ -81,7 +81,7 @@ internal sealed class OrderedComparisonQueries{
         _=>Linq(rows,query)
     };
     [LinqIntercept(true)]
-    internal static long[] CarrierWide(Database.TypedTransaction tx)=>tx.Accounts.Rows
+    internal static long[] CarrierWide(Database.TypedTransaction tx)=>tx.Accounts
         .Select(static row=>new{row.Id,
             V1=row.Balance+1L,V2=row.Balance+2L,V3=row.Balance+3L,V4=row.Balance+4L,V5=row.Balance+5L,
             V6=row.Balance+6L,V7=row.Balance+7L,V8=row.Balance+8L,V9=row.Balance+9L,V10=row.Balance+10L,

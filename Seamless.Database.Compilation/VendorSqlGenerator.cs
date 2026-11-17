@@ -1,6 +1,9 @@
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Seamless.Database.Rdbms;
 
 namespace Seamless.Database.Compilation;
 
@@ -19,12 +22,12 @@ public sealed class VendorSqlGenerator{
         }
         foreach(var table in database.Tables){
             try{
-                if(table.SourceFeatures is not null){throw new NotSupportedException("Imported identity, defaults, computed columns or constraints are retained in SourceFeatures; their SQL regeneration is not implemented.");}
+                var primaryKey=PrimaryKey(table,dialect,vendor);
                 var columns=table.Columns.Select(c=>{
                     var nullable=" NOT NULL";if(c.IsNullable){nullable=" NULL";}
                     return "    "+dialect.Quote(c.Name)+" "+dialect.Type(c.ClrType,c.LogicalMaximumLength??c.TextCapacity)+nullable;
                 }).ToList();
-                if(table.PrimaryKey.Length>0){columns.Add("    PRIMARY KEY ("+string.Join(",",table.PrimaryKey.Select(dialect.Quote))+")");}
+                if(primaryKey is not null){columns.Add(primaryKey);}
                 statements.Add("CREATE TABLE "+dialect.Relation(table.Schema,table.Name)+" (\n"+string.Join(",\n",columns)+"\n);");
                 available.Add(table);
             }catch(NotSupportedException error){diagnostics.Add(new("SQL_UNSUPPORTED_TYPE",error.Message,NativeDiagnosticSeverity.Unsupported,table.Name,null));}
@@ -40,6 +43,47 @@ public sealed class VendorSqlGenerator{
             }catch(NotSupportedException error){diagnostics.Add(new("SQL_UNSUPPORTED_QUERY",error.Message,NativeDiagnosticSeverity.Unsupported,query.Name,query.Source));}
         }
         return new(vendor,database.SourceFingerprint,string.Join("\n\n",statements),queries.ToImmutable(),diagnostics.ToImmutable()){Statements=statements.ToImmutable()};
+    }
+
+    private static string? PrimaryKey(NativeTable table,Dialect dialect,SqlVendor vendor){
+        if(table.SourceFeatures is null){
+            if(table.PrimaryKey.Length==0){return null;}
+            return "    PRIMARY KEY ("+string.Join(",",table.PrimaryKey.Select(dialect.Quote))+")";
+        }
+        try{
+            var options=new JsonSerializerOptions{UnmappedMemberHandling=JsonUnmappedMemberHandling.Disallow};
+            using var payload=JsonDocument.Parse(table.SourceFeatures);
+            var features=payload.RootElement;
+            if(vendor!=SqlVendor.SqlServer||features.ValueKind!=JsonValueKind.Array||features.GetArrayLength()!=1){
+                throw new NotSupportedException("Imported identity, defaults, computed columns or constraints require their exact SQL representation.");
+            }
+            var feature=features[0];
+            if(feature.ValueKind!=JsonValueKind.Object||!feature.TryGetProperty("Kind",out var kind)
+                ||kind.ValueKind!=JsonValueKind.String||kind.GetString()!="PrimaryKey"
+                ||!feature.TryGetProperty("Definition",out var definition)||feature.EnumerateObject().Count()!=2){
+                throw new NotSupportedException("The imported table contains unsupported constraint metadata.");
+            }
+            var key=definition.Deserialize<PrimaryKeyCatalog>(options);
+            if(key is null||string.IsNullOrWhiteSpace(key.Name)||key.Columns is null||key.Columns.Count==0
+                ||key.Columns.Any(static column=>column is null||string.IsNullOrWhiteSpace(column.Name))
+                ||!key.Columns.Select(column=>column.Name).SequenceEqual(table.PrimaryKey,StringComparer.Ordinal)
+                ||key.IndexType is not (null or 1 or 2)){
+                throw new NotSupportedException("The imported primary key does not match the native table or its index type is unsupported.");
+            }
+            var name=string.Empty;
+            if(!key.IsSystemNamed){name="CONSTRAINT "+dialect.Quote(key.Name)+" ";}
+            var indexType=string.Empty;
+            if(key.IndexType==1){indexType=" CLUSTERED";}
+            if(key.IndexType==2){indexType=" NONCLUSTERED";}
+            var columns=key.Columns.Select(column=>{
+                var direction=" ASC";
+                if(column.IsDescending){direction=" DESC";}
+                return dialect.Quote(column.Name)+direction;
+            });
+            return "    "+name+"PRIMARY KEY"+indexType+" ("+string.Join(",",columns)+")";
+        }catch(JsonException error){
+            throw new NotSupportedException("The imported primary key metadata is invalid.",error);
+        }
     }
 
     private sealed class Dialect(SqlVendor vendor,bool routineParameters=false){

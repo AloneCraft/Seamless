@@ -1,27 +1,25 @@
 # Benchmark.TpcE
 
 TPC-E(証券取引の業務ベンチ、仕様 1.14.0)を模擬する、負荷試験と不具合探しのコンソールプログラム。
-Tsavorite と Persisted の両方に同じデータを置き、標準 LINQ と FLinq の両方で同じ取引を流して、**4通りが食い違わないか**を見る。
+Tsavorite上の標準 LINQ と FLinq へ同じデータと取引を流し、出力・書き込み・復旧後の状態を比較する。
 
 | 略称 | 保存先 | LINQ |
 |---|---|---|
 | TL | Tsavorite | 標準 LINQ |
 | TF | Tsavorite | FLinq |
-| PL | Persisted | 標準 LINQ |
-| PF | Persisted | FLinq |
 | VL | 版付きTsavorite(共通MVCC) | 標準 LINQ |
 | VF | 版付きTsavorite(共通MVCC) | FLinq |
 
-既定と`--variants all`は従来のTL/TF/PL/PFを選ぶ。VL/VFは明示選択する。
+既定と`--variants all`はTL/TFを選ぶ。VL/VFは明示選択する。
 例えば`--variants TL,VL,VF --customers 12 --transactions 32 --warmup 0 --save-every 16 --reopen-every 1 --memory-mb 128`で、小さいデータを使って従来方式と共通MVCCを比較できる。
 
-VL/VFでは主表と索引を同じトランザクションへ登録し、取引の変更とdriverの継続位置を同じprepared WALで確定する。保存は共通checkpointを通し、復旧は最後の耐久化済みcommitまで進む。従来方式の「最後の保存点まで」と復旧点が異なる。VL/VFは新しいv2永続profileで、従来の保存先や実験用v1を自動変換しない。Persistedは従来の比較対象として残す。
+VL/VFでは主表と索引を同じトランザクションへ登録し、取引の変更とdriverの継続位置を同じprepared WALで確定する。保存は共通checkpointを通し、復旧は最後の耐久化済みcommitまで進む。従来方式の「最後の保存点まで」と復旧点が異なる。VL/VFは新しいv2永続profileで、従来の保存先や実験用v1を自動変換しない。
 
 VFも共有取引ソースをFLinqで展開し、版付きRowsのnative Iterateを利用する。比較の計測値には、正しさの検査と再起動用driver状態の作成・保存も含まれるため、製品query単体の性能値とは区別する。
 
 主な目的は速さの比較ではなく、次の確認である。
 
-- 同じ乱数の種で同じ取引を流したとき、4通りの**出力**・**書いた中身**・**読み戻し**・**全表と全索引のダイジェスト**が一致するか。
+- 同じ乱数の種で同じ取引を流したとき、2通りの**出力**・**書いた中身**・**読み戻し**・**全表と全索引のダイジェスト**が一致するか。
 - 保存→閉じる→開き直しで、状態が変わらないか。
 - 強制終了(子プロセスを保存の途中などで止める)から開き直した状態が、最後に確定した保存と一致するか。
 
@@ -48,8 +46,8 @@ dotnet run -c Release --project Benchmark/Benchmark.TpcE -- describe
 
 | コマンド | 内容 |
 |---|---|
-| `run`(既定) | 4通りを交互に流して突き合わせる |
-| `crash` | 強制終了の検査。子プロセスを保存の決まった段階や時間で止め、開き直した状態を参照と比べる(既定は TF と PF) |
+| `run`(既定) | 2通りを交互に流して突き合わせる |
+| `crash` | 強制終了の検査。子プロセスを保存の決まった段階や時間で止め、開き直した状態を参照と比べる(既定は TL と TF) |
 | `replay --from <実行フォルダ>` | 失敗した実行を、その直前まで流し直して詳しく記録する |
 | `generate` | 初期データだけ作って、表ごとの件数とダイジェストを出す |
 | `describe` | 規模ごとの件数、推測で決めた値、FLinq を止めた問い合わせを出す。流さない |
@@ -65,7 +63,7 @@ dotnet run -c Release --project Benchmark/Benchmark.TpcE -- describe
 | `--news-item-bytes` | 1024 | ニュース本文の大きさ(仕様の上限は 100,000) |
 | `--transactions` | 15000 | 流す CE 取引の件数 |
 | `--warmup` | 1000 | 時間の集計から外す最初の CE 件数(正しさの検査には含める) |
-| `--variants` | all | `TL,TF,PL,PF,VL,VF`を明示選択できる。allは従来の4通り。1つだけなら読み戻しと開き直しを確認 |
+| `--variants` | all | `TL,TF,VL,VF`を明示選択できる。allはTL/TFの2通り。1つだけなら読み戻しと開き直しを確認 |
 | `--save-every` | 5000 | 何件の CE ごとに保存するか |
 | `--reopen-every` | 2 | 保存の何回に 1 回、閉じて開き直すか。最後には必ず開き直す |
 | `--stop-at` / `--trace-from` | なし | 再現用。この通し番号の直前で止める / ここから詳しく記録する |
@@ -91,13 +89,13 @@ dotnet run -c Release --project Benchmark/Benchmark.TpcE -- describe
 
 ## 速さを測るとき
 
-4通りを 1 取引ずつ交互に流すので、キャッシュや GC が混ざり、絶対値は悪く出る。
+2通りを 1 取引ずつ交互に流すので、キャッシュや GC が混ざり、絶対値は悪く出る。
 公平な速さが要るときは `--variants TF` のように 1 つだけを流す。
 JIT の最適化が落ち着くまでの最初の `--warmup` 件は集計から外す。
 
 ## 構成
 
-- `Benchmark.TpcE.Core`: 行型・キー型、33 表と 18 本の副索引、合成データ生成、運転側(CE・MEE・DM)、4 通りを交互に流す実行器、強制終了の検査、計測。
+- `Benchmark.TpcE.Core`: 行型・キー型、33 表と 18 本の副索引、合成データ生成、運転側(CE・MEE・DM)、2 通りを交互に流す実行器、強制終了の検査、計測。
 - `Shared/TpcE.Transactions`(共有プロジェクト): 12 取引の処理。LINQ は `*Queries` にだけ書き、`*Frames` から呼ぶ。
 - `Benchmark.TpcE.{Tsavorite,Persisted}.{Linq,FLinq}`: 共有の取引コードを別名 2 つ(`TpcEDatabase` と `LinqInterceptAttribute`)だけ変えて 4 回コンパイルする。
 - `Benchmark.TpcE.Tests`: ベンチ自体のテスト(CI には入れていない)。
@@ -124,4 +122,4 @@ dotnet test Benchmark/Benchmark.TpcE.Tests -c Release -m:1
 ## 既知の回避
 
 - FLinq の問い合わせを止める `[LinqIntercept(false)]` は使っていない(`describe` で確認できる)。
-- 順序の無い列(Set・辞書・GroupBy)の後で `Take`/`First` を使うときは、必ず一意な副キーまで含めて並べ替える(4 通りで列挙順が違うため)。
+- 順序の無い列(Set・辞書・GroupBy)の後で `Take`/`First` を使うときは、必ず一意な副キーまで含めて並べ替える(2 通りで列挙順が違うため)。
