@@ -1,0 +1,349 @@
+diff --git a/Seamless.Database/DatabaseTransactions.cs b/Seamless.Database/DatabaseTransactions.cs
+index f39d1748..670291fe 100644
+--- a/Seamless.Database/DatabaseTransactions.cs
++++ b/Seamless.Database/DatabaseTransactions.cs
+@@ -37,6 +37,9 @@ public abstract partial class DatabaseContainer{
+     protected virtual void EnsureTransactionSchema(){throw new NotSupportedException("SharedV2 requires a generated typed transaction schema.");}
+     protected ValueTask<TransactionScope> BeginTransactionScopeAsync(CancellationToken cancellationToken=default)=>this.BeginTransactionScopeCore(false,cancellationToken);
+     protected ValueTask<TransactionScope> BeginReadOnlyTransactionScopeAsync(CancellationToken cancellationToken=default)=>this.BeginTransactionScopeCore(true,cancellationToken);
++    /// <summary>型付きの入口を持たない管理のホスト(Manager)向けに、明示の取引の範囲を開く。表は GetTransactionCollection(範囲,表) で読み書きする。
++    /// 利用者の入口ではない(入口は db・BeginTransaction・BeginRead の3つだけ、I2)。暗黙の取引と取引外の db.X を使わずに読み書きするため(統一仕様の手順 D)。</summary>
++    internal ValueTask<TransactionScope> BeginHostTransactionScopeAsync(bool readOnly,CancellationToken cancellationToken=default)=>this.BeginTransactionScopeCore(readOnly,cancellationToken);
+     private ValueTask<TransactionScope> BeginTransactionScopeCore(bool readOnly,CancellationToken cancellationToken){
+         this.EnsureAvailable();
+         if(this.Options.GatewayProfile is not null){throw new InvalidOperationException("Use the owning Gateway transaction rather than a standalone transaction scope.");}
+diff --git a/Seamless.Management.Server/ManagementService.RowEditing.cs b/Seamless.Management.Server/ManagementService.RowEditing.cs
+index cec6fef8..05eebcc9 100644
+--- a/Seamless.Management.Server/ManagementService.RowEditing.cs
++++ b/Seamless.Management.Server/ManagementService.RowEditing.cs
+@@ -6,7 +6,7 @@ public sealed partial class ManagementService{
+ 
+     public Task<TableRows> ReadRowsAsync(UserAccount user,TableRowsRequest request,CancellationToken cancellation=default){
+         var id=this.AuthorizeRowDatabase(user,request.Database,ManagementPermission.View|ManagementPermission.ReadRows,true);
+-        this.AfterRowAuthorization?.Invoke();return this.runtime.ReadRowsAsync(request,id,cancellation,()=>{if(this.AuthorizeRowDatabase(user,request.Database,ManagementPermission.View|ManagementPermission.ReadRows,true)!=id){throw new ManagementException("CatalogChanged","行取得のDB識別が変わりました。");}});
++        this.AfterRowAuthorization?.Invoke();return this.runtime.ReadRowsAsync(request,id,ManagementStore.Normalize(user.Name),cancellation,()=>{if(this.AuthorizeRowDatabase(user,request.Database,ManagementPermission.View|ManagementPermission.ReadRows,true)!=id){throw new ManagementException("CatalogChanged","行取得のDB識別が変わりました。");}});
+     }
+ 
+     public Task<ObjectExecutionResult> ExecuteObjectAsync(UserAccount user,ObjectExecutionRequest request,CancellationToken cancellation=default){
+diff --git a/Seamless.Management.Server/NativeRuntime.RowEditing.cs b/Seamless.Management.Server/NativeRuntime.RowEditing.cs
+index a6f766d8..d39073db 100644
+--- a/Seamless.Management.Server/NativeRuntime.RowEditing.cs
++++ b/Seamless.Management.Server/NativeRuntime.RowEditing.cs
+@@ -4,6 +4,8 @@ using System.Text;
+ using System.Text.Json;
+ using Seamless.Database;
+ using Seamless.Execution.Codecs;
++using Seamless.Transactions;
++using Seamless.Transactions.Collections;
+ 
+ namespace Seamless.Management.Server;
+ 
+@@ -11,9 +13,16 @@ internal sealed partial class NativeRuntime{
+     private const int MaximumRowResponseBytes=4*1024*1024;
+     private const int MaximumRowBatch=1000;
+ 
+-    internal async Task<TableRows> ReadRowsAsync(TableRowsRequest request,string admittedId,CancellationToken cancellation,Action? authorize=null){
++    // [行の一覧] 一覧を開いた時点の読み込み専用の取引(スナップショット)を、最後のページを読むまで持ち、全ページをそこから読む(2026-11-12の決定、不変条件I4)。
++    // 同じ利用者が同じDB・表の一覧を開き直したら前のものを放す。途中で離れたものは、履歴の予算が足りなくなった時点で取引の仕組みが明示のエラーで止める(11/12の決定)。
++    // 読み書きは明示の取引の範囲と GetTransactionCollection で行い、暗黙の取引と取引外の db.X を使わない(統一仕様の手順 D)。
++    private sealed record RowListSnapshot(Guid Id,string Owner,string DefinitionId,string Table,long Version,DatabaseInstance Instance,TransactionScope Scope);
++    private readonly Dictionary<Guid,RowListSnapshot> rowSnapshots=[];
++    private readonly Lock rowSnapshotGate=new();
++
++    internal async Task<TableRows> ReadRowsAsync(TableRowsRequest request,string admittedId,string owner,CancellationToken cancellation,Action? authorize=null){
+         if(request.Limit is <1 or >MaximumRowBatch||string.IsNullOrWhiteSpace(request.Table)||
+-            request.Cursor is{} cursor&&(request.Key is not null||request.ExpectedVersion is null||cursor.Offset<1||cursor.PrefixHash is not{Length:64}||!cursor.PrefixHash.All(Uri.IsHexDigit))){
++            request.Cursor is{} cursor&&(request.Key is not null||request.ExpectedVersion is null||cursor.Offset<1||cursor.Snapshot==Guid.Empty)){
+             throw new ManagementException("InvalidRequest","表と1〜1000行の表示上限を指定してください。");
+         }
+         var gate=this.Gate("db:"+admittedId);
+@@ -22,14 +31,57 @@ internal sealed partial class NativeRuntime{
+             // 受付後に名前が別のDBへ付け替えられたなら、新しいDBへの権限より先に接続先の変更(Conflict)として扱う。
+             var version=this.RowEditingVersion(request.Database,request.ExpectedVersion,admittedId);
+             authorize?.Invoke();
+-            var database=this.Open(version).Database;
++            var instance=this.Open(version);var database=instance.Database;
+             var declaration=FindRowTable(DatabaseTableDeclaration.Read(database.GetType()),request.Table);
+-            var read=RowHandler<Func<object,TableRowsRequest,long,CancellationToken,TableRows>>(declaration,nameof(ReadTypedRows));
+-            using var snapshot=database.BeginReadSession(cancellation);
+-            var result=read(declaration.GetTable(database),request,version.Version,cancellation);authorize?.Invoke();return result;
++            var read=RowHandler<Func<DatabaseContainer,object,TransactionScope,TableRowsRequest,long,long,CancellationToken,TableRows>>(declaration,nameof(ReadTypedRows));
++            var table=declaration.GetTable(database);
++            if(request.Key is not null){
++                var single=await database.BeginHostTransactionScopeAsync(true,cancellation).ConfigureAwait(false);
++                try{var result=read(database,table,single,request,0,version.Version,cancellation);authorize?.Invoke();return result;}
++                finally{await single.DisposeAsync().ConfigureAwait(false);}
++            }
++            RowListSnapshot snapshot;var offset=0L;
++            if(request.Cursor is{} continuation){
++                bool found,usable;
++                lock(this.rowSnapshotGate){
++                    found=this.rowSnapshots.TryGetValue(continuation.Snapshot,out snapshot!)&&snapshot.Owner==owner&&snapshot.DefinitionId==admittedId&&snapshot.Table==request.Table;
++                    usable=found&&snapshot.Version==version.Version&&ReferenceEquals(snapshot.Instance,instance)&&!instance.IsDisposed;
++                }
++                if(!usable){
++                    // 自分の一覧で、稼働版や DB の実体が替わって使えなくなったものは登録から外して放す。
++                    if(found){this.ReleaseRowSnapshots(item=>item.Id==continuation.Snapshot);}
++                    throw SnapshotExpired();
++                }
++                offset=continuation.Offset;
++            }else{
++                this.ReleaseRowSnapshots(item=>item.Owner==owner&&item.DefinitionId==admittedId&&item.Table==request.Table);
++                var scope=await database.BeginHostTransactionScopeAsync(true,cancellation).ConfigureAwait(false);
++                snapshot=new(Guid.NewGuid(),owner,admittedId,request.Table,version.Version,instance,scope);
++                if(!instance.TrackRowSnapshot(scope)){await scope.DisposeAsync().ConfigureAwait(false);throw SnapshotExpired();}
++                lock(this.rowSnapshotGate){this.rowSnapshots.Add(snapshot.Id,snapshot);}
++            }
++            TableRows page;
++            try{page=read(database,table,snapshot.Scope,request,offset,version.Version,cancellation);}
++            catch(TransactionAbortedException error){this.ReleaseRowSnapshots(item=>item.Id==snapshot.Id);throw SnapshotExpired(error);}
++            catch{this.ReleaseRowSnapshots(item=>item.Id==snapshot.Id);throw;}
++            authorize?.Invoke();
++            if(!page.HasMore){this.ReleaseRowSnapshots(item=>item.Id==snapshot.Id);return page;}
++            return page with{NextCursor=new(offset+page.Rows.Length,snapshot.Id)};
+         }finally{gate.Release();}
+     }
+ 
++    private static ManagementException SnapshotExpired(Exception? inner=null)=>
++        new("SnapshotExpired","一覧を開いた時点の内容はもう読めません。一覧を開き直してください。");
++
++    private void ReleaseRowSnapshots(Func<RowListSnapshot,bool> match){
++        RowListSnapshot[] released;
++        lock(this.rowSnapshotGate){
++            released=this.rowSnapshots.Values.Where(match).ToArray();
++            foreach(var item in released){this.rowSnapshots.Remove(item.Id);}
++        }
++        foreach(var item in released){item.Instance.UntrackRowSnapshot(item.Scope);item.Scope.DisposeAsync().AsTask().GetAwaiter().GetResult();}
++    }
++
+     internal async Task<TableRowCommit> CommitRowsAsync(TableRowBatch request,string admittedId,UserAccount user,CancellationToken cancellation){
+         if(request.ExpectedVersion<=0||request.OperationId==Guid.Empty||request.Changes is null||request.Changes.Length is <1 or >MaximumRowBatch||
+             request.Changes.Any(change=>change is null||string.IsNullOrWhiteSpace(change.Table))){
+@@ -42,21 +94,22 @@ internal sealed partial class NativeRuntime{
+             var version=this.RowEditingVersion(request.Database,request.ExpectedVersion,admittedId);
+             var database=this.Open(version).Database;
+             var declarations=DatabaseTableDeclaration.Read(database.GetType());
+-            using var transaction=database.BeginTransaction(cancellation);
+-            foreach(var group in request.Changes.GroupBy(change=>change.Table,StringComparer.Ordinal)){
+-                var declaration=FindRowTable(declarations,group.Key);
+-                var change=RowHandler<Action<object,IEnumerable<TableRowChange>,CancellationToken>>(declaration,nameof(ApplyTypedRows));
+-                change(declaration.GetTable(database),group,cancellation);
+-            }
+-            cancellation.ThrowIfCancellationRequested();
+-            if(database.MetadataJournal is{} journal){
+-                var audit=new AuditEvent(Guid.NewGuid(),request.OperationId,started,DateTimeOffset.UtcNow,this.store.InstanceId,
+-                    ManagementStore.Normalize(user.Name),request.Database,version.Definition.Id,AuditAction.DataChange,AuditOutcome.Succeeded,
+-                    null,version.ArtifactHash,transaction.MetadataTransactionId,"Committed");
+-                transaction.CommitWithMetadata(AuditWalPayload.Encode(this.store.InstanceId,journal.Device.WalId,audit));
+-                transaction.Dispose();
+-                this.NotifyAudit(journal.Device.WalId);
+-            }else{transaction.Commit();}
++            var scope=await database.BeginHostTransactionScopeAsync(false,cancellation).ConfigureAwait(false);
++            try{
++                foreach(var group in request.Changes.GroupBy(change=>change.Table,StringComparer.Ordinal)){
++                    var declaration=FindRowTable(declarations,group.Key);
++                    var change=RowHandler<Action<DatabaseContainer,object,TransactionScope,IEnumerable<TableRowChange>,CancellationToken>>(declaration,nameof(ApplyTypedRows));
++                    change(database,declaration.GetTable(database),scope,group,cancellation);
++                }
++                cancellation.ThrowIfCancellationRequested();
++                if(database.MetadataJournal is{} journal){
++                    var audit=new AuditEvent(Guid.NewGuid(),request.OperationId,started,DateTimeOffset.UtcNow,this.store.InstanceId,
++                        ManagementStore.Normalize(user.Name),request.Database,version.Definition.Id,AuditAction.DataChange,AuditOutcome.Succeeded,
++                        null,version.ArtifactHash,scope.Id,"Committed");
++                    await scope.CommitAsync(AuditWalPayload.Encode(this.store.InstanceId,journal.Device.WalId,audit),cancellation).ConfigureAwait(false);
++                    this.NotifyAudit(journal.Device.WalId);
++                }else{await scope.CommitAsync(ReadOnlyMemory<byte>.Empty,cancellation).ConfigureAwait(false);}
++            }finally{await scope.DisposeAsync().ConfigureAwait(false);}
+             return new(version.Version,request.OperationId,request.Changes.Length);
+         }finally{gate.Release();}
+     }
+@@ -77,42 +130,29 @@ internal sealed partial class NativeRuntime{
+         typeof(NativeRuntime).GetMethod(method,BindingFlags.NonPublic|BindingFlags.Static)!
+             .MakeGenericMethod(declaration.Property.PropertyType.GenericTypeArguments).CreateDelegate<TDelegate>();
+ 
+-    private static TableRows ReadTypedRows<TKey,TRecord>(object source,TableRowsRequest request,long version,CancellationToken cancellation)
++    // offset 行を読み飛ばしてから、上限まで読む。同じスナップショットの中では並びが変わらない。
++    private static TableRows ReadTypedRows<TKey,TRecord>(DatabaseContainer database,object source,TransactionScope scope,TableRowsRequest request,long offset,long version,CancellationToken cancellation)
+         where TKey:struct where TRecord:struct{
+         var table=(Table<TKey,TRecord>)source;
++        var collection=database.GetTransactionCollection(scope,table);
+         var rows=new List<TableRowSnapshot>();
+         var columns=RuntimeValueJson.Columns(typeof(TRecord));
+         var keyMembers=RuntimeValueJson.Columns(typeof(TKey));
+         var bytes=0;
+         if(request.Key is{} key){
+             cancellation.ThrowIfCancellationRequested();
+-            if(table.TryGetValue((TKey)Materialize(key,typeof(TKey)),out var record)){Add(record);}
++            if(collection.TryGetValue((TKey)Materialize(key,typeof(TKey)),out var record)){Add(record);}
+             return new(version,rows.ToArray(),false,columns){KeyMembers=keyMembers};
+         }
+-        // ページ間にDBロックや列挙子を残さず、既読部分を照合して更新による重複・欠落を検出する。
+-        // 列挙元の再開カーソルがないため既読部分を再走査する。メモリ使用量は1ページに限定する。
+-        using var prefix=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+-        prefix.AppendData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new{request.Database,request.Table,Version=version})));
+-        long offset=0;
+-        foreach(var record in table){
++        var position=0L;
++        foreach(var record in collection){
+             cancellation.ThrowIfCancellationRequested();
+-            if(request.Cursor is{} continuation&&offset<continuation.Offset){
+-                prefix.AppendData(Encoding.ASCII.GetBytes(RowStamp(record)));offset++;
+-                if(offset==continuation.Offset&&Convert.ToHexString(prefix.GetCurrentHash())!=continuation.PrefixHash){
+-                    throw new ManagementException("RowConflict","読み込み済みの行が変更されています。編集内容を確認して再読込してください。");
+-                }
+-                continue;
+-            }
+-            if(rows.Count==request.Limit||!Add(record)){return Finish(true);}
+-            prefix.AppendData(Encoding.ASCII.GetBytes(rows[^1].Stamp));offset++;
+-        }
+-        if(request.Cursor is{} remaining&&offset<remaining.Offset){throw new ManagementException("RowConflict","読み込み済みの行が削除されています。編集内容を確認して再読込してください。");}
+-        return Finish(false);
+-
+-        TableRows Finish(bool more){
+-            TableRowCursor? next=null;if(more){next=new(offset,Convert.ToHexString(prefix.GetCurrentHash()));}
+-            return new(version,rows.ToArray(),more,columns){KeyMembers=keyMembers,NextCursor=next};
++            if(position<offset){position++;continue;}
++            if(rows.Count==request.Limit||!Add(record)){return new(version,rows.ToArray(),true,columns){KeyMembers=keyMembers};}
++            position++;
+         }
++        if(position<offset){throw SnapshotExpired();}
++        return new(version,rows.ToArray(),false,columns){KeyMembers=keyMembers};
+ 
+         bool Add(TRecord record){
+             var key=RuntimeValueJson.Serialize(table.RecordKey(record));
+@@ -128,9 +168,10 @@ internal sealed partial class NativeRuntime{
+         }
+     }
+ 
+-    private static void ApplyTypedRows<TKey,TRecord>(object source,IEnumerable<TableRowChange> changes,CancellationToken cancellation)
++    private static void ApplyTypedRows<TKey,TRecord>(DatabaseContainer database,object source,TransactionScope scope,IEnumerable<TableRowChange> changes,CancellationToken cancellation)
+         where TKey:struct where TRecord:struct{
+         var table=(Table<TKey,TRecord>)source;
++        var collection=database.GetTransactionCollection(scope,table);
+         var removals=new HashSet<TKey>(table.GatewayKeyComparer);
+         var additions=new List<TRecord>();
+         foreach(var change in changes){
+@@ -151,11 +192,11 @@ internal sealed partial class NativeRuntime{
+         }
+         foreach(var key in removals){
+             cancellation.ThrowIfCancellationRequested();
+-            if(!table.Remove(key)){throw new ManagementException("Conflict","更新元の行がありません。");}
++            if(!collection.Remove(key)){throw new ManagementException("Conflict","更新元の行がありません。");}
+         }
+         foreach(var record in additions){
+             cancellation.ThrowIfCancellationRequested();
+-            if(!table.Add(record)){throw new ManagementException("Constraint","主キーが重複しています。");}
++            if(!collection.Add(record)){throw new ManagementException("Constraint","主キーが重複しています。");}
+         }
+ 
+         void RequireCurrent(TableRowChange change){
+@@ -164,7 +205,7 @@ internal sealed partial class NativeRuntime{
+             }
+             var key=(TKey)Materialize(input,typeof(TKey));
+             if(!removals.Add(key)){throw new ManagementException("InvalidRequest","同じ行が複数回指定されています。");}
+-            if(!table.TryGetValue(key,out var current)||RowStamp(current)!=stamp){
++            if(!collection.TryGetValue(key,out var current)||RowStamp(current)!=stamp){
+                 throw new ManagementException("RowConflict","取得後に行が変更されました: "+change.Table);
+             }
+         }
+diff --git a/Seamless.Management.Server/NativeRuntime.cs b/Seamless.Management.Server/NativeRuntime.cs
+index bdfad8b1..2dc9f692 100644
+--- a/Seamless.Management.Server/NativeRuntime.cs
++++ b/Seamless.Management.Server/NativeRuntime.cs
+@@ -43,7 +43,17 @@ internal sealed class DatabaseInstance(Definition definition,string path,Compile
+         foreach(var property in Tables(this.Database)){_=property.GetValue(this.Database);}
+     }
+     internal static PropertyInfo[] Tables(DatabaseContainer database)=>database.GetType().GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.PropertyType.IsGenericType&&(property.PropertyType.GetGenericTypeDefinition()==typeof(Table<,>)||property.PropertyType.GetGenericTypeDefinition()==typeof(Table<>))).ToArray();
+-    public void Dispose(){if(this.disposed){return;}this.disposed=true;try{this.Database?.Dispose();}finally{try{this.Context.Unload();}finally{this.Compiled.Dispose();}}}
++    // [行の一覧] この実体で開いた一覧のスナップショット(読み込み専用の取引)。実体を閉じるときは、DB を閉じる前に放す。
++    // 放さないと、DB を閉じる処理が読み込みの取引の終わりを待って止まる。
++    private readonly List<global::Seamless.Transactions.TransactionScope> rowSnapshots=[];
++    internal bool IsDisposed=>this.disposed;
++    internal bool TrackRowSnapshot(global::Seamless.Transactions.TransactionScope scope){lock(this.rowSnapshots){if(this.disposed){return false;}this.rowSnapshots.Add(scope);return true;}}
++    internal void UntrackRowSnapshot(global::Seamless.Transactions.TransactionScope scope){lock(this.rowSnapshots){this.rowSnapshots.Remove(scope);}}
++    public void Dispose(){
++        global::Seamless.Transactions.TransactionScope[] snapshots;
++        lock(this.rowSnapshots){if(this.disposed){return;}this.disposed=true;snapshots=this.rowSnapshots.ToArray();this.rowSnapshots.Clear();}
++        try{foreach(var scope in snapshots){scope.DisposeAsync().AsTask().GetAwaiter().GetResult();}this.Database?.Dispose();}finally{try{this.Context.Unload();}finally{this.Compiled.Dispose();}}
++    }
+ }
+ 
+ internal sealed partial class NativeRuntime:IDisposable{
+diff --git a/Seamless.Management/RowEditingContracts.cs b/Seamless.Management/RowEditingContracts.cs
+index 77dac270..87e70e60 100644
+--- a/Seamless.Management/RowEditingContracts.cs
++++ b/Seamless.Management/RowEditingContracts.cs
+@@ -6,7 +6,8 @@ public sealed record TableRowsRequest(string Database,string Table,int Limit=100
+     public TableRowCursor? Cursor{get;init;}
+     public TableRowsRequest Freeze()=>this with{Key=this.Key?.Clone()};
+ }
+-public sealed record TableRowCursor(long Offset,string PrefixHash);
++/// <summary>続きのページの位置と、一覧を開いた時点の内容(スナップショット)の番号。サーバーは最後のページを読むまでその時点の内容を持ち、全ページをそこから読む。</summary>
++public sealed record TableRowCursor(long Offset,Guid Snapshot);
+ public sealed record TableRowSnapshot(JsonElement Key,JsonElement Values,string Stamp);
+ public sealed record TableRows(long Version,TableRowSnapshot[] Rows,bool HasMore,CatalogField[]? Columns=null){
+     public TableRowCursor? NextCursor{get;init;}
+diff --git a/Tests/Management.Tests/NativeRowEditingTests.cs b/Tests/Management.Tests/NativeRowEditingTests.cs
+index 9d68f75a..18a9cc63 100644
+--- a/Tests/Management.Tests/NativeRowEditingTests.cs
++++ b/Tests/Management.Tests/NativeRowEditingTests.cs
+@@ -28,12 +28,20 @@ public sealed class NativeRowEditingTests{
+         Assert.Equal(Enumerable.Range(1,205),rows.Select(row=>row.Key.GetProperty("id").GetInt32()).Order());
+         var exact=await service.ReadRowsAsync(user,new("Native","Rows",Key:rows[0].Key));
+         Assert.Single(exact.Rows);Assert.False(exact.HasMore);Assert.Null(exact.NextCursor);
+-        var selected=rows[0];await service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[
+-            new("Rows",TableRowChangeKind.Replace,selected.Key,selected.Stamp,ManagementJson.Element(new{Id=selected.Key.GetProperty("id").GetInt32(),Value=-1}))]));
++        // 最後のページまで読んだ一覧のスナップショットは放してある。古いカーソルは明示のエラーで止まる。
+         var error=await Assert.ThrowsAsync<ManagementException>(()=>service.ReadRowsAsync(user,new("Native","Rows",ExpectedVersion:1){Cursor=initial.NextCursor}));
+-        Assert.Equal("RowConflict",error.Code);
++        Assert.Equal("SnapshotExpired",error.Code);
++        // 一覧を開いた後で行を変えても足しても、続きのページは開いた時点の内容のまま読める(読み込み済みの行の衝突は無くなった)。
++        var opened=await service.ReadRowsAsync(user,new("Native","Rows"));Assert.Equal(100,opened.Rows.Length);
++        var selected=rows[0];await service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[
++            new("Rows",TableRowChangeKind.Replace,selected.Key,selected.Stamp,ManagementJson.Element(new{Id=selected.Key.GetProperty("id").GetInt32(),Value=-1})),
++            ..Enumerable.Range(1000,50).Select(id=>Insert("Rows",new{Id=id,Value=id}))]));
++        var seen=opened.Rows.ToList();page=opened;
++        while(page.HasMore){page=await service.ReadRowsAsync(user,new TableRowsRequest("Native","Rows",100,page.Version){Cursor=page.NextCursor});seen.AddRange(page.Rows);}
++        Assert.Equal(Enumerable.Range(1,205),seen.Select(row=>row.Key.GetProperty("id").GetInt32()).Order());
++        Assert.DoesNotContain(seen,row=>row.Values.GetProperty("value").GetInt32()==-1);
+         var refreshed=await service.ReadRowsAsync(user,new("Native","Rows"));Assert.Equal(100,refreshed.Rows.Length);
+-        Assert.Equal("InvalidRequest",(await Assert.ThrowsAsync<ManagementException>(()=>service.ReadRowsAsync(user,new("Native","Rows"){Cursor=new(1,"bad")}))).Code);
++        Assert.Equal("InvalidRequest",(await Assert.ThrowsAsync<ManagementException>(()=>service.ReadRowsAsync(user,new("Native","Rows"){Cursor=new(1,Guid.Empty)}))).Code);
+     }
+     [Fact]public async Task CyclesCommitAsOneBatchAndOrphansRollBackEveryTable(){
+         var root=Root();
+diff --git a/Tests/Management.Tests/ResultsGridOperations.cs b/Tests/Management.Tests/ResultsGridOperations.cs
+index 61086b15..8419ab7a 100644
+--- a/Tests/Management.Tests/ResultsGridOperations.cs
++++ b/Tests/Management.Tests/ResultsGridOperations.cs
+@@ -70,12 +70,12 @@ public sealed class ResultsGridOperations{
+         });
+     }
+     [Fact]public async Task NextPageUsesTheCursorAndLateResponsesCannotCrossDatabases(){
+-        var cursor=new TableRowCursor(1,new string('A',64));
++        var cursor=new TableRowCursor(1,Guid.NewGuid());
+         var operations=new GridOperations{Read=(_,_)=>Task.FromResult(Page([Row(1,10)]) with{HasMore=true,NextCursor=cursor})};
+         using var provider=Services(operations);await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+         await renderer.Dispatcher.InvokeAsync(async()=>{
+             var rendered=await renderer.RenderComponentAsync<TestGrid>(Parameters("First"));var grid=operations.Component!;
+-            operations.Read=(request,_)=>{Assert.Equal(cursor,request.Cursor);Assert.Null(request.Key);Assert.Equal(1,request.ExpectedVersion);return Task.FromResult(Page([Row(2,20)]) with{HasMore=true,NextCursor=new(2,new string('B',64))});};
++            operations.Read=(request,_)=>{Assert.Equal(cursor,request.Cursor);Assert.Null(request.Key);Assert.Equal(1,request.ExpectedVersion);return Task.FromResult(Page([Row(2,20)]) with{HasMore=true,NextCursor=new(2,Guid.NewGuid())});};
+             await grid.次ページ読込Async();Assert.Equal(2,((IList)Get(grid,"行一覧")!).Count);
+             var pending=new TaskCompletionSource<TableRows>(TaskCreationOptions.RunContinuationsAsynchronously);CancellationToken oldToken=default;
+             operations.Read=(_,token)=>{oldToken=token;return pending.Task;};var loading=grid.次ページ読込Async();
+@@ -86,13 +86,13 @@ public sealed class ResultsGridOperations{
+         });
+     }
+     [Fact]public async Task FailedNextPagePreservesEditsAndCanBeRetried(){
+-        var cursor=new TableRowCursor(1,new string('A',64));
++        var cursor=new TableRowCursor(1,Guid.NewGuid());
+         var operations=new GridOperations{Read=(_,_)=>Task.FromResult(Page([Row(1,10)]) with{HasMore=true,NextCursor=cursor})};
+         using var provider=Services(operations);await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+         await renderer.Dispatcher.InvokeAsync(async()=>{
+             var rendered=await renderer.RenderComponentAsync<TestGrid>(Parameters("First"));var grid=operations.Component!;
+             var row=((IList)Get(grid,"行一覧")!)[0]!;var edits=(Dictionary<string,string>)row.GetType().GetProperty("Values")!.GetValue(row)!;edits["value"]="99";
+-            operations.Read=(_,_)=>Task.FromException<TableRows>(new ManagementException("RowConflict","prefix changed"));await grid.次ページ読込Async();
++            operations.Read=(_,_)=>Task.FromException<TableRows>(new ManagementException("SnapshotExpired","prefix changed"));await grid.次ページ読込Async();
+             Assert.Equal("99",edits["value"]);Assert.Contains("prefix changed",rendered.ToHtmlString());
+             operations.Read=(request,_)=>{Assert.Equal(cursor,request.Cursor);return Task.FromResult(Page([Row(2,20)]));};await grid.次ページ読込Async();
+             Assert.Equal("99",edits["value"]);Assert.Equal(2,((IList)Get(grid,"行一覧")!).Count);Assert.DoesNotContain("prefix changed",rendered.ToHtmlString());
