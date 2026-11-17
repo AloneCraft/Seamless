@@ -12,7 +12,8 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
             primary_key.name,primary_key.key_ordinal,primary_key.is_descending_key,
             column_definition.encryption_type,column_definition.collation_name,primary_key.index_type,table_definition.create_date,
             default_definition.name,computed_definition.is_persisted,identity_definition.seed_value,identity_definition.increment_value,identity_definition.last_value,
-            default_definition.is_system_named,primary_key.is_system_named
+            default_definition.is_system_named,primary_key.is_system_named,
+            xml_schema.name,xml_collection.name,column_definition.is_xml_document
         FROM sys.tables AS table_definition
         INNER JOIN sys.schemas AS schema_definition ON schema_definition.schema_id=table_definition.schema_id
         INNER JOIN sys.columns AS column_definition ON column_definition.object_id=table_definition.object_id
@@ -24,6 +25,9 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
         LEFT JOIN sys.computed_columns AS computed_definition
             ON computed_definition.object_id=column_definition.object_id
             AND computed_definition.column_id=column_definition.column_id
+        LEFT JOIN sys.xml_schema_collections AS xml_collection
+            ON xml_collection.xml_collection_id=column_definition.xml_collection_id AND column_definition.xml_collection_id<>0
+        LEFT JOIN sys.schemas AS xml_schema ON xml_schema.schema_id=xml_collection.schema_id
         LEFT JOIN sys.identity_columns AS identity_definition
             ON identity_definition.object_id=column_definition.object_id AND identity_definition.column_id=column_definition.column_id
         LEFT JOIN (
@@ -42,6 +46,15 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
             AND primary_key.column_id=column_definition.column_id
         WHERE table_definition.is_ms_shipped=0
         ORDER BY schema_definition.name,table_definition.name,column_definition.column_id;
+        """;
+
+    // 型付きの xml の列が従う XML スキーマコレクション(SQL Server が持つ sys の決まりは除く)。本文は XML_SCHEMA_NAMESPACE で読む。
+    private const string XmlSchemaCollectionQuery="""
+        SELECT schema_definition.name,collection.name,CONVERT(nvarchar(max),XML_SCHEMA_NAMESPACE(schema_definition.name,collection.name))
+        FROM sys.xml_schema_collections AS collection
+        INNER JOIN sys.schemas AS schema_definition ON schema_definition.schema_id=collection.schema_id
+        WHERE schema_definition.name<>N'sys'
+        ORDER BY schema_definition.name,collection.name;
         """;
 
     public async Task<DatabaseCatalog> ReadAsync(CancellationToken cancellationToken=default) {
@@ -72,7 +85,14 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
             .ToArray();
         await using var collationCommand=new SqlCommand("SELECT CONVERT(nvarchar(128),DATABASEPROPERTYEX(DB_NAME(),'Collation'));",connection);
         var collation=await collationCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return new(databaseName,schemas,collation is string value?value:null);
+        var collections=new List<XmlSchemaCollectionCatalog>();
+        await using(var collectionCommand=new SqlCommand(XmlSchemaCollectionQuery,connection))
+        await using(var collectionReader=await collectionCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false)){
+            while(await collectionReader.ReadAsync(cancellationToken).ConfigureAwait(false)){
+                collections.Add(new(collectionReader.GetString(0),collectionReader.GetString(1),collectionReader.GetString(2)));
+            }
+        }
+        return new(databaseName,schemas,collation is string value?value:null){XmlSchemaCollections=collections};
     }
 
     private static async Task ReadTablesAsync(
@@ -92,10 +112,12 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
                 tables.Add(key,table);
             }
             var columnName=reader.GetString(3);
+            var columnType=SqlServerTypeMapper.Map(reader.GetString(4),reader.GetBoolean(8),reader.GetInt16(5),
+                reader.GetByte(6),reader.GetByte(7),!reader.IsDBNull(15),reader.IsDBNull(16)?null:reader.GetString(16));
+            if(!reader.IsDBNull(27)){columnType=columnType with{XmlSchemaCollectionSchema=reader.GetString(26),XmlSchemaCollectionName=reader.GetString(27),IsXmlDocument=reader.GetBoolean(28)};}
             table.Columns.Add(new(
                 reader.GetInt32(2)-1,columnName,
-                SqlServerTypeMapper.Map(reader.GetString(4),reader.GetBoolean(8),reader.GetInt16(5),
-                    reader.GetByte(6),reader.GetByte(7),!reader.IsDBNull(15),reader.IsDBNull(16)?null:reader.GetString(16)),
+                columnType,
                 reader.GetBoolean(9),reader.IsDBNull(10)?null:reader.GetString(10),
                 reader.IsDBNull(11)?null:reader.GetString(11)){DefaultConstraintName=reader.IsDBNull(19)?null:reader.GetString(19),IsComputedPersisted=!reader.IsDBNull(20)&&reader.GetBoolean(20),IdentitySeed=IdentityNumber(21),IdentityIncrement=IdentityNumber(22),InitialIdentityValue=reader.IsDBNull(23)?null:IdentityNumber(23),IsDefaultSystemNamed=!reader.IsDBNull(24)&&reader.GetBoolean(24)});
             decimal IdentityNumber(int ordinal){if(reader.IsDBNull(ordinal)){return 1;}var value=reader.GetSqlValue(ordinal);if(decimal.TryParse(value.ToString(),global::System.Globalization.NumberStyles.Number,global::System.Globalization.CultureInfo.InvariantCulture,out var number)){return number;}throw new NotSupportedException("The identity seed or increment needs a numeric representation wider than CLR decimal.");}

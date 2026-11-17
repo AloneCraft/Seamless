@@ -66,6 +66,9 @@ public readonly struct Bit:
 
     public static explicit operator int(Bit value)=>value.value;
 
+    // T-SQL 翻訳器が取り込んだ bit の列を SQL の真偽(bool?)として読む((bool?)(row.X))。1 が真。
+    public static explicit operator bool(Bit value)=>value.value!=0;
+
     public static Bit operator &(Bit left,Bit right)=>new(left.value&right.value);
 
     public static Bit operator |(Bit left,Bit right)=>new(left.value|right.value);

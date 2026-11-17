@@ -74,8 +74,24 @@ public sealed class TranslationCatalog{
         this.relations.TryGetValue((schema,name),out var relation);
         return relation;
     }
+    /// <summary>
+    /// 取込の生成器が付けたスキーマの C# の名前(SQL 上の名前から)。生成器は名前が重なると付け替えるので、
+    /// 生成器と組むときはこれを渡す。無いスキーマは <see cref="CSharpNames.Identifier"/> の規則で付ける。
+    /// </summary>
+    public IReadOnlyDictionary<string,string>? SchemaIdentifiers{get;init;}
+    /// <summary>スキーマの C# の名前。</summary>
+    public string SchemaIdentifier(string schema){
+        if(this.SchemaIdentifiers is not null){
+            foreach(var pair in this.SchemaIdentifiers){
+                if(string.Equals(pair.Key,schema,StringComparison.OrdinalIgnoreCase)){
+                    return pair.Value;
+                }
+            }
+        }
+        return CSharpNames.Identifier(schema);
+    }
     /// <summary>スキーマの読み取りの入口の型(拡張ブロックの受け手)。</summary>
-    public string ReaderType(string schema)=>$"{this.ContainerType}.I{CSharpNames.Identifier(schema)}Reader";
+    public string ReaderType(string schema)=>$"{this.ContainerType}.I{this.SchemaIdentifier(schema)}Reader";
     private sealed class SchemaNameComparer:IEqualityComparer<(string Schema,string Name)>{
         public static SchemaNameComparer Instance{get;}=new();
         public bool Equals((string Schema,string Name) x,(string Schema,string Name) y)=>string.Equals(x.Schema,y.Schema,StringComparison.OrdinalIgnoreCase)&&string.Equals(x.Name,y.Name,StringComparison.OrdinalIgnoreCase);

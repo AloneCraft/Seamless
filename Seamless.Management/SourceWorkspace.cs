@@ -48,6 +48,8 @@ public sealed partial class SourceWorkspace{
         var references=new XElement("ItemGroup");
         references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,"Seamless.Database","Seamless.Database.csproj"))));
         foreach(var generator in new[]{"Seamless.Database.Generator","Seamless.FLinq.Generator"}){references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,generator,generator+".csproj")),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));}
+        // 取り込んだ DB(SQL Server から)は bit の型と組み込み関数を使う。使うソースだけが部品を参照する。
+        if(current.Definition.Source.Files.Any(static file=>file.Text.Contains("global::Seamless.Database.SqlServer.",StringComparison.Ordinal))){references.Add(new XElement("ProjectReference",new XAttribute("Include",Path.Combine(repository,"Seamless.Database.SqlServer.Functions","Seamless.Database.SqlServer.Functions.csproj"))));}
         // Manager が管理する DB の印を、DB 生成器の解析器(使用制限)と生成器へ渡す。
         references.Add(new XElement("CompilerVisibleProperty",new XAttribute("Include","SeamlessManagedDatabase")));
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),new XElement("PropertyGroup",new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),new XElement("SeamlessManagedDatabase","true"),new XElement("EnableDefaultCompileItems","false"),new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),new XElement("DefineConstants",string.Join(";",current.Definition.Source.Defines??[]))),references);
@@ -117,6 +119,10 @@ public sealed partial class SourceWorkspace{
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.Client"),new XAttribute("Version",packageVersion)));
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.Generator"),new XAttribute("Version",packageVersion),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));
         references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.FLinq.Generator"),new XAttribute("Version",packageVersion),new XAttribute("OutputItemType","Analyzer"),new XAttribute("ReferenceOutputAssembly","false")));
+        // 取り込んだ DB(SQL Server から)は bit の型と組み込み関数を使う。使うソースだけが部品を参照する。
+        if(current.Definition.Source.Files.Any(static file=>file.Text.Contains("global::Seamless.Database.SqlServer.",StringComparison.Ordinal))){
+            references.Add(new XElement("PackageReference",new XAttribute("Include","Seamless.Database.SqlServer.Functions"),new XAttribute("Version",packageVersion)));
+        }
         // Manager が管理する DB の印を、DB 生成器の解析器(使用制限)と生成器へ渡す。
         references.Add(new XElement("CompilerVisibleProperty",new XAttribute("Include","SeamlessManagedDatabase")));
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),

@@ -28,6 +28,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
     private readonly LocalOwnerIdentity? localOwner;
     private readonly LocalBrowserSessions? localBrowser;
     private readonly SourceProjectService sourceProjects=new();
+    private ExternalTransferService? transfer;
     private ConcurrentManagementOperations? execution;
     private readonly global::Seamless.Execution.ExecutionScope? pipeResources;
     private readonly ResourceMemoryPool? pipeMemoryPool;
@@ -110,7 +111,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
             if(request is null){throw new EndOfStreamException();}
             LocalOwnerIdentity? owner=null;
             if(this.localOwner is not null&&stream is NamedPipeServerStream pipe){this.localOwner.Verify(pipe);owner=this.localOwner;}
-            if(request.Operation=="info"){var info=this.authorization?.Info??this.service.Info;if(this.PipeName is not null){info=info with{Capabilities=[..info.Capabilities,"SameUserPipeV1"]};}if(this.localOwner is not null){info=info with{Capabilities=[..info.Capabilities,"OsOwnerPipeV1"]};}if(owner is not null){info=info with{Capabilities=[..info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceSdkBuildV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1"]};}if(owner is not null&&this.localBrowser is not null){info=info with{Capabilities=[..info.Capabilities,"LocalBrowserV1"]};}await this.Send(stream,request.Id,"result",info);return;}
+            if(request.Operation=="info"){var info=this.authorization?.Info??this.service.Info;if(this.PipeName is not null){info=info with{Capabilities=[..info.Capabilities,"SameUserPipeV1"]};}if(this.localOwner is not null){info=info with{Capabilities=[..info.Capabilities,"OsOwnerPipeV1"]};}if(owner is not null){info=info with{Capabilities=[..info.Capabilities,"OwnerSourceProjectsV1","OwnerSourceDirectoryV1","OwnerSourceDraftsV1","OwnerSourceBuildsV1","OwnerSourceSdkBuildV1","OwnerSourceBuildImportsV1","OwnerSourceBuildPublicationV1","OwnerSourceConflictsV1","OwnerSourceConfigurationsV1","OwnerExternalTransferV1"]};}if(owner is not null&&this.localBrowser is not null){info=info with{Capabilities=[..info.Capabilities,"LocalBrowserV1"]};}await this.Send(stream,request.Id,"result",info);return;}
             if(request.Operation is "browserLaunch" or "browserRevoke"){
                 if(owner is null||this.localBrowser is null){throw new ManagementException("Unsupported","ブラウザー起動はOS所有者を確認したローカルIPCでのみ利用できます。");}
                 if(request.Operation=="browserLaunch"){await this.Send(stream,request.Id,"result",this.localBrowser.CreateLaunch());}
@@ -140,6 +141,19 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                     _=>await this.sourceProjects.SynchronizeSourceProjectAsync(ManagementJson.Read<SourceProjectSynchronization>(request.Payload),sourceCancellation.Token)
                 };
                 await this.Send(stream,request.Id,"result",sourceResult);return;
+            }
+            // 外部DBの取り込み(接続文字列とパスワードを扱う)は、OS の所有者を確かめた接続だけ。
+            if(request.Operation is "externalConnect" or "externalPreview" or "externalImport" or "externalStatus"){
+                if(owner is null){throw new ManagementException("Permission","外部DBの取り込みはOS所有者を確認したローカルIPCでのみ操作できます。");}
+                using var transferCancellation=CancellationTokenSource.CreateLinkedTokenSource(this.stopping.Token,connectionClosed);
+                var transfer=this.transfer??=new(this.service,this.sourceProjects,new WindowsCredentialStore());
+                object transferResult=request.Operation switch{
+                    "externalConnect"=>await transfer.ConnectAsync(ManagementJson.Read<ExternalConnectionRequest>(request.Payload),transferCancellation.Token),
+                    "externalPreview"=>await transfer.PreviewAsync(owner.Account(),ManagementJson.Read<ExternalImportPreviewRequest>(request.Payload),transferCancellation.Token),
+                    "externalImport"=>transfer.Start(owner.Account(),ManagementJson.Read<ExternalImportRequest>(request.Payload)),
+                    _=>transfer.Status(request.Payload.GetProperty("operationId").GetGuid())
+                };
+                await this.Send(stream,request.Id,"result",transferResult);return;
             }
             if(this.authorization is{} authorization){
                 using var operationCancellation=CancellationTokenSource.CreateLinkedTokenSource(this.stopping.Token,connectionClosed);

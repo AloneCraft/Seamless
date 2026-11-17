@@ -49,6 +49,8 @@ public sealed class RuntimeCompiler{
         var paths=references.OfType<PortableExecutableReference>().Select(reference=>reference.FilePath!).ToHashSet(StringComparer.OrdinalIgnoreCase);
         void Add(Assembly assembly){if(assembly.IsDynamic||string.IsNullOrEmpty(assembly.Location)||!paths.Add(assembly.Location)){return;}references.Add(MetadataReference.CreateFromFile(assembly.Location));foreach(var item in assembly.GetReferencedAssemblies()){Add(Assembly.Load(item));}}
         Add(typeof(global::Seamless.Database.DatabaseContainer).Assembly);Add(typeof(ManagementExecutionContext).Assembly);Add(typeof(global::Seamless.Linq.Enumerable).Assembly);
+        // 取り込んだ DB(SQL Server から)は bit の型と、訳したビューが呼ぶ組み込み関数を使う。使わない DB の成果物には参照が残らない。
+        Add(typeof(global::Seamless.Database.SqlServer.Types.Bit).Assembly);
         foreach(var reference in source.References){var path=paths.SingleOrDefault(path=>Path.GetFileNameWithoutExtension(path)==reference.Name);if(path is null||Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))!=reference.Sha256){throw new ManagementException("ReferenceMismatch","許可済み参照と一致しません: "+reference.Name);}}
         foreach(var dependency in dependencies??[]){references.Add(MetadataReference.CreateFromImage(dependency));}
         var parse=new CSharpParseOptions(LanguageVersion.CSharp14,preprocessorSymbols:source.Defines??[]).WithFeatures([new("InterceptorsNamespaces","Intercept"),new("InterceptorsPreviewNamespaces","Intercept")]);

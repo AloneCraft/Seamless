@@ -15,6 +15,8 @@ namespace Seamless.Management.Server;
 /// </summary>
 internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactStore artifacts){
     private static readonly string[] AnalyzerAssemblies=["Seamless.Database.Generator","Seamless.FLinq.Generator"];
+    // 参照の根：DB の部品・Seamless.Linq と、取り込んだ DB が使う SQL Server の組み込み関数と bit の型(使わない DB の成果物には入らない)。
+    private static readonly Assembly[] ReferenceRoots=[typeof(DatabaseContainer).Assembly,typeof(global::Seamless.Linq.Enumerable).Assembly,typeof(global::Seamless.Database.SqlServer.Types.Bit).Assembly];
     private readonly Lock gate=new();
 
     internal CompiledSource Build(Definition definition,CancellationToken cancellationToken=default){
@@ -97,7 +99,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
             }
         }
         var references=SourceEditor.PlatformReferences().Cast<Microsoft.CodeAnalysis.MetadataReference>().ToList();
-        references.AddRange(new ItemsFor().Closure([typeof(DatabaseContainer).Assembly,typeof(global::Seamless.Linq.Enumerable).Assembly])
+        references.AddRange(new ItemsFor().Closure(ReferenceRoots)
             .Select(path=>Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(path)));
         references.Add(Microsoft.CodeAnalysis.MetadataReference.CreateFromImage(query.Database));
         var compilation=Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("audit",trees,references,new(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary,allowUnsafe:true,nullableContextOptions:Microsoft.CodeAnalysis.NullableContextOptions.Enable));
@@ -141,7 +143,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     // 内蔵のコンパイルと同じ参照(Seamless.Database と Seamless.Linq と、それらが参照する部品)をサーバーの部品から直接参照し、出力へ写す(共有の部品のバイトがサーバーと一致する)。
     private static string Project(SourceSnapshot source,string name,QueryBinding? query=null,string? databasePath=null){
         // 登録クエリの実行の文脈(ManagementExecutionContext)も Seamless.Database にあるので、参照は DB の部品だけで済む(サーバーの部品を成果物に入れない)。
-        var references=new ItemsFor().Closure([typeof(DatabaseContainer).Assembly,typeof(global::Seamless.Linq.Enumerable).Assembly]);
+        var references=new ItemsFor().Closure(ReferenceRoots);
         var analyzers=AnalyzerAssemblies.Select(item=>Path.Combine(AppContext.BaseDirectory,item+".dll")).Where(File.Exists).ToArray();
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",

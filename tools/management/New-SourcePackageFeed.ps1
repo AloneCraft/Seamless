@@ -22,7 +22,7 @@ $staging=Join-Path $published ('packages.stage-'+[guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Path $staging | Out-Null
 $runner=Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1'
 $dotnet=(Get-Command dotnet).Source
-$projects=@('Seamless','Seamless.Collections','Seamless.Collections.Persisted','Seamless.Collections.Tsavorite','Seamless.Database','Seamless.Database.Client','Seamless.Database.Generator','Seamless.Execution','Seamless.FLinq.Generator','Seamless.Linq','Seamless.Transactions','Seamless.Transactions.Collections')
+$projects=@('Seamless','Seamless.Collections','Seamless.Collections.Persisted','Seamless.Collections.Tsavorite','Seamless.Database','Seamless.Database.Client','Seamless.Database.Generator','Seamless.Execution','Seamless.FLinq.Generator','Seamless.Linq','Seamless.Transactions','Seamless.Transactions.Collections','Seamless.Database.SqlServer.Functions')
 $packageIds=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach($name in $projects){[void]$packageIds.Add($name)}
 
@@ -59,6 +59,10 @@ function Get-PackageId([xml]$Document){
 $arguments=@('build',(Join-Path $repository 'Seamless/Seamless.csproj'),'-c',$Configuration,'--artifacts-path',$artifacts,'-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false')
 if($PackageFallbackRoot){$arguments+=('-p:RestoreFallbackFolders='+[IO.Path]::GetFullPath($PackageFallbackRoot))}
 Invoke-FeedStage 'build-entry' $dotnet $arguments
+# 取り込んだ DB(SQL Server から)のプロジェクトが使う、bit の型と組み込み関数の部品。入口(Seamless)からは参照されないので別にビルドする。
+$functionArguments=@('build',(Join-Path $repository 'Seamless.Database.SqlServer.Functions/Seamless.Database.SqlServer.Functions.csproj'),'-c',$Configuration,'--artifacts-path',$artifacts,'-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false')
+if($PackageFallbackRoot){$functionArguments+=('-p:RestoreFallbackFolders='+[IO.Path]::GetFullPath($PackageFallbackRoot))}
+Invoke-FeedStage 'build-sqlserver-functions' $dotnet $functionArguments
 $plan=[ordered]@{
     Dotnet=$dotnet;Configuration=$Configuration;ArtifactsPath=$artifacts;Feed=$staging;Version='0.0.0';NoBuild=$true
     Sources='https://api.nuget.org/v3/index.json'
