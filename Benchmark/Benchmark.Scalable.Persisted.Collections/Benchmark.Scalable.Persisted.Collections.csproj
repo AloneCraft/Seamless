@@ -27,8 +27,8 @@
     <Using Include="ZLinq" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\..\Tests\Seamless.TestKit\Seamless.TestKit.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
+    <ProjectReference Include="../../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Scalable.Persisted.Collections\Scalable.Persisted.Collections.projitems" Label="Shared" />
+  <Import Project="../../Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" Label="Shared" />
 </Project>

@@ -8,7 +8,7 @@
       "@folder:/solution/"
     ],
     "Seamless.Management.slnx": [
-      "Seamless.Management.Server/WindowsServer.csproj",
+      "Seamless/Database/Server/Server.csproj",
       "Tests/Management.Tests/Management.Tests.csproj"
     ],
     "DataGrip.Stage1.slnx": [
@@ -35,7 +35,7 @@
       "Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj"
     ],
     "Seamless.Database.Tool.slnx": [
-      "Seamless.Database.Tool/Seamless.Database.Tool.csproj"
+      "Seamless/Database/Server/Server.csproj"
     ],
     "Sample.NetShop.slnx": [
       "Samples/Sample.NetShop/Sample.NetShop.csproj",

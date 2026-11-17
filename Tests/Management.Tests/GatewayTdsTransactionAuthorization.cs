@@ -817,11 +817,7 @@ public sealed class GatewayTdsTransactionAuthorization{
     },includeLoopbackAddress:true);
 
     private static GeneratedAssemblyBuilder CreateCompiler(string root){
-        var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(static path=>{
-            var name=Path.GetFileName(path);
-            return name.StartsWith("MemoryPack",StringComparison.Ordinal)||name.StartsWith("Seamless.",StringComparison.Ordinal)
-                &&!name.Contains("Generator",StringComparison.Ordinal)&&!name.StartsWith("Seamless.Management",StringComparison.Ordinal);
-        }).ToArray();
+        var references=global::Seamless.Database.Gateway.Tests.GeneratedAssemblyBuilderTests.RuntimeReferences();
         var dotnet=Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"dotnet","dotnet.exe");
         return new(new(Path.Combine(root,"w"),Path.Combine(root,"c"),dotnet,
             typeof(global::Seamless.Database.Generator.DatabaseSchemaGenerator).Assembly.Location,references));

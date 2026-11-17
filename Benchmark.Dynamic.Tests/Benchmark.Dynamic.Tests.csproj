@@ -30,7 +30,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup Condition="'$(CoreOnly)'=='true'">
-    <Compile Remove="**\*.cs" />
+    <Compile Remove="**/*.cs" />
     <Compile Include="Core*.cs" />
     <Compile Include="Migration/**/*.cs;MigrationGlobalUsings.cs;RegressionSuiteTests.cs;ArchitectureContract.cs" />
     <Compile Include="DynamicFallbackCaptureTests.cs" />
@@ -42,22 +42,22 @@
     <Compile Include="QueryExpressionFormatter.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Corpus\*.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Corpus\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Corpus/*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Corpus/*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
     <ProjectReference Include="../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
-    <ProjectReference Include="../Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
-    <ProjectReference Include="../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
-    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj" Condition="'$(CoreOnly)'!='true'" />
-    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
+    <ProjectReference Include="../Seamless/FLinq/Generator/Compiler.csproj" />
+    <ProjectReference Include="../Seamless/FLinq/Generator/Compiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="../Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj" Condition="'$(CoreOnly)'!='true'" />
+    <ProjectReference Include="../Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
     <ProjectReference Include="../Benchmark/Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" Condition="'$(CoreOnly)'!='true'" />
-    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" />
+    <ProjectReference Include="../Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Garnet" Version="[2.2.8]" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
-    <ProjectReference Include="../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <ProjectReference Include="../Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
     <Reference Include="Garnet.common">
       <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
       <Private>true</Private>
@@ -67,9 +67,12 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <Import Project="../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <Import Project="../Seamless/Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
   <ItemGroup Condition="'$(CoreOnly)'!='true'">
     <PackageReference Include="Appium.WebDriver" Version="5.1.0" />
     <PackageReference Include="Selenium.Support" Version="4.35.0" />
   </ItemGroup>
+  <PropertyGroup>
+    <SeamlessLinqAnalysis>false</SeamlessLinqAnalysis>
+  </PropertyGroup>
 </Project>

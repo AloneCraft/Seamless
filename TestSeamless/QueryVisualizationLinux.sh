@@ -49,7 +49,7 @@ case "${1:-}" in
     verify_main before-build
     python3 "$run/QueryVisualizationLinux.Verify.py" source "$run" before-build
     test "$(taskset -pc $$ | sed 's/.*: //')" = 0-7
-    for project in "$run/probe/QueryVisualizationAcceptance.csproj" "$source/Seamless.Management.Server/WindowsServer.csproj"; do
+    for project in "$run/probe/QueryVisualizationAcceptance.csproj" "$source/Seamless/Database/Server/Server.csproj"; do
       name=$(basename "$project" .csproj)
       dotnet msbuild "$project" -getProperty:ArtifactsPath,BaseOutputPath,BaseIntermediateOutputPath,RestorePackagesPath -p:UseArtifactsOutput=true -p:ArtifactsPath="$run/artifacts" -p:RestorePackagesPath="$NUGET_PACKAGES" -p:Configuration="$configuration" -nologo > "$run/paths-$name.json"
     done

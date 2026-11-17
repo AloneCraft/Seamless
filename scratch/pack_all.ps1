@@ -1,17 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$projects = @(
-    "Seamless.Execution\Seamless.Execution.csproj",
-    "Seamless.Collections\Seamless.Collections.csproj",
-    "Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj",
-    "Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj",
-    "Seamless.Linq\Seamless.Linq.csproj",
-    "Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj",
-    "Seamless.Database\Seamless.Database.csproj",
-    "Seamless.Database.Generator\Seamless.Database.Generator.csproj",
-    "Seamless.Database.Rdbms\Seamless.Database.Rdbms.csproj",
-    "Seamless.Database.Tool\Seamless.Database.Tool.csproj",
-    "Seamless\Seamless.csproj"
-)
+$projects = @("Seamless\Database\Server\Server.csproj")
 
 $runId = [guid]::NewGuid().ToString()
 $artifactBase = "F:\Seamless\Artifacts\Pack_$runId"

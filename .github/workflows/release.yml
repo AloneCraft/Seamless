@@ -57,11 +57,8 @@ jobs:
         shell: pwsh
         run: |
           $ver = '${{ steps.v.outputs.version }}'
-          $projects = 'Seamless.Collections','Seamless.Execution','Seamless.Collections.Persisted','Seamless.Tsavorite.Core','Seamless.Collections.Tsavorite','Seamless.Linq','Seamless.Transactions','Seamless.Transactions.Collections','Seamless.Database','Seamless.Database.Generator','Seamless.Database.Rdbms','Seamless.FLinq.Generator','Seamless','Seamless.Database.SqlServer','Seamless.Database.Tool','Seamless.Database.Client','Seamless.Database.Query','Seamless.Database.Gateway'
-          foreach ($p in $projects) {
-            dotnet pack ".\$p\$p.csproj" -c Release "-p:Version=$ver" -o artifacts
-            if ($LASTEXITCODE -ne 0) { throw "pack failed: $p" }
-          }
+          dotnet pack ./Seamless/Database/Server/Server.csproj -c Release "-p:Version=$ver" -o artifacts
+          if ($LASTEXITCODE -ne 0) { throw 'Seamless SDK pack failed' }
           git archive --format=zip -o "artifacts\Seamless-Samples-$ver.zip" HEAD Samples
           if ($LASTEXITCODE -ne 0) { throw 'git archive failed' }
 

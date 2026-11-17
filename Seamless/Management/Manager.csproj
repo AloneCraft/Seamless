@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Manager</AssemblyName>
+    <RootNamespace>Seamless.Management</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultRazorGenerateItems>false</EnableDefaultRazorGenerateItems>
+    <EnableDefaultRazorComponentItems>false</EnableDefaultRazorComponentItems>
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RequiresAspNetWebAssets>false</RequiresAspNetWebAssets>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="ManagerProgram.cs" />
+    <ProjectReference Include="../Database/Server/Server.csproj" />
+  </ItemGroup>
+  <Target Name="IncludeBundledDotNetSdk" BeforeTargets="AssignTargetPaths" Condition="'$(SeamlessBundledDotNetRoot)'!=''">
+    <Error Condition="!Exists('$(SeamlessBundledDotNetRoot)/bundled-sdk.json')" Text="SeamlessBundledDotNetRoot must contain a verified SDK distribution." />
+    <ItemGroup>
+      <_BundledDotNetSdkFile Include="$(SeamlessBundledDotNetRoot)/**/*" />
+      <None Include="@(_BundledDotNetSdkFile)">
+        <Link>toolchain/dotnet/%(_BundledDotNetSdkFile.RecursiveDir)%(_BundledDotNetSdkFile.Filename)%(_BundledDotNetSdkFile.Extension)</Link>
+        <TargetPath>toolchain/dotnet/%(_BundledDotNetSdkFile.RecursiveDir)%(_BundledDotNetSdkFile.Filename)%(_BundledDotNetSdkFile.Extension)</TargetPath>
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </None>
+    </ItemGroup>
+  </Target>
+</Project>

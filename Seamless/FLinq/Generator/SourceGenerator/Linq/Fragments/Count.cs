@@ -1,0 +1,219 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+namespace Seamless.FLinq.Generator;
+
+/*
+Count は Count/LongCount を件数取得 fast path 優先の Compute へ変換する。
+
+入力例:
+  source.Count()
+  source.LongCount()
+
+生成例:
+  if(source.TryGetNonEnumeratedCount(out var count)) return (TResult)count;
+  checked {
+      while(source.TryGetNext(out var v)) count++;
+  }
+
+バリエーション:
+  - Range/Repeat は count 式をそのまま resultType へ cast して inline する。
+  - source が span を確実に返せる場合は span.Length を返す。
+  - LongCount では TryGetNonEnumeratedCount が int なので long へ拡張する。
+*/
+internal class Count(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => string.Empty;
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source is RangeRoot range) {
+            // Range の個数。Enumerable.Range と同じ引数検査をしてから個数を返す。
+            return $$"""
+                {{destType}} {{destVar}};
+                {
+                    {{range.RenderArgumentPreparation($"__countStart{番号}",$"__countCount{番号}")}}
+                    {{destVar}}=({{destType}})__countCount{{番号}};
+                }
+                """;
+        }
+        if(source is RepeatRoot repeat) {
+            return $"{destType} {destVar}=({destType})({repeat.CountExpression});";
+        }
+        var rangeCount=source switch{
+            RangeExceptRoot except=>except.GetCountExpression,
+            RangeIntersectionRoot intersection=>intersection.GetCountExpression,
+            RangeUnionRoot union=>union.GetLongCountExpression,
+            _=>null
+        };
+        if(rangeCount is not null&&!source.TreeContainsAnchor()){
+            return $"{destType} {destVar}=({destType})checked(({resultType})({rangeCount}));";
+        }
+        // 列挙せずに件数を出すと選択子の評価が省かれる。System.Linq の Count は Select の選択子を評価するので、
+        // .Anchor を含む連鎖ではこの近道を使わない(Any は System.Linq も評価しないので近道のままでよい)。
+        if(source.NonEnumeratedCountExpression is { } countExpression&&!source.TreeContainsAnchor()) {
+            return $"{destType} {destVar}=({destType})({countExpression});";
+        }
+        if(this.RenderConsumeBasedCountInline(destVar,destType) is { } directConsume) {
+            return directConsume;
+        }
+        return this.RenderDirectEnumerableCountInline(source,destVar,destType)
+            ??this.RenderComputeInline(destVar,destType);
+    }
+
+    private string? RenderConsumeBasedCountInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_COUNT_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            return $"{indent}{destVar}++;";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=0;
+            {{replaced}}
+            """;
+    }
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source){
+                source.TryGetSpan(out var __span);
+                return ({{resultType}})__span.Length;
+            }
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source){
+                if(source.TryGetNonEnumeratedCount(out var __count)){
+                    return ({{resultType}})__count;
+                }
+                {{resultType}} count=0;
+                checked{
+                    while(source.TryGetNext(out _)) count++;
+                }
+                return count;
+            }
+            """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}
+
+/*
+Count_predicate は predicate が true の件数だけを checked で数える Compute を生成する。
+
+入力例:
+  source.Count(x => x.Enabled)
+
+生成例:
+  count = 0;
+  foreach(var item in source) {
+      if(predicate(item)) count++;
+  }
+  return count;
+
+バリエーション:
+  - Range + 単純 predicate は RangePredicateOptimizer が式や短い loop へ inline できる。
+  - predicate が直接 lambda として再表示できる場合は DirectEnumerableExpression 経由で
+    BufferedScalar の Compute インライン展開に乗る(System.Linq への委譲ではない。
+    唯一の RenderDirectEnumerableCallInline override である BufferedScalar.cs 参照)。
+*/
+internal class Count_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
+    private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression =>
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
+    protected override string ComputeExpression =>
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        var methodName = resultType is "long" or "global::System.Int64" ? "LongCount" : "Count";
+        return source is RangeRoot range
+            ? (predicate.ContainsAnchor ? null : RangePredicateOptimizer.RenderCount(range,predicate,番号,destVar,destType)) // .Anchor を含む述語は評価の回数を変えてはいけないので、範囲の形から答えを出す近道を使わない。
+                ??(TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,rangeLambda)??this.RenderComputeInline(destVar,destType)
+                    : this.RenderComputeInline(destVar,destType))
+        : TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)??this.RenderComputeInline(destVar,destType)
+            : this.RenderComputeInline(destVar,destType);
+    }
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                source.TryGetSpan(out var __span);
+                var count = 0;
+                for(var __i = 0; __i < __span.Length; __i++){
+                    var {{this.item}} = __span[__i];
+                    bool {{this.temp}} = default!;
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}) count++;
+                }
+                return ({{resultType}})count;
+            }
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                {{resultType}} count = 0;
+                checked{
+                    while(source.TryGetNext(out var __mn19)){
+                        var {{this.item}} = __mn19;
+                        bool {{this.temp}} = default!;
+                        {{this.FuncAssignStaticIndented("            ",predicate,nameof(predicate),this.temp,this.item)}}
+                        if({{this.temp}}) count++;
+                    }
+                }
+                return count;
+            }
+            """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}

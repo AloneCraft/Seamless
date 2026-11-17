@@ -10,8 +10,8 @@
     <AssemblyName>Benchmark.TpcE.Mvcc.Linq</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark.TpcE.Core\Benchmark.TpcE.Core.csproj" />
-    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+    <ProjectReference Include="../Benchmark.TpcE.Core/Benchmark.TpcE.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
   </ItemGroup>
-  <Import Project="..\..\Shared\TpcE.Transactions\TpcE.Transactions.projitems" Label="Shared" />
+  <Import Project="../../Shared/TpcE.Transactions/TpcE.Transactions.projitems" Label="Shared" />
 </Project>

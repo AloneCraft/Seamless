@@ -1,0 +1,145 @@
+using System;
+using System.Buffers;
+using System.Collections;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using Seamless.Linq;
+namespace Seamless.Linq {
+    partial class Enumerable {
+        public static TSource First<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            var enumerator = source.Enumerator;
+            try {
+                return TryGetFirst<TEnumerator,TSource>(ref enumerator,out var value)
+                    ? value
+                    : Throws.NoElements<TSource>();
+            } finally {
+                enumerator.Dispose();
+            }
+        }
+
+        public static TSource First<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,Boolean> predicate)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            ArgumentNullException.ThrowIfNull(predicate);
+            var enumerator = source.Enumerator;
+            try {
+                return TryGetFirst<TEnumerator,TSource>(ref enumerator,predicate,out var value)
+                ? value
+                : Throws.NoMatch<TSource>();
+            } finally {
+                enumerator.Dispose();
+            }
+        }
+
+        public static TSource? FirstOrDefault<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            var enumerator = source.Enumerator;
+            try {
+                return TryGetFirst<TEnumerator,TSource>(ref enumerator,out var value)
+                ? value
+                : default;
+            } finally {
+                enumerator.Dispose();
+            }
+        }
+
+        public static TSource FirstOrDefault<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,TSource defaultValue)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            var enumerator = source.Enumerator;
+            try {
+                return TryGetFirst<TEnumerator,TSource>(ref enumerator,out var value)
+                ? value
+                : defaultValue;
+            } finally {
+                enumerator.Dispose();
+            }
+        }
+
+        public static TSource? FirstOrDefault<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,Boolean> predicate)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            ArgumentNullException.ThrowIfNull(predicate);
+            var enumerator = source.Enumerator;
+            try {
+                return TryGetFirst<TEnumerator,TSource>(ref enumerator,predicate,out var value)
+                ? value
+                : default;
+            } finally {
+                enumerator.Dispose();
+            }
+        }
+
+        public static TSource FirstOrDefault<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,Boolean> predicate,TSource defaultValue)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            ArgumentNullException.ThrowIfNull(predicate);
+            var enumerator = source.Enumerator;
+            try {
+                return TryGetFirst<TEnumerator,TSource>(ref enumerator,predicate,out var value)
+                ? value
+                : defaultValue;
+            } finally {
+                enumerator.Dispose();
+            }
+        }
+        private static bool TryGetFirst<TEnumerator, TSource>(ref TEnumerator source,out TSource value)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            var current = default(TSource)!;
+#if NETSTANDARD2_0
+            var span = SingleSpan.Create<TSource>();
+            if (source.TryCopyTo(span, 0))
+            {
+                value = span[0];
+                span.Clear();
+                return true;
+            }
+#else
+            if(source.TryCopyTo(SingleSpan.Create(ref current),0)) {
+                value=current;
+                return true;
+            }
+#endif
+            else if(EnumeratorHelper.TryConsumeGetAt<TEnumerator,TSource>(ref source,0,out current)) {
+                value=current!;
+                return true;
+            }
+
+            value=default!;
+            return false;
+        }
+        private static bool TryGetFirst<TEnumerator, TSource>(ref TEnumerator source,Func<TSource,Boolean> predicate,out TSource value)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            if(source.TryGetSpan(out var span)) {
+                foreach(var item in span) {
+                    if(predicate(item)) {
+                        value=item;
+                        return true;
+                    }
+                }
+
+                value=default!;
+                return false;
+            }
+
+            while(source.TryGetNext(out var current)) {
+                if(predicate(current)) {
+                    value=current;
+                    return true;
+                }
+            }
+
+            value=default!;
+            return false;
+        }
+    }
+}

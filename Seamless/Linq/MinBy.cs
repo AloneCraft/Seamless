@@ -1,0 +1,92 @@
+using System;
+using System.Buffers;
+using System.Collections;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using Seamless.Linq;
+namespace Seamless.Linq {
+    partial class Enumerable {
+        public static TSource? MinBy<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            ArgumentNullException.ThrowIfNull(keySelector);
+            return MinBy(source,keySelector,null);
+        }
+
+        public static TSource? MinBy<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer)
+            where TEnumerator : struct, IValueEnumerator<TSource> {
+            ArgumentNullException.ThrowIfNull(keySelector);
+            comparer??=Comparer<TKey>.Default;
+            using var enumerator = source.Enumerator;
+            if(!enumerator.TryGetNext(out var value)) // TSource value;
+            {
+                if(default(TSource) is null) {
+                    return default;
+                } else {
+                    Throws.NoElements();
+                }
+            }
+
+            // store first value and key.
+            TKey key = keySelector(value);
+
+            if(default(TKey) is null) {
+                // reference type
+                if(key is null) {
+                    var firstValue = value;
+
+                    do {
+                        if(!enumerator.TryGetNext(out var current)) {
+                            return firstValue; // return first-value when all keys are null.
+                        }
+                        value=current;
+                        key  =keySelector(value);
+                    }
+                    while(key is null);
+                }
+
+                while(enumerator.TryGetNext(out var current)) {
+                    var currentKey = keySelector(current);
+                    if(currentKey is not null&&comparer.Compare(currentKey,key)<0) {
+                        key  =currentKey;
+                        value=current;
+                    }
+                }
+            } else {
+                // value type
+                if(comparer==Comparer<TKey>.Default) {
+                    while(enumerator.TryGetNext(out var current)) {
+                        var currentKey = keySelector(current);
+                        if(Comparer<TKey>.Default.Compare(currentKey,key)<0) {
+                            key  =currentKey;
+                            value=current;
+                        }
+                    }
+
+                    return value;
+                } else {
+                    while(enumerator.TryGetNext(out var current)) {
+                        var currentKey = keySelector(current);
+                        if(comparer.Compare(currentKey,key)<0) {
+                            key  =currentKey;
+                            value=current;
+                        }
+                    }
+                }
+            }
+
+            return value;
+            }
+    }
+}

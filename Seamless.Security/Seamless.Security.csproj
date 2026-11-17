@@ -1,3 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>14</LangVersion><IsPackable>true</IsPackable><AssemblyName>Seamless.Security</AssemblyName><RootNamespace>Seamless.Security</RootNamespace><Description>Shared identity and authorization boundaries for Seamless.</Description></PropertyGroup>
-</Project>

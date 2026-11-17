@@ -1,0 +1,43 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+namespace Seamless.FLinq.Generator;
+
+internal class AsEnumerable(int 番号,Enumerable source):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => string.Empty;
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    public override string? DirectEnumerableExpression => source.DirectEnumerableExpression;
+    public override bool CanProvideSpan => source.CanProvideSpan;
+    public override bool CanTryProvideSpan => source.CanTryProvideSpan;
+    public override string? GetDirectSpanExpression(string enumeratorName) => source.GetDirectSpanExpression(enumeratorName);
+    public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
+    public override bool CountPreserving => source.CountPreserving;
+    public override string GetEnumeratorFields => string.Empty;
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryGetSpanBody => $"return this.{this.e}.TryGetSpan(out span);";
+    protected override string GetTryCopyToBody => $"return this.{this.e}.TryCopyTo(destination,__offset);";
+    public override string GetTryGetNextBody => $$"""
+        if({{this.e}}.TryGetNext(out var __mn6)){
+            current = this.{{this.currentValue}} = __mn6;
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
+    public override string ElementType => source.ElementType;
+}

@@ -1,0 +1,292 @@
+using EqualityEmpty = Seamless.Collections.Tsavorite.EqualityEmpty;
+using System;
+using System.Buffers;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using SpanByteStoreAllocator = Tsavorite.core.SpanByteAllocator<
+    Tsavorite.core.StoreFunctions<
+        Tsavorite.core.SpanByteComparer,
+        Tsavorite.core.DefaultRecordTriggers
+    >
+>;
+using SpanByteStoreFunctions = Tsavorite.core.StoreFunctions<
+    Tsavorite.core.SpanByteComparer,
+    Tsavorite.core.DefaultRecordTriggers
+>;
+using Garnet.common;
+using Seamless.Collections;
+using Tsavorite.core;
+namespace Seamless.Collections.Tsavorite;
+
+public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TRecord>,ExclusiveAccess>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
+    where TRecord : IRecord<TKey> {
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public int Count => checked((int)this.GetLongCountCore());
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public long GetLongCount() => this.GetLongCountCore();
+    /// <summary>全件を削除する。</summary>
+    public void Clear() => this.ClearCore();
+    private readonly IDisposable? ownedStore;
+    internal Set(CollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
+        // 構築に成功してから受け取る(失敗したときは呼び出し側が破棄する)。
+        this.ownedStore=ownedStore;
+    }
+    public bool IsReadOnly => false;
+    public bool Add(TRecord item) {
+        var result = this.PrivateTryAdd(item.Key,item);
+        switch(result) {
+            case TryAddResult.Success:
+                return true;
+            case TryAddResult.KeyAlreadyExists:
+                return false;
+            default:
+                Debug.Assert(result==TryAddResult.LogFull);
+                throw this.ThrowLogFull();
+        }
+    }
+    void ICollection<TRecord>.Add(TRecord item) => this.Add(item);
+    public bool Contains(TRecord item) {
+        if(!this.TryGetValue(item.Key,out var existing)){return false;}
+        return global::System.Collections.Generic.EqualityComparer<TRecord>.Default.Equals(existing,item);
+    }
+    public new bool ContainsKey(TKey key) => base.ContainsKey(key);
+    public bool Remove(TRecord item) {
+        if(!this.TryGetValue(item.Key,out var existing)){return false;}
+        if(!global::System.Collections.Generic.EqualityComparer<TRecord>.Default.Equals(existing,item)){return false;}
+        return this.Remove(item.Key);
+    }
+    public bool RemoveKey(TKey key) => this.Remove(key);
+    public bool RemoveKey(TKey key,[MaybeNullWhen(false)] out TRecord value) => this.Remove(key,out value);
+    public bool Remove(TKey key,[MaybeNullWhen(false)] out TRecord value) {
+        if(!this.TryGetValue(key,out value)) {
+            value=default;
+            return false;
+        }
+        if(this.Remove(key))
+            return true;
+        value=default;
+        return false;
+    }
+    public void CopyTo(TRecord[] array,int arrayIndex) {
+        ArgumentNullException.ThrowIfNull(array);
+        ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
+        if(array.Length-arrayIndex<this.GetLongCount())
+            throw new ArgumentException("The destination array is too small.");
+        foreach(var item in this)
+            array[arrayIndex++]=item;
+    }
+    public void ExceptWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.ExceptWith(this,other);
+    public void ExceptWith(Set<TKey,TRecord> other) => this.ExceptWith((ISet<TKey,TRecord>)other);
+    public void IntersectWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IntersectWith(this,other);
+    public void IntersectWith(Set<TKey,TRecord> other) => this.IntersectWith((ISet<TKey,TRecord>)other);
+    public bool IsSubsetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsSubsetOf(this,other);
+    public bool IsSubsetOf(Set<TKey,TRecord> other) => this.IsSubsetOf((ISet<TKey,TRecord>)other);
+    public bool IsSupersetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsSupersetOf(this,other);
+    public bool IsSupersetOf(Set<TKey,TRecord> other) => this.IsSupersetOf((ISet<TKey,TRecord>)other);
+    public bool IsProperSubsetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsProperSubsetOf(this,other);
+    public bool IsProperSubsetOf(Set<TKey,TRecord> other) => this.IsProperSubsetOf((ISet<TKey,TRecord>)other);
+    public bool IsProperSupersetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsProperSupersetOf(this,other);
+    public bool IsProperSupersetOf(Set<TKey,TRecord> other) => this.IsProperSupersetOf((ISet<TKey,TRecord>)other);
+    public bool Overlaps(ISet<TKey,TRecord> other) => TsavoriteSetOperations.Overlaps(this,other);
+    public bool Overlaps(Set<TKey,TRecord> other) => this.Overlaps((ISet<TKey,TRecord>)other);
+    public bool SetEquals(ISet<TKey,TRecord> other) => TsavoriteSetOperations.SetEquals(this,other);
+    public bool SetEquals(Set<TKey,TRecord> other) => this.SetEquals((ISet<TKey,TRecord>)other);
+    public void SymmetricExceptWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.SymmetricExceptWith(this,other);
+    public void SymmetricExceptWith(Set<TKey,TRecord> other) => this.SymmetricExceptWith((ISet<TKey,TRecord>)other);
+    public void UnionWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.UnionWith(this,other);
+    public void UnionWith(Set<TKey,TRecord> other) => this.UnionWith((ISet<TKey,TRecord>)other);
+
+    public Set<TKey,TRecord> Except(Set<TKey,TRecord> other) => this.Except((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> Except(ISet<TKey,TRecord> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedResultSet();
+        foreach(var item in this) {
+            if(!other.ContainsKey(item.Key))
+                result.Add(item);
+        }
+        return result;
+    }
+    public HashSet<TKey> Except(HashSet<TKey> other) => this.Except((IHashSet<TKey>)other);
+    public HashSet<TKey> Except(IHashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedKeyResultSet();
+        foreach(var item in this) {
+            if(!((ICollection<TKey>)other).Contains(item.Key))
+                result.Add(item.Key);
+        }
+        return result;
+    }
+
+    public Set<TKey,TRecord> Intersect(Set<TKey,TRecord> other) => this.Intersect((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> Intersect(ISet<TKey,TRecord> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedResultSet();
+        foreach(var item in this) {
+            if(other.ContainsKey(item.Key))
+                result.Add(item);
+        }
+        return result;
+    }
+    public HashSet<TKey> Intersect(HashSet<TKey> other) => this.Intersect((IHashSet<TKey>)other);
+    public HashSet<TKey> Intersect(IHashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedKeyResultSet();
+        foreach(var item in this) {
+            if(((ICollection<TKey>)other).Contains(item.Key))
+                result.Add(item.Key);
+        }
+        return result;
+    }
+
+    public Set<TKey,TRecord> SymmetricExcept(Set<TKey,TRecord> other) => this.SymmetricExcept((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> SymmetricExcept(ISet<TKey,TRecord> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedResultSet();
+        foreach(var item in this) {
+            if(!other.ContainsKey(item.Key))
+                result.Add(item);
+        }
+        foreach(var item in other) {
+            if(!this.ContainsKey(item.Key))
+                result.Add(item);
+        }
+        return result;
+    }
+    public HashSet<TKey> SymmetricExcept(HashSet<TKey> other) => this.SymmetricExcept((IHashSet<TKey>)other);
+    public HashSet<TKey> SymmetricExcept(IHashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedKeyResultSet();
+        foreach(var item in this) {
+            if(!((ICollection<TKey>)other).Contains(item.Key))
+                result.Add(item.Key);
+        }
+        foreach(var key in other) {
+            if(!this.ContainsKey(key))
+                result.Add(key);
+        }
+        return result;
+    }
+
+    public Set<TKey,TRecord> Union(Set<TKey,TRecord> other) => this.Union((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> Union(ISet<TKey,TRecord> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedResultSet();
+        foreach(var item in this)
+            result.Add(item);
+        foreach(var item in other)
+            result.Add(item);
+        return result;
+    }
+    public HashSet<TKey> Union(HashSet<TKey> other) => this.Union((IHashSet<TKey>)other);
+    public HashSet<TKey> Union(IHashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var result = CreateOwnedKeyResultSet();
+        foreach(var item in this)
+            result.Add(item.Key);
+        foreach(var key in other)
+            result.Add(key);
+        return result;
+    }
+
+    private static Set<TKey,TRecord> CreateOwnedResultSet() {
+        var store = global::Seamless.Collections.Tsavorite.Store.Create().CreateSet<TKey,TRecord>();
+        try {
+            return new(store,store);
+        } catch {
+            store.Dispose();
+            throw;
+        }
+    }
+
+    private static HashSet<TKey> CreateOwnedKeyResultSet() {
+        var store = global::Seamless.Collections.Tsavorite.Store.Create().Create<TKey>();
+        try {
+            return store.CreateOwned();
+        } catch {
+            store.Dispose();
+            throw;
+        }
+    }
+
+    public override bool IsDisposed => this.disposed;
+    private bool disposed;
+    protected override void Dispose(bool disposing) {
+        if(this.disposed)
+            return;
+        this.disposed=true;
+        try {
+            base.Dispose(disposing);
+        } finally {
+            if(disposing)
+                this.ownedStore?.Dispose();
+        }
+    }
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public struct ValueEnumerator {
+        private Set<TKey,TRecord>? source;
+        private Enumerator<ValueIterator,TRecord> enumerator;
+        private bool initialized;
+
+        internal ValueEnumerator(Set<TKey,TRecord> source) {
+            this.source=source;
+            this.enumerator=default;
+            this.initialized=false;
+        }
+
+        public bool TryGetNext(out TRecord current) {
+            if(!this.initialized) {
+                var source=this.source!;
+                source.VerifyThreadAffinity();
+                this.enumerator=new(source.ReadSession,new(source.SerializationBudget),source.Store.Log.TailAddress,source);
+                this.initialized=true;
+            }
+            if(this.enumerator.MoveNext()) {
+                current=this.enumerator.Current;
+                return true;
+            }
+            Unsafe.SkipInit(out current);
+            return false;
+        }
+
+        public void Dispose() {
+            if(this.initialized) {
+                this.enumerator.Dispose();
+            }
+            this.source=null;
+        }
+    }
+
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public ValueEnumerator GetValueEnumerator() => new(this);
+    public IEnumerator<TRecord> GetEnumerator() {
+        this.VerifyThreadAffinity();
+        return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
+    }
+    /// <summary>値を 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
+    public void Iterate<TStrategy>(ref TStrategy strategy)
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TRecord> => this.IterateValuesCore(ref strategy);
+    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() {
+        this.VerifyThreadAffinity();
+        return new Enumerator<MemoryValueIterator,TRecord>(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
+    }
+
+}
+
+
+
+
+public class Set<TRecord>:HashSet<TRecord> {
+    internal Set(CollectionStore<TRecord,EqualityEmpty> collectionStore,IDisposable? ownedStore = null) : base(collectionStore,ownedStore) {
+    }
+}

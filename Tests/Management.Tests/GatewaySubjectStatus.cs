@@ -30,11 +30,7 @@ public sealed class GatewaySubjectStatus{
         var cache=Path.Combine(root,"c");
         var generator=typeof(Seamless.Database.Generator.DatabaseSchemaGenerator).Assembly.Location;
         var dotnet=Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"dotnet","dotnet.exe");
-        var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(static path=>{
-            var name=Path.GetFileName(path);
-            return name.StartsWith("MemoryPack",StringComparison.Ordinal)||name.StartsWith("Seamless.",StringComparison.Ordinal)
-                &&!name.Contains("Generator",StringComparison.Ordinal)&&!name.StartsWith("Seamless.Management",StringComparison.Ordinal);
-        }).ToArray();
+        var references=global::Seamless.Database.Gateway.Tests.GeneratedAssemblyBuilderTests.RuntimeReferences();
         var compiler=new GeneratedAssemblyBuilder(new(working,cache,dotnet,generator,references));
         var options=new DatabaseContainerOptions{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20};
         var number=new DatabaseType(DatabaseTypeKind.Int32,false,SqlTypeName:"int");

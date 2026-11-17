@@ -29,6 +29,11 @@
       "parent": "manager-alignment",
       "forkPoint": "9f2d28c2",
       "purpose": "Manager からの SQL Server・CSV の取り込みと書き出し、T-SQL 翻訳器の段階4（2026-11-17）"
+    },
+    "codex/product-eight-20261118": {
+      "parent": "main",
+      "forkPoint": "0d7ce62cf319981bb201f855c7ef173480662142",
+      "purpose": "製品8プロジェクトへの統合、階層配置、単一EXEの検証"
     }
   },
   "rule": "Merge each child into its immediate recorded fork parent; return deepest children first.",

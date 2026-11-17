@@ -8,21 +8,18 @@
     <IsPackable>false</IsPackable>
     <RootNamespace>Benchmark.TpcC</RootNamespace>
     <AssemblyName>Benchmark.TpcC</AssemblyName>
-    <!-- 文字列の比較と書式を文化圏に依らせない(4 通りの突き合わせを決定的にするため)。 -->
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- 1 スレッドで流すので、裏の GC スレッドを減らす。TieredPGO は既定のまま(切ると本番と違う最適化になる)。 -->
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark.TpcC.Core\Benchmark.TpcC.Core.csproj" />
-    <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.Linq\Benchmark.TpcC.Tsavorite.Linq.csproj" />
-    <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.FLinq\Benchmark.TpcC.Tsavorite.FLinq.csproj" />
+    <ProjectReference Include="../Benchmark.TpcC.Core/Benchmark.TpcC.Core.csproj" />
+    <ProjectReference Include="../Benchmark.TpcC.Tsavorite.Linq/Benchmark.TpcC.Tsavorite.Linq.csproj" />
+    <ProjectReference Include="../Benchmark.TpcC.Tsavorite.FLinq/Benchmark.TpcC.Tsavorite.FLinq.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->
     <Using Include="Benchmark.Tpc.Core" />
   </ItemGroup>
 </Project>

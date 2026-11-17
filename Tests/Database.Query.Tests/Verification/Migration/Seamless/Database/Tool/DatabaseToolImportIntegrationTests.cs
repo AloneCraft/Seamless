@@ -76,7 +76,7 @@ public sealed class DatabaseToolImportIntegrationTests {
         startInfo.Environment["ArtifactsPath"]=Path.Combine(Path.GetDirectoryName(projectFile)!,"artifacts");
         startInfo.ArgumentList.Add("run");
         startInfo.ArgumentList.Add("--project");
-        startInfo.ArgumentList.Add(Path.Combine(root,"Seamless.Database.Tool","Seamless.Database.Tool.csproj"));
+        startInfo.ArgumentList.Add(Path.Combine(root,"Seamless","Database","Server","Server.csproj"));
         startInfo.ArgumentList.Add("--");
         startInfo.ArgumentList.Add("database");
         startInfo.ArgumentList.Add("sqlserver");
@@ -108,8 +108,8 @@ public sealed class DatabaseToolImportIntegrationTests {
                     new global::System.Xml.Linq.XElement("LangVersion","14"),
                     new global::System.Xml.Linq.XElement("Nullable","enable")),
                 new global::System.Xml.Linq.XElement("ItemGroup",
-                    new global::System.Xml.Linq.XElement("ProjectReference",new global::System.Xml.Linq.XAttribute("Include",Path.Combine(root,"Seamless.Database","Seamless.Database.csproj"))),
-                    new global::System.Xml.Linq.XElement("ProjectReference",new global::System.Xml.Linq.XAttribute("Include",Path.Combine(root,"Seamless.Database.Generator","Seamless.Database.Generator.csproj"))),
+                    new global::System.Xml.Linq.XElement("ProjectReference",new global::System.Xml.Linq.XAttribute("Include",Path.Combine(root,"Seamless","Database","Database.csproj"))),
+                    new global::System.Xml.Linq.XElement("ProjectReference",new global::System.Xml.Linq.XAttribute("Include",Path.Combine(root,"Seamless","Database","Generator","Generator.csproj"))),
                     new global::System.Xml.Linq.XElement("Analyzer",new global::System.Xml.Linq.XAttribute("Include",typeof(global::Seamless.Database.Generator.DatabaseContainerGenerator).Assembly.Location)))));
         document.Save(projectFile);
     }

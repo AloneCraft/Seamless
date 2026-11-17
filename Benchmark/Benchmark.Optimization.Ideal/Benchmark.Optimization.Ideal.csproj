@@ -11,8 +11,6 @@
     <RootNamespace>Benchmark.Optimization.Ideal</RootNamespace>
     <AssemblyName>Benchmark.Optimization.Ideal</AssemblyName>
   </PropertyGroup>
-  <!-- 複合連鎖(書き換え・融合・押し下げ・射影融合)のメモリ上4ソースの手書き理想ループ版。
-       型名は Benchmark.Optimization.All と同じにし、アセンブリだけで区別する(行の突き合わせ)。FLinq の生成器は参照しない。 -->
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="ZLinq" Version="1.5.6" />
@@ -23,7 +21,7 @@
     <Using Include="Common" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\Shared\Linq.Ideal\IdealCollections.cs" Link="Shared\IdealCollections.cs" />
+    <Compile Include="../../Shared/Linq.Ideal/IdealCollections.cs" Link="Shared\IdealCollections.cs" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Common\Common.projitems" Label="Shared" />
+  <Import Project="../../Shared/Common/Common.projitems" Label="Shared" />
 </Project>

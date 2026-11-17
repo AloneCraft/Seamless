@@ -39,7 +39,7 @@ try{
     [IO.File]::WriteAllText($props,$xml.Replace('__REPO__',$repository.Replace('\','/')).Replace('__CACHE__',$CacheRoot.Replace('\','/')).Replace('__DATA__',$DataRoot.Replace('\','/')))
     $projects=@()
     if($Suite -in @('Conversion','Verification','All')){$projects+="$repository/Tests/Database.Query.Tests/Database.Query.Tests.csproj"}
-    if($Suite -in @('Tool','All')){$projects+="$repository/Seamless.Database.Tool/Seamless.Database.Tool.csproj"}
+    if($Suite -in @('Tool','All')){$projects+="$repository/Seamless/Database/Server/Server.csproj"}
     foreach($project in $projects){
         $command='test';if([IO.Path]::GetFileNameWithoutExtension($project) -eq 'Seamless.Database.Tool'){$command='build'}
         $arguments=@($command,$project,'-c',$Configuration,'--nologo','-m:1',('-p:DirectoryBuildPropsPath='+$props),'-p:UseSharedCompilation=false')

@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Seamless.Database</RootNamespace>
+    <AssemblyName>Database</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;Rdbms/**;Query/**;Compilation/**;Transfer/**;SqlServer/**;SqlTranslation/**;SqlServer/Functions/**;Client/**;Client/Results/**;Server/**;Gateway/**;Tool/**;Generator/**" />
+    <Compile Include="Rdbms/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="Query/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="Compilation/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="Transfer/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="SqlServer/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**;SqlServer/Functions/**" />
+    <Compile Include="SqlTranslation/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+    <Compile Include="SqlServer/Functions/**/*.cs" Exclude="**/bin/**;**/obj/**;**/Artifacts/**;**/Work/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Runtime.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
+    <PackageReference Include="MemoryPack" Version="1.*" />
+    <PackageReference Include="SqlParserCS" Version="0.6.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Query/ThirdPartyNotices.txt" Pack="true" PackagePath="contentFiles/any/any/Seamless.SqlParserCS.Notices.txt" PackageCopyToOutput="true" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+  </ItemGroup>
+  <Import Project="../../Shared/Database.Generation/Database.Generation.projitems" Label="Shared" />
+  <ItemGroup>
+    <EmbeddedResource Include="SqlServer/SystemCatalog/SqlServer17/*.tsv;SqlServer/SystemCatalog/SqlServer17/source.txt" LogicalName="Seamless.Database.SqlServer.SystemCatalog.SqlServer17.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SaxonCS-HE" Version="13.1.0" />
+  </ItemGroup>
+</Project>

@@ -197,9 +197,9 @@ public class CollectionStore {
                     }
                 }
                 await saver;
-            }catch{
+            }catch(Exception primary){
                 stop.Cancel();
-                await saver;
+                try{await saver;}catch(Exception secondary){throw new AggregateException(primary,secondary);}
                 throw;
             }
             owner.Save();

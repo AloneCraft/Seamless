@@ -9,12 +9,12 @@
     <AssemblyName>Seamless.TestKit</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Artifacts\**" />
-    <Compile Remove="Work\**" />
-    <EmbeddedResource Remove="Artifacts\**" />
-    <EmbeddedResource Remove="Work\**" />
-    <None Remove="Artifacts\**" />
-    <None Remove="Work\**" />
+    <Compile Remove="Artifacts/**" />
+    <Compile Remove="Work/**" />
+    <EmbeddedResource Remove="Artifacts/**" />
+    <EmbeddedResource Remove="Work/**" />
+    <None Remove="Artifacts/**" />
+    <None Remove="Work/**" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
@@ -23,15 +23,12 @@
     <PackageReference Include="xunit.assert" Version="2.9.3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
-    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
-    <!-- 取込済みの AdventureWorks2017(Databases/AdventureWorks2017)は、SQL Server の bit を Seamless.Database.SqlServer.Types.Bit で表す。 -->
-    <ProjectReference Include="../../Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Generator/Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="../../Seamless/FLinq/Generator/Compiler.csproj" />
   </ItemGroup>
-  <!-- 元packageはsupport DLLの取得専用。Coreは修正済みprojectを公開参照する。 -->
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
     <Reference Include="Garnet.common">
       <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
       <Private>true</Private>
@@ -41,5 +38,5 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <Import Project="../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <Import Project="../../Seamless/Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
 </Project>

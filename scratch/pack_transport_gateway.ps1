@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $projects = @(
-    "Seamless.Database.Client\Seamless.Database.Client.csproj",
-    "Seamless.Transport.Kestrel\Seamless.Transport.Kestrel.csproj",
-    "Seamless.Database.Gateway\Seamless.Database.Gateway.csproj"
+    "Seamless\Database\Client\Client.csproj",
+    "Seamless\Database\Server\Server.csproj",
+    "Seamless\Database\Server\Server.csproj"
 )
 
 $runId = [guid]::NewGuid().ToString()

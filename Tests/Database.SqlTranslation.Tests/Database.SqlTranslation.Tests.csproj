@@ -16,15 +16,13 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <Using Include="Xunit" />
-    <ProjectReference Include="../../Seamless.Database.SqlTranslation/Seamless.Database.SqlTranslation.csproj" />
-    <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
-    <ProjectReference Include="../../Seamless.Collections/Seamless.Collections.csproj" />
-    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
+    <ProjectReference Include="../../Seamless/Runtime.csproj" />
+    <ProjectReference Include="../../Seamless/FLinq/Generator/Compiler.csproj" ReferenceOutputAssembly="true" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="../Database.Query.Tests/Fixtures/*.json" LogicalName="Fixtures.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Database.SqlServer.Functions/Seamless.Database.SqlServer.Functions.csproj" />
-  </ItemGroup>
+    </ItemGroup>
 </Project>

@@ -13,11 +13,10 @@
     <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <!-- 再実行ログの記録の検査値に CRC32 を使う。 -->
-    <PackageReference Include="System.IO.Hashing" Version="10.0.2" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark.Tpc.Core\Benchmark.Tpc.Core.csproj" />
-    <ProjectReference Include="..\..\Seamless.Transactions\Seamless.Transactions.csproj" />
+    <ProjectReference Include="../Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Runtime.csproj" />
   </ItemGroup>
 </Project>

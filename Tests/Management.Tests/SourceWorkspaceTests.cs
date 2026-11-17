@@ -29,7 +29,7 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
         var definition=Definition();
         var automatic=SourceWorkspace.CreatePackageProject(Path.Combine(root,"automatic"),new(definition,1,0),definition.Source,"Customers",packageFeed:feed);
         var references=System.Xml.Linq.XDocument.Load(automatic.ProjectPath).Descendants("PackageReference").ToArray();
-        Assert.Equal(4,references.Length);
+        Assert.Equal("Seamless",Assert.Single(references).Attribute("Include")!.Value);
         Assert.All(references,reference=>Assert.Equal("["+version+"]",reference.Attribute("Version")!.Value));
         var explicitVersion=SourceWorkspace.CreatePackageProject(Path.Combine(root,"explicit"),new(definition,1,0),definition.Source,"Customers",packageFeed:feed,packageVersion:"0.0.0");
         Assert.All(System.Xml.Linq.XDocument.Load(explicitVersion.ProjectPath).Descendants("PackageReference"),reference=>Assert.Equal("0.0.0",reference.Attribute("Version")!.Value));
@@ -41,8 +41,8 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
 
     [Fact]public void PackagedProjectRejectsInvalidCohortBeforeCreatingOutput(){
         var root=DirectoryPath();var feed=Path.Combine(root,"feed");Directory.CreateDirectory(feed);
-        var hashes=RuntimePackageHashes();var mismatched=new Dictionary<string,string>(hashes){["Seamless.Database.dll"]=new string('0',64)};
-        var unsafeName=new Dictionary<string,string>(hashes){["../Seamless.Database.dll"]=hashes["Seamless.Database.dll"]};
+        var hashes=RuntimePackageHashes();var mismatched=new Dictionary<string,string>(hashes){["Database.dll"]=new string('0',64)};
+        var unsafeName=new Dictionary<string,string>(hashes){["../Database.dll"]=hashes["Database.dll"]};
         var cases=new[]{
             "{}",
             System.Text.Json.JsonSerializer.Serialize(new{format=2,version="1.0.0",assemblies=hashes}),
@@ -61,7 +61,7 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
         }
     }
 
-    private static Dictionary<string,string> RuntimePackageHashes()=>new[]{"Seamless.Database.dll","Seamless.Execution.dll"}.ToDictionary(
+    private static Dictionary<string,string> RuntimePackageHashes()=>new[]{"Database.dll","Runtime.dll"}.ToDictionary(
         name=>name,name=>Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,name)))));
 
     [Fact]public void CreatedProjectUsesTheRepositorySdkPolicy(){

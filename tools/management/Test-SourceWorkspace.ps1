@@ -46,7 +46,7 @@ function Invoke-Check([string]$Name,[string[]]$CommandArguments,[string]$Working
     if($receipt.Outcome -ne 'Passed'){throw "$Name failed. See $LogRoot/$Configuration-$Name"}
 }
 $testBuild=@('--artifacts-path',$Artifacts)+$common
-Invoke-Check 'web-build' (@('build','Seamless.Management.Server/WindowsServer.csproj','-c',$Configuration,'-p:RestoreIgnoreFailedSources=true','-v:q')+$testBuild)
+Invoke-Check 'web-build' (@('build','Seamless/Database/Server/Server.csproj','-c',$Configuration,'-p:RestoreIgnoreFailedSources=true','-v:q')+$testBuild)
 Invoke-Check 'tests' (@('test','Tests/Management.Tests/Management.Tests.csproj','-c',$Configuration,'-p:RestoreIgnoreFailedSources=true','--filter','FullyQualifiedName~SourceWorkspaceTests|FullyQualifiedName~SourceProjects|FullyQualifiedName~SourceProjectDrafts|FullyQualifiedName~SourceProjectBuildInspection|FullyQualifiedName~SourceBuildArtifactStorage|FullyQualifiedName~SourceStructureTests|FullyQualifiedName~プロジェクト作成接続|FullyQualifiedName~文書状態|FullyQualifiedName~LocalBrowserSessionsTests|FullyQualifiedName~ManagerWebHostTests|FullyQualifiedName~DraftStartup|FullyQualifiedName~Management.Tests.DatabaseDesigner|FullyQualifiedName~RemovedTableTests|FullyQualifiedName~NativeRowEditingTests','--logger','trx;LogFileName=source.trx','--results-directory',(Join-Path $LogRoot "results-$Configuration"))+$testBuild) -TimeoutSeconds 540
 [xml]$trx=Get-Content -LiteralPath (Join-Path $LogRoot "results-$Configuration/source.trx") -Raw
 $counts=$trx.TestRun.ResultSummary.Counters

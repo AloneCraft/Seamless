@@ -1,4 +1,4 @@
-$path = "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs"
+$path = "Seamless/FLinq/Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs"
 $lines = [System.IO.File]::ReadAllLines($path, [System.Text.Encoding]::UTF8)
 
 for ($i = 0; $i -lt $lines.Length; $i++) {

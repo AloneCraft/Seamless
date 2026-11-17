@@ -1,0 +1,46 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+namespace Seamless.Transactions;
+public enum WalMutation:byte{Insert=1,Update=2,Delete=3,Upsert=4}
+public sealed record WalEntry(int Partition,int TableId,WalMutation Mutation,string Codec,byte[] Key,byte[]? Row);
+public sealed record WalDraft(Guid Id,int[] Partitions,IReadOnlyList<WalEntry> Entries,byte[] Metadata){
+    public bool IsPreparation{get;init;}
+}
+public sealed record WalTransaction(long Lsn,WalDraft Draft);
+public readonly record struct WalReceipt(long Lsn,Task Durable);
+public interface IWalDevice:IDisposable{
+    void Write(byte[] frame);
+    void Sync();
+}
+public sealed record WalOptions{
+    public int QueueCapacity{get;init;}=256;
+    public long QueueBytes{get;init;}=64L<<20;
+    public int MaxBatch{get;init;}=64;
+    public int MaxFrameBytes{get;init;}=4<<20;
+    public long SegmentBytes{get;init;}=64L<<20;
+    public int SectorBytes{get;init;}=4096;
+    public string CatalogIdentity{get;init;}="seamless-transactions-v2";
+    public string? MetadataConsumer{get;init;}
+    internal string StorageCatalogIdentity{get{if(this.MetadataConsumer is null){return this.CatalogIdentity;}return this.CatalogIdentity+"|MetadataConsumerV1:"+this.MetadataConsumer;}}
+    public void Validate(){
+        if(this.QueueCapacity<=0||this.QueueCapacity>256||this.MaxBatch<=0||this.MaxBatch>256||this.MaxFrameBytes<64||this.QueueBytes<this.MaxFrameBytes||this.SectorBytes<512||(this.SectorBytes&(this.SectorBytes-1))!=0||this.SegmentBytes<this.MaxFrameBytes+2L*this.SectorBytes||this.SegmentBytes%this.SectorBytes!=0){
+            throw new ArgumentOutOfRangeException(nameof(WalOptions));
+        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(this.CatalogIdentity);
+        if(this.MetadataConsumer is{} consumer&&(consumer.Length is <1 or >64||consumer.Any(static value=>!char.IsAsciiLetterOrDigit(value)&&value is not '-' and not '_'))){throw new ArgumentException("MetadataConsumer must contain 1-64 ASCII letters, digits, '-' or '_'.",nameof(this.MetadataConsumer));}
+    }
+}
+/// <summary>最初の障害を保持し、受付・応答許可・保存の共通境界で検査する。</summary>
+public sealed class TransactionFailure{
+    private readonly object gate=new();
+    private Exception? error;
+    public Exception? Error=>Volatile.Read(ref this.error);
+    public void Fail(Exception error){lock(this.gate){if(this.error is null){Volatile.Write(ref this.error,error);}}}
+    public void ThrowIfFailed(){var error=Volatile.Read(ref this.error);if(error is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();}}
+    public void Permit(Action action){lock(this.gate){this.ThrowIfFailed();action();}}
+}

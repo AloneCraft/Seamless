@@ -16,12 +16,11 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <Using Include="Xunit" />
-    <ProjectReference Include="../../Seamless/Seamless.csproj" />
-    <ProjectReference Include="../../Seamless.Security/Seamless.Security.csproj" />
-    <ProjectReference Include="../../Seamless.Execution/Seamless.Execution.csproj" />
-    <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Client/Client.csproj" />
+    <ProjectReference Include="../../Seamless/Runtime.csproj" />
     <ProjectReference Include="../Seamless.TestKit/Seamless.TestKit.csproj" />
-    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../Seamless/FLinq/Generator/Compiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <PropertyGroup>
     <LangVersion>preview</LangVersion>
@@ -59,7 +58,7 @@
   </ItemGroup>
   <Import Project="../../Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" Label="Shared" />
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
     <Reference Include="Garnet.common">
       <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
       <Private>true</Private>
@@ -69,7 +68,7 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <Import Project="../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <Import Project="../../Seamless/Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
   <ItemGroup>
     <Compile Remove="../../Shared/Common/TestInfrastructure/AssemblyInfo.cs" />
   </ItemGroup>
@@ -77,7 +76,8 @@
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Transactions/Seamless.Transactions.csproj" />
-    <ProjectReference Include="../../Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
-  </ItemGroup>
+    </ItemGroup>
+  <PropertyGroup>
+    <SeamlessLinqAnalysis>false</SeamlessLinqAnalysis>
+  </PropertyGroup>
 </Project>

@@ -102,7 +102,7 @@ jobs:
       - name: Run execution contracts
         run: dotnet test .\Tests\Seamless.Core.Tests\Seamless.Core.Tests.csproj -c Debug --no-restore --logger "trx;LogFileName=execution.trx"
       - name: Rebuild FLinq generator before tests
-        run: dotnet build .\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj -c Debug -f netstandard2.0 -t:Rebuild --no-restore -p:UseSharedCompilation=false
+        run: dotnet build .\Seamless\FLinq\Generator\Compiler.csproj -c Debug -f netstandard2.0 -t:Rebuild --no-restore -p:UseSharedCompilation=false
       - name: Test specialized database contracts
         run: |
           dotnet test .\Tests\Database.Query.Tests\Database.Query.Tests.csproj -c Debug --no-restore --logger "trx;LogFileName=database-contracts.trx"
@@ -149,7 +149,7 @@ jobs:
             "Benchmark.Dynamic.Worker.runtimeconfig.json",
             "Benchmark.Dynamic.Worker.pdb",
             "Benchmark.Infrastructure.dll",
-            "Seamless.Collections.Tsavorite.dll",
+            "Runtime.dll",
             "Tsavorite.core.dll",
             "Microsoft.CodeAnalysis.CSharp.dll"
           )
@@ -255,7 +255,7 @@ jobs:
           dotnet restore .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
 
       - name: Build FLinq generator
-        run: dotnet build .\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj -c Debug -f netstandard2.0 -t:Rebuild -p:UseSharedCompilation=false
+        run: dotnet build .\Seamless\FLinq\Generator\Compiler.csproj -c Debug -f netstandard2.0 -t:Rebuild -p:UseSharedCompilation=false
 
       - name: Run full ChainCorpus
         if: matrix.mode == 'ChainCorpusFull'

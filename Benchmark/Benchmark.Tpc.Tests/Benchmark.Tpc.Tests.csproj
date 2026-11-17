@@ -19,8 +19,8 @@
     <Using Include="Benchmark.Tpc.Server" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark.Tpc.Core\Benchmark.Tpc.Core.csproj" />
-    <ProjectReference Include="..\Benchmark.Tpc.Server\Benchmark.Tpc.Server.csproj" />
+    <ProjectReference Include="../Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
+    <ProjectReference Include="../Benchmark.Tpc.Server/Benchmark.Tpc.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Benchmark.TpcC.Core/Benchmark.TpcC.Core.csproj" />

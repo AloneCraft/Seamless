@@ -50,7 +50,7 @@ if mode == 'source':
     if digest(project) != prepared['ProbeProjectSha256'] or digest(run / 'probe/Program.cs') != prepared['SourceSha256']:
         raise SystemExit('The prepared P0 probe changed.')
     references = [item.attrib['Include'] for item in ET.parse(project).iter('ProjectReference')]
-    if references != [str(source / 'Seamless.Management.Server/WindowsServer.csproj')]:
+    if references != [str(source / 'Seamless/Database/Server/Server.csproj')]:
         raise SystemExit('The P0 project does not reference the fixed source snapshot.')
     write(run / ('source-' + sys.argv[3] + '.json'), {
         'snapshot': str(source), 'manifestSha256': digest(manifest_path), 'fileCount': len(expected),
@@ -142,7 +142,7 @@ elif mode == 'runtime':
     endpoints = json.loads(endpoint_manifest.read_text()).get('Endpoints', [])
     routes = {endpoint.get('Route') for endpoint in endpoints}
     for name in ('manager.css', 'interaction.js', 'execution-plan.css', 'query-trace.css'):
-        if '_content/Seamless.Management.Components/' + name not in routes:
+        if '_content/Seamless/Management/Components/' + name not in routes:
             raise SystemExit('Published UI endpoint missing: ' + name)
     roots.append({'manifest': endpoint_manifest.name, 'sha256': digest(endpoint_manifest), 'endpointCount': len(endpoints)})
     for path in runtime.glob('*.staticwebassets.runtime.json'):

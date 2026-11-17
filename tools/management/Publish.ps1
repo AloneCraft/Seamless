@@ -21,7 +21,7 @@ $env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';
 Copy-Item -LiteralPath (Join-Path $repository 'global.json') -Destination (Join-Path $work 'global.json') -Force
 & (Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1') -InitializeOnly | Out-Null
 foreach($target in $Targets){
-    $project=Join-Path $repository 'Seamless.Management.Server/WindowsServer.csproj';$rid='win-x64'
+    $project=Join-Path $repository 'Seamless/Database/Server/Server.csproj';$rid='win-x64'
     if($target -eq 'ServerLinux'){$rid='linux-x64'}
     $destination=Join-Path $output $target
     $arguments=@('publish',$project,'-c','Release','-r',$rid,'--self-contained','false','--artifacts-path',(Join-Path $work 'artifacts'),'-o',$destination,'-p:UseSharedCompilation=false','-m:1')+$fallback

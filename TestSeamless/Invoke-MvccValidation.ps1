@@ -129,7 +129,7 @@ if($BuildOnly){$stage='build'}
 $run=Join-Path $logPath ($Configuration+'-'+$stage+'-'+[Guid]::NewGuid().ToString('N'))
 $env:SEAMLESS_TEST_DATA_ROOT=Join-Path (Join-Path $taskDrive 'CodexTemp\m') ([Guid]::NewGuid().ToString('N').Substring(0,12))
 $env:SEAMLESS_TEST_CACHE_ROOT=Join-Path $logPath 'test-cache'
-$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $snapshot ('Seamless.Database.Generator/bin/'+$Configuration+'/net10.0/Seamless.Database.Generator.dll')
+$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $snapshot ('Seamless/Database/Generator/bin/'+$Configuration+'/net10.0/Seamless.Database.Generator.dll')
 [IO.Directory]::CreateDirectory($env:SEAMLESS_TEST_CACHE_ROOT)|Out-Null
 [IO.Directory]::CreateDirectory($env:SEAMLESS_TEST_DATA_ROOT)|Out-Null
 [IO.Directory]::CreateDirectory($run)|Out-Null

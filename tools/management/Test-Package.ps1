@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param([Parameter(Mandatory)][string]$Distribution,[ValidateSet('ServerWindows','ServerLinux')][string[]]$Targets=@('ServerWindows','ServerLinux'),[string]$WorkRoot='F:\Seamless\Management',[string]$LogRoot='F:\Seamless\Management',[switch]$VerifyWindowsConnection)
 $ErrorActionPreference='Stop'
 if($VerifyWindowsConnection -and ('ServerWindows' -notin $Targets)){
@@ -25,7 +25,7 @@ foreach($target in $Targets){
     }
 }
 if('ServerWindows' -notin $Targets){Write-Output '指定した配布物のSHA-256を照合しました。';Write-Output $logs;return;}
-$executable=Join-Path $Distribution 'ServerWindows/Seamless.Management.Server.exe'
+$executable=Join-Path $Distribution 'ServerWindows/Server.exe'
 $env:SEAMLESS_MANAGEMENT_PASSWORD='PackageTestPassword-123'
 try{
     $steps=@(

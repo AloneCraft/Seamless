@@ -41,8 +41,8 @@ if($PackageFallbackRoot){
     if(![IO.Path]::IsPathRooted($PackageFallbackRoot) -or !(Test-Path -LiteralPath $PackageFallbackRoot -PathType Container)){throw 'PackageFallbackRootは既存キャッシュの絶対パスを指定してください。'}
     $buildOptions+=('-p:RestoreFallbackFolders='+[IO.Path]::GetFullPath($PackageFallbackRoot))
 }
-$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $repository ('Seamless.Database.Generator/bin/'+$Configuration+'/net10.0/Seamless.Database.Generator.dll')
-if($isolated){$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $work ('artifacts/bin/Seamless.Database.Generator/'+$Configuration.ToLowerInvariant()+'/Seamless.Database.Generator.dll')}
+$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $repository ('Seamless/Database/Generator/bin/'+$Configuration+'/net10.0/Seamless.Database.Generator.dll')
+if($isolated){$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $work ('artifacts/bin/Seamless/Database/Generator/'+$Configuration.ToLowerInvariant()+'/Seamless.Database.Generator.dll')}
 function Get-LatestMemoryPackGenerator([string]$PackageRoot){
     $root=Join-Path $PackageRoot 'memorypack.generator'
     if(-not(Test-Path -LiteralPath $root)){return $null}
@@ -58,11 +58,11 @@ $flinqGenerator=$env:SEAMLESS_TEST_FLINQ_GENERATOR_ASSEMBLY
 if(!$flinqGenerator){$flinqGenerator=$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY.Replace('Seamless.Database.Generator','Seamless.FLinq.Generator').Replace('net10.0','netstandard2.0')}
 $arguments=@('test',$target,'-c',$Configuration,'--logger','trx;LogFileName=checks.trx','--results-directory',$logs)
 if($Filter){$arguments+=@('--filter',$Filter)}
-if($BuildUI){$target=Join-Path $repository 'Seamless.Management.Server/WindowsServer.csproj';$arguments=@('build',$target,'-c',$Configuration)}
+if($BuildUI){$target=Join-Path $repository 'Seamless/Database/Server/Server.csproj';$arguments=@('build',$target,'-c',$Configuration)}
 $arguments+=$buildOptions
 [ordered]@{StartedUtc=[DateTime]::UtcNow.ToString('o');Repository=$repository;WorkRoot=$work;IsolatedArtifacts=$isolated;Configuration=$Configuration;Suite=$Suite;Filter=$Filter;TimeoutSeconds=$TimeoutSeconds;AllowCancellation=[bool]$AllowCancellation;BuildUI=[bool]$BuildUI;WithUI=[bool]$WithUI;ManagementTestRoot=$env:SEAMLESS_MANAGEMENT_TEST_ROOT;TestDataRoot=$env:SEAMLESS_TEST_DATA_ROOT;TestCacheRoot=$env:SEAMLESS_TEST_CACHE_ROOT;PackageRoot=$packages;PackageFallbackRoot=$PackageFallbackRoot;GeneratorAssembly=$env:SEAMLESS_TEST_GENERATOR_ASSEMBLY;MemoryPackGeneratorAssembly=$env:SEAMLESS_TEST_MEMORYPACK_GENERATOR_ASSEMBLY;FLinqGeneratorAssembly=$flinqGenerator;UiExecutable=$env:SEAMLESS_MANAGEMENT_UI_TEST_EXE;ScriptSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $logs 'execution-input.json') -Encoding utf8
 if($WithUI -and !$BuildUI){
-    $uiArguments=@('build',(Join-Path $repository 'Seamless.Management.Server/WindowsServer.csproj'),'-c',$Configuration)+$buildOptions
+    $uiArguments=@('build',(Join-Path $repository 'Seamless/Database/Server/Server.csproj'),'-c',$Configuration)+$buildOptions
     $uiResult=& (Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1') -Executable (Get-Command dotnet).Source -Arguments $uiArguments -WorkingDirectory $repository -ArtifactDirectory (Join-Path $logs 'ui-build') -TimeoutSeconds 900 -AllowCancellation:$AllowCancellation
     if($uiResult.Outcome -eq 'Cancelled'){Write-Output $logs;exit 2}
     if($uiResult.Outcome -ne 'Passed'){Get-Content -LiteralPath (Join-Path $logs 'ui-build/stdout.log') -Tail 20;throw 'Managerを配信するWebホストのビルドが失敗しました。'}

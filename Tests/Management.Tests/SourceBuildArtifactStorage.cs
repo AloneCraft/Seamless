@@ -17,6 +17,92 @@ public sealed class SourceBuildArtifactStorage{
     }
     private static string Hash(byte[] bytes)=>Convert.ToHexString(SHA256.HashData(bytes));
 
+    [Fact]public void RuntimeDependenciesUseTheSelectedAssetAndRejectAMissingSelection(){
+        var root=Root();Directory.CreateDirectory(root);
+        var framework=Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
+        byte[] Emit(string name,string source,params Microsoft.CodeAnalysis.MetadataReference[] references){
+            var compilation=Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create(name,
+                [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source)],references,
+                new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+            using var output=new MemoryStream();var emitted=compilation.Emit(output);
+            Assert.True(emitted.Success,string.Join("\n",emitted.Diagnostics));return output.ToArray();
+        }
+        var dependency=Emit("BoundDependency","public sealed class Marker{}",framework);
+        var image=Emit("Component","public static class Component{public static Marker Create()=>new();}",framework,Microsoft.CodeAnalysis.MetadataReference.CreateFromImage(dependency));
+        var assembly=Path.Combine(root,"Component.dll");File.WriteAllBytes(assembly,image);
+        var selected="runtimes/"+System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier+"/lib/net10.0/BoundDependency.dll";
+        var selectedPath=Path.GetFullPath(Path.Combine(root,selected));Directory.CreateDirectory(Path.GetDirectoryName(selectedPath)!);File.WriteAllBytes(selectedPath,dependency);
+        var rootPath=Path.Combine(root,"BoundDependency.dll");File.WriteAllBytes(rootPath,[0]);
+        const string target=".NETCoreApp,Version=v10.0";
+        var manifest=new{
+            runtimeTarget=new{name=target,signature=""},
+            targets=new Dictionary<string,object>{[target]=new Dictionary<string,object>{
+                ["Component/1.0.0"]=new{dependencies=new{BoundDependency="1.0.0"},runtime=new Dictionary<string,object>{["Component.dll"]=new{}}},
+                ["BoundDependency/1.0.0"]=new{runtimeTargets=new Dictionary<string,object>{[selected]=new{rid=System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,assetType="runtime"}}}
+            }},
+            libraries=new Dictionary<string,object>{
+                ["Component/1.0.0"]=new{type="project",serviceable=false,sha512=""},
+                ["BoundDependency/1.0.0"]=new{type="package",serviceable=false,sha512=""}
+            }
+        };
+        File.WriteAllText(Path.ChangeExtension(assembly,".deps.json"),System.Text.Json.JsonSerializer.Serialize(manifest));
+        var resolver=new System.Runtime.Loader.AssemblyDependencyResolver(assembly);
+        Assert.Equal(selectedPath,resolver.ResolveAssemblyToPath(new System.Reflection.AssemblyName("BoundDependency")));
+        using(var capture=SourceBuildArtifactInspector.CaptureFiles(CancellationToken.None)){
+            var actual=Assert.Single(SourceBuildArtifactInspector.CheckDependencies(assembly,image,capture));
+            Assert.Equal(selectedPath,actual.Path);Assert.Equal(Hash(dependency),actual.Sha256);Assert.False(actual.Shared);
+        }
+        File.WriteAllBytes(rootPath,dependency);File.Delete(selectedPath);
+        using var missing=SourceBuildArtifactInspector.CaptureFiles(CancellationToken.None);
+        Assert.Equal("BuildMismatch",Assert.Throws<ManagementException>(()=>SourceBuildArtifactInspector.CheckDependencies(assembly,image,missing)).Code);
+    }
+    [Fact]public void TypedManagementRowsKeepTheirPersistedAssemblyIdentity(){
+        var identity=typeof(global::Seamless.Execution.Store).Assembly.GetType("Seamless.Execution.PersistedTypeIdentity",true)!;
+        var flags=System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic;
+        var name=identity.GetMethod("Name",flags)!;
+        var resolve=identity.GetMethod("Resolve",flags)!;
+        foreach(var row in new[]{typeof(ManagementUserRow),typeof(ManagementSettingsRow),typeof(ManagementTextValue),typeof(ManagementKey)}){
+            var expected=row.FullName+", Seamless.Management.Server, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null";
+            Assert.Equal(expected,name.Invoke(null,[row]));
+            Assert.Same(row,resolve.Invoke(null,[expected]));
+        }
+    }
+    [Fact]public void SharedDependenciesAreBoundToTheHostWithoutCopiedPayloads(){
+        var root=Root();var fixture=Fixture(root);
+        var runtime=Seamless.Execution.CompilationReferences.PathFor(typeof(Seamless.Execution.Store).Assembly);
+        var bytes=File.ReadAllBytes(runtime);
+        var dependency=new SourceBuildDependency("Runtime",typeof(Seamless.Execution.Store).Assembly.GetName().Version!.ToString(),runtime,Hash(bytes),true);
+        var build=fixture.Build with{Dependencies=[..fixture.Build.Dependencies,dependency],BundleHash=""};
+        build=build with{BundleHash=SourceBuildArtifactStore.BundleHash(build)};
+        fixture.Buffers[runtime]=bytes;
+        var store=new SourceBuildArtifactStore(root,new object());
+        store.Store(build,fixture.Buffers,CancellationToken.None);
+        store.Verify(build);
+        var package=Path.Combine(root,"source-builds",build.BundleHash);
+        Assert.Equal(4,Directory.EnumerateFiles(package).Count());
+        Assert.True(Directory.EnumerateFiles(package).Sum(path=>new FileInfo(path).Length)<65536);
+        var changed=build with{Dependencies=[..fixture.Build.Dependencies,dependency with{Sha256=new string('0',64)}],BundleHash=""};
+        changed=changed with{BundleHash=SourceBuildArtifactStore.BundleHash(changed)};
+        store.Store(changed,fixture.Buffers,CancellationToken.None);
+        Assert.Equal("BuildMismatch",Assert.Throws<ManagementException>(()=>store.Verify(changed)).Code);
+    }
+
+    [Fact]public void LegacyManifestRetainsItsHashAndCopiedDependencyContract(){
+        var root=Root();var fixture=Fixture(root);
+        var dependency=Assert.Single(fixture.Build.Dependencies);
+        var files=new[]{new{File="module.dll",Sha256=fixture.Build.AssemblySha256,Name="",Version="",Shared=false},
+            new{File="module.pdb",Sha256=fixture.Build.PdbSha256,Name="",Version="",Shared=false},
+            new{File="dependency-000.dll",dependency.Sha256,dependency.Name,dependency.Version,dependency.Shared}};
+        var legacy=System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new{Format=1,Files=files},ManagementJson.Options);
+        var build=fixture.Build with{BundleHash=Hash(legacy)};
+        Assert.Equal(build.BundleHash,SourceBuildArtifactStore.BundleHash(build));
+        var store=new SourceBuildArtifactStore(root,new object());
+        store.Store(build,fixture.Buffers,CancellationToken.None);
+        store.Verify(build);
+        var package=Path.Combine(root,"source-builds",build.BundleHash);
+        Assert.Equal(legacy,File.ReadAllBytes(Path.Combine(package,"manifest.json")));
+        Assert.True(File.Exists(Path.Combine(package,"dependency-000.dll")));
+    }
     [Fact]public void StoresTheCapturedBytesAndRejectsCorruptedCopies(){
         var root=Root();var fixture=Fixture(root);var store=new SourceBuildArtifactStore(root,new object());
         Directory.CreateDirectory(Path.GetDirectoryName(fixture.Build.AssemblyPath)!);

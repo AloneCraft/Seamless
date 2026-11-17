@@ -1,16 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><AssemblyName>Seamless.Application.ServerSchema</AssemblyName><RootNamespace>Seamless.Application.ServerSchema</RootNamespace></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../Schema/Schema.csproj" /></ItemGroup>
+  <PropertyGroup>
+    <AssemblyName>Seamless.Application.ServerSchema</AssemblyName>
+    <RootNamespace>Seamless.Application.ServerSchema</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Schema/Schema.csproj" />
+  </ItemGroup>
   <ItemGroup Condition="'$(SeamlessRepositoryRoot)'!=''">
-    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.Database/Seamless.Database.csproj" />
-    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
-    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless/Database/Database.csproj" />
+    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless/Database/Server/Server.csproj" />
+    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless/Database/Generator/Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless/FLinq/Generator/Compiler.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup Condition="'$(SeamlessRepositoryRoot)'==''">
-    <PackageReference Include="Seamless.Database" Version="$(SeamlessPackageVersion)" />
-    <PackageReference Include="Seamless.Database.Gateway" Version="$(SeamlessPackageVersion)" />
-    <PackageReference Include="Seamless.Database.Generator" Version="$(SeamlessPackageVersion)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <PackageReference Include="Seamless.FLinq.Generator" Version="$(SeamlessPackageVersion)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Seamless" Version="$(SeamlessPackageVersion)" />
   </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <PropertyGroup>
+    <SeamlessLinqAnalysis>false</SeamlessLinqAnalysis>
+  </PropertyGroup>
 </Project>

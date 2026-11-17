@@ -5,9 +5,9 @@
       "name": "Seamless Server + Browser Manager (Debug)",
       "type": "coreclr",
       "request": "launch",
-      "program": "${workspaceFolder}/Seamless.Management.Server/bin/Debug/net10.0/Seamless.Management.Server.exe",
+      "program": "${workspaceFolder}/Seamless/Database/Server/bin/Debug/net10.0/Server.exe",
       "args": ["serve", "--workspace-config", "--open-manager"],
-      "cwd": "${workspaceFolder}/Seamless.Management.Server/bin/Debug/net10.0",
+      "cwd": "${workspaceFolder}/Seamless/Database/Server/bin/Debug/net10.0",
       "console": "internalConsole",
       "stopAtEntry": false,
       "preLaunchTask": "build-management-server-debug"
@@ -16,9 +16,9 @@
       "name": "Seamless Server + Browser Manager (Release)",
       "type": "coreclr",
       "request": "launch",
-      "program": "${workspaceFolder}/Seamless.Management.Server/bin/Release/net10.0/Seamless.Management.Server.exe",
+      "program": "${workspaceFolder}/Seamless/Database/Server/bin/Release/net10.0/Server.exe",
       "args": ["serve", "--workspace-config", "--open-manager"],
-      "cwd": "${workspaceFolder}/Seamless.Management.Server/bin/Release/net10.0",
+      "cwd": "${workspaceFolder}/Seamless/Database/Server/bin/Release/net10.0",
       "console": "internalConsole",
       "stopAtEntry": false,
       "preLaunchTask": "build-management-server-release"
@@ -110,6 +110,12 @@
       "projectPath": "${workspaceFolder}/Benchmark/Experiments/Experiments.csproj"
     },
     {
+      "name": "▶ Manager",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless/Management/Manager.csproj"
+    },
+    {
       "name": "▶ Sample.NetShop",
       "type": "dotnet",
       "request": "launch",
@@ -122,28 +128,16 @@
       "projectPath": "${workspaceFolder}/Samples/Sample.VirtualDb/Sample.VirtualDb.csproj"
     },
     {
-      "name": "▶ Seamless.Database.Server",
+      "name": "▶ Server",
       "type": "dotnet",
       "request": "launch",
-      "projectPath": "${workspaceFolder}/Seamless.Database.Server/Seamless.Database.Server.csproj"
-    },
-    {
-      "name": "▶ Seamless.Database.Tool",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Seamless.Database.Tool/Seamless.Database.Tool.csproj"
+      "projectPath": "${workspaceFolder}/Seamless/Database/Server/Server.csproj"
     },
     {
       "name": "▶ TestSeamless",
       "type": "dotnet",
       "request": "launch",
       "projectPath": "${workspaceFolder}/TestSeamless/TestSeamless.csproj"
-    },
-    {
-      "name": "▶ WindowsServer",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Seamless.Management.Server/WindowsServer.csproj"
     },
     {
       "name": "▶ Worker",

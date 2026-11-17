@@ -29,13 +29,12 @@
     <Using Include="ZLinq" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\..\Tests\Seamless.TestKit\Seamless.TestKit.csproj" />
+    <ProjectReference Include="../../Seamless/Database/Database.csproj" />
+    <ProjectReference Include="../../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Scalable.Tsavorite.Collections\Scalable.Tsavorite.Collections.projitems" Label="Shared" />
-  <!-- 元packageはsupport DLLの取得専用。Coreは修正済みprojectを公開参照する。 -->
+  <Import Project="../../Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" Label="Shared" />
   <ItemGroup>
-    <ProjectReference Include="../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <ProjectReference Include="../../Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
     <Reference Include="Garnet.common">
       <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
       <Private>true</Private>
@@ -45,5 +44,5 @@
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <Import Project="../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <Import Project="../../Seamless/Tsavorite/Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
 </Project>

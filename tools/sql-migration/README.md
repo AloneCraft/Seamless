@@ -5,7 +5,7 @@
 | 責務 | 実装 | 入出力 |
 | --- | --- | --- |
 | 定義の双方向変換 | `Seamless.Database.Compilation` | C#スナップショット / SQL定義 → 共通モデル、生成コード / SQL、変換診断 |
-| 共通の定義契約 | `Seamless.Database.Rdbms/NativeDatabaseDefinition.cs` | 型、列、キー、式、クエリ段階、生成SQL、診断 |
+| 共通の定義契約 | `Seamless/Database/Rdbms/NativeDatabaseDefinition.cs` | 型、列、キー、式、クエリ段階、生成SQL、診断 |
 | DB構築・データ転送 | `Seamless.Database.Transfer` | 明示された接続と生成物・逐次行 → 適用数・転送数 |
 | 一致検証 | `tools/Database.Verification` | 元DB・ネイティブ行・再構築DB → データ比較結果 |
 | 往復試験の組み立て | `Tests/Database.Verification.Tests` | 上記の独立機能を組み合わせて確認 |

@@ -5,10 +5,9 @@
   <ItemGroup>
     <ProjectReference Include="../Database/MultiProjectTemplate.Database.csproj" />
     <PackageReference Include="Seamless" Version="[$(SeamlessPackageVersion)]" />
-    <PackageReference Include="Seamless.Database.Gateway" Version="[$(SeamlessPackageVersion)]" />
-    <PackageReference Include="Seamless.Transport.Kestrel" Version="[$(SeamlessPackageVersion)]" />
-    <PackageReference Include="Seamless.Database.Generator" Version="[$(SeamlessPackageVersion)]" />
-    <PackageReference Include="Seamless.FLinq.Generator" Version="[$(SeamlessPackageVersion)]" />
     <PackageReference Include="MemoryPack" Version="1.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,828 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+namespace Seamless.FLinq.Generator;
+
+/*
+SetBase は Union/Except/Intersect など、要素そのものを key にする二入力集合演算の共通基底。
+
+入力例:
+  first.Union(second)
+  first.Except(second, comparer)
+
+生成例:
+  if(operation.PreloadSecondFirst) {
+      foreach(var right in second) set.Add(right);
+      foreach(var left in first) if(set.SourceAccept(left)) return left;
+  } else {
+      foreach(var left in first) if(set.Add(left)) return left;
+      foreach(var right in second) if(set.Add(right)) return right;
+  }
+
+バリエーション:
+  - Union は左を返しながら set に追加し、その後右の未出要素を返す。
+  - Except/Intersect は先に右側 set を作り、左側の Remove/Add など operation 固有の判定で返す。
+  - direct consume では HashSet 初期化と TraversalSupport ループを出し、Enumerator.Current を経由しない。
+*/
+internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(second is { } __visitorChild_second) {
+            yield return __visitorChild_second;
+        }
+    }
+
+    protected override Enumerable PrimarySource => source;
+    private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
+    public override string StructMethod => string.Empty;
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
+    protected override string StructTypeConstraints =>
+        $"where TEnum1:struct,global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{second.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionSeparated(this.EnumeratorTypeName,",",source.GetEnumeratorExpression,second.GetEnumeratorExpression,this.Comparer);
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    public override string GetEnumeratorFields => operation.PreloadSecondFirst ? $$"""
+            private readonly global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
+            private bool {{this.yielded}};
+            private static global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+                if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
+                    return new global::Seamless.Linq.HashSetSlim<{{source.ElementType}}>({{this.count}},comparer);
+                }else{
+                    return new global::Seamless.Linq.HashSetSlim<{{source.ElementType}}>(comparer);
+                }
+            }
+            """ : $$"""
+            private readonly global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
+            private bool {{this.yielded}};
+            """;
+    public override string GetEnumeratorConstructor => operation.PreloadSecondFirst
+        ? $"this.{this.lookup}=CreateLookup(this.second,this.comparer);"
+        : $"this.{this.lookup}=new(this.comparer);";
+    public override string GetEnumerableExpression => operation.GetEnumerableExpression(source,second,this.Comparer);
+    public override string GetTryGetNextBody => operation.PreloadSecondFirst ? $$"""
+            if(!this.{{this.yielded}}){
+                while(second.TryGetNext(out var {{this.item}})){
+                    this.{{this.lookup}}.Add({{this.SecondValueExpression(this.item)}});
+                }
+                this.{{this.yielded}}=true;
+            }
+            while(source.TryGetNext(out var {{this.item}})){
+                if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
+                    current=this.{{this.currentValue}}={{this.item}};
+                    return true;
+                }
+            }
+            current=default!;
+            return false;
+            """ : $$"""
+            // yielded は「source を使い切った」旗。second は次の呼び出しでも続きから読むので、旗は second の走査に入る前に
+            // 立ててはいけない(立てると、最初の未出要素を返した次の呼び出しで second の残りが読まれず、その後の要素が欠落する)。
+            if(!this.{{this.yielded}}){
+                while(source.TryGetNext(out var {{this.item}})){
+                    if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
+                        current=this.{{this.currentValue}}={{this.item}};
+                        return true;
+                    }
+                }
+                this.{{this.yielded}}=true;
+            }
+            while(second.TryGetNext(out var {{this.item}})){
+                var value=({{source.ElementType}})(object?){{this.item}}!;
+                if(this.{{this.lookup}}.Add(value)){
+                    current=this.{{this.currentValue}}=value;
+                    return true;
+                }
+            }
+            current=default!;
+            return false;
+            """;
+    public override string ElementType => source.ElementType;
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
+    // ソース・第2ソースが根と Where の並びで、どちらかに Where があるなら、集合演算と Where の列挙子の構造体を回さずに、
+    // 差し替えメソッドの中で根を直接回して述語をその場に展開する(Join と同じ理由)。
+    private string? RenderFilteredRootsConsume(string consumerName) {
+        if(!TryPeelWheres(source,out var sourceRoot,out var sourcePredicates)
+            ||!TryPeelWheres(second,out var secondRoot,out var secondPredicates)
+            ||sourcePredicates.Length+secondPredicates.Length==0) {
+            return null;
+        }
+        string sourceExpression;
+        string secondExpression;
+        try {
+            sourceExpression=sourceRoot.GetEnumeratorExpression;
+            secondExpression=secondRoot.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var sourceName = $"__setSourceRoot{番号}";
+        var secondName = $"__setSecondRoot{番号}";
+        var setName = $"__set{番号}";
+        var valueName = $"__setValue{番号}";
+        var secondValueName = $"__setSecondValue{番号}";
+        var functions = sourcePredicates.Concat(secondPredicates).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var builder = new StringBuilder();
+        if(!string.IsNullOrEmpty(localDeclarations)) {
+            builder.AppendLine(localDeclarations);
+        }
+        builder.AppendLine($"using var {sourceName}={sourceExpression};");
+        builder.AppendLine($"using var {secondName}={secondExpression};");
+        var secondValue = this.SecondValueExpression(secondValueName);
+        if(!operation.PreloadSecondFirst) {
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            builder.AppendLine(this.RenderRootLoop(sourceRoot,sourcePredicates,sourceName,valueName,$"if({setName}.Add({valueName})){{\n    {consumerName}.Consume({valueName});\n}}"));
+            builder.AppendLine(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondValueName,$"if({setName}.Add({secondValue})){{\n    {consumerName}.Consume({secondValue});\n}}"));
+        } else {
+            if(operation.SourceAcceptMethod=="Add") {
+                // Except は第1ソースの要素も集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+            }
+            builder.AppendLine(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondValueName,$"{setName}.Add({secondValue});"));
+            builder.AppendLine(this.RenderRootLoop(sourceRoot,sourcePredicates,sourceName,valueName,$"if({setName}.{operation.SourceAcceptMethod}({valueName})){{\n    {consumerName}.Consume({valueName});\n}}"));
+        }
+        return builder.ToString().TrimEnd();
+    }
+
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RenderFilteredRootsConsume(consumerName) is { } filteredConsume) {
+            return filteredConsume;
+        }
+        var sourceName = $"__src{番号}";
+        var secondName = $"__sec{番号}";
+        var setName = $"__set{番号}";
+        var builder = new StringBuilder();
+        builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
+        var secondSource = !operation.PreloadSecondFirst&&this.Comparer=="null" ? second switch{
+            DirectSpanRootBase direct=>direct.SourceExpression,
+            Root {DirectEnumerableExpression:{} expression}=>expression,
+            _=>null
+        } : null;
+        if(secondSource is not null){
+            var captured=$"__secondSource{番号}";
+            builder.AppendLine($"var {captured}={secondSource};");
+            builder.AppendLine($"global::System.ArgumentNullException.ThrowIfNull({captured},\"second\");");
+            builder.AppendLine($"using var {secondName}={RenderEnumeratorExpression(second.EnumeratorTypeName,captured)};");
+        }else{
+            builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
+        }
+        if(this.CanUseSortedDefaultUnionFastPath()) {
+            this.AppendSortedDefaultUnionFastPath(builder,sourceName,secondName,consumerName);
+        }
+        if(this.CanUseSortedIntSetFastPath()) {
+            this.AppendSortedIntSetFastPath(builder,sourceName,secondName,consumerName);
+        }
+        if(!operation.PreloadSecondFirst) {
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName,probeSecond:secondSource is null||second is not Root);
+        } else {
+            if(operation.SourceAcceptMethod=="Add") {
+                // Except は第1ソースの要素も集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+            }
+        }
+        if(!operation.PreloadSecondFirst) {
+            TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
+                if({{setName}}.Add(value)){
+                    {{consumerName}}.Consume(value);
+                }
+                """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
+            TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
+                if({{setName}}.Add({{this.SecondValueExpression("value")}})){
+                    {{consumerName}}.Consume({{this.SecondValueExpression("value")}});
+                }
+                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
+            return builder.ToString().TrimEnd();
+        }
+        TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
+            {{setName}}.Add({{this.SecondValueExpression("value")}});
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
+        TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
+            if({{setName}}.{{operation.SourceAcceptMethod}}(value)){
+                {{consumerName}}.Consume(value);
+            }
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
+        return builder.ToString().TrimEnd();
+    }
+    private string SecondValueExpression(string valueName) {
+        if(source.ElementType==second.ElementType) {
+            return valueName;
+        }
+        return $"({source.ElementType})(object?){valueName}!";
+    }
+
+    private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName,bool probeSecond=true) {
+        var sourceCount = $"__sourceCount_{setName}";
+        var secondCount = $"__secondCount_{setName}";
+        var sourceHasCount = $"__sourceHasCount_{setName}";
+        var secondHasCount = $"__secondHasCount_{setName}";
+        builder.AppendLine($"var {sourceCount}=0;");
+        builder.AppendLine($"var {secondCount}=0;");
+        builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
+        // 任意のIEnumerableではCountプロパティの呼出しも観測できる。
+        var secondCountExpression=probeSecond?$"{secondName}.TryGetNonEnumeratedCount(out {secondCount})":"false";
+        builder.AppendLine($"var {secondHasCount}={secondCountExpression};");
+        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
+        builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
+        builder.AppendLine($"    ? new global::Seamless.Linq.HashSetSlim<{source.ElementType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"    : {sourceHasCount}");
+        builder.AppendLine($"        ? new global::Seamless.Linq.HashSetSlim<{source.ElementType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"        : {secondHasCount}");
+        builder.AppendLine($"            ? new global::Seamless.Linq.HashSetSlim<{source.ElementType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"            : new global::Seamless.Linq.HashSetSlim<{source.ElementType}>((global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer});");
+    }
+
+    private bool CanUseSortedIntSetFastPath() =>
+        operation.PreloadSecondFirst
+        &&source is RangeRoot
+        &&second is RangeRoot
+        &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
+        &&IsInt32Type(source.ElementType)
+        &&IsInt32Type(second.ElementType)
+        &&source.CanTryProvideSpan
+        &&second.CanTryProvideSpan;
+
+    private bool CanUseSortedDefaultUnionFastPath() =>
+        !operation.PreloadSecondFirst
+        &&operation.SourceAcceptMethod=="Add"
+        &&source is RangeRoot
+        &&second is RangeRoot
+        &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
+        &&source.ElementType==second.ElementType
+        &&source.CanTryProvideSpan
+        &&second.CanTryProvideSpan;
+
+    private void AppendSortedDefaultUnionFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
+        var sourceSpan = $"__unionSrcSpan{this.result}";
+        var secondSpan = $"__unionSecSpan{this.result}";
+        var sorted = $"__unionSorted{this.result}";
+        var sourceDirectSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression = second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null&&secondDirectSpanExpression is not null) {
+            builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
+            builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
+            this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,string.Empty);
+            return;
+        }
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
+            builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
+            builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
+            this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,string.Empty);
+            return;
+        }
+        builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})&&{secondName}.TryGetSpan(out var {secondSpan})){{");
+        this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,"    ");
+        builder.AppendLine("}");
+    }
+
+    private void AppendSortedDefaultUnionFastPathBody(
+        StringBuilder builder,
+        string sourceSpan,
+        string secondSpan,
+        string sorted,
+        string consumerName,
+        string indent) {
+        var elementType = source.ElementType;
+        builder.AppendLine($"{indent}if(typeof(global::System.IComparable<{elementType}>).IsAssignableFrom(typeof({elementType}))||typeof(global::System.IComparable).IsAssignableFrom(typeof({elementType}))){{");
+        builder.AppendLine($"{indent}    var __comparer=global::System.Collections.Generic.Comparer<{elementType}>.Default;");
+        builder.AppendLine($"{indent}    var {sorted}=true;");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        if(__comparer.Compare({sourceSpan}[__i-1],{sourceSpan}[__i])>=0){{");
+        builder.AppendLine($"{indent}            {sorted}=false;");
+        builder.AppendLine($"{indent}            break;");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}            if(__comparer.Compare({secondSpan}[__i-1],{secondSpan}[__i])>=0){{");
+        builder.AppendLine($"{indent}                {sorted}=false;");
+        builder.AppendLine($"{indent}                break;");
+        builder.AppendLine($"{indent}            }}");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        {consumerName}.Consume({sourceSpan}[__i]);");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}        var __sourceIndex=0;");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        var __value={secondSpan}[__i];");
+        builder.AppendLine($"{indent}            while(__sourceIndex<{sourceSpan}.Length&&__comparer.Compare({sourceSpan}[__sourceIndex],__value)<0){{");
+        builder.AppendLine($"{indent}                __sourceIndex++;");
+        builder.AppendLine($"{indent}            }}");
+        builder.AppendLine($"{indent}            if(__sourceIndex>={sourceSpan}.Length||__comparer.Compare({sourceSpan}[__sourceIndex],__value)!=0){{");
+        builder.AppendLine($"{indent}            {consumerName}.Consume(__value);");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}}}");
+    }
+
+    private void AppendSortedIntSetFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
+        var sourceSpan = $"__setSrcSpan{番号}";
+        var secondSpan = $"__setSecSpan{番号}";
+        var sorted = $"__setSorted{番号}";
+        var j = $"__setJ{番号}";
+        var value = $"__setValue{番号}";
+        var sourceDirectSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression = second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null&&secondDirectSpanExpression is not null) {
+            builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
+            builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
+            this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
+            builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
+            builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
+            this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
+        builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})"
+            +$"&&{secondName}.TryGetSpan(out var {secondSpan})){{");
+        builder.AppendLine($"    var {sorted}=true;");
+        builder.AppendLine($"    for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"        if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
+        builder.AppendLine($"            {sorted}=false;");
+        builder.AppendLine("            break;");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    if({sorted}){{");
+        builder.AppendLine($"        for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"            if({secondSpan}[__i]<={secondSpan}[__i-1]){{");
+        builder.AppendLine($"                {sorted}=false;");
+        builder.AppendLine("                break;");
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    if({sorted}){{");
+        builder.AppendLine($"        var {j}=0;");
+        builder.AppendLine($"        for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"            var {value}={sourceSpan}[__i];");
+        builder.AppendLine($"            while({j}<{secondSpan}.Length&&{secondSpan}[{j}]<{value}){{");
+        builder.AppendLine($"                {j}++;");
+        builder.AppendLine("            }");
+        if(operation.SourceAcceptMethod=="Add") {
+            builder.AppendLine($"            if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
+            builder.AppendLine($"                {consumerName}.Consume({value});");
+            builder.AppendLine("            }");
+        } else {
+            builder.AppendLine($"            if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
+            builder.AppendLine($"                {consumerName}.Consume({value});");
+            builder.AppendLine("            }");
+        }
+        builder.AppendLine("        }");
+        builder.AppendLine("        return;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private void AppendSortedIntSetFastPathBody(
+        StringBuilder builder,
+        string sourceSpan,
+        string secondSpan,
+        string sorted,
+        string j,
+        string value,
+        string consumerName,
+        string indent) {
+        builder.AppendLine($"{indent}var {sorted}=true;");
+        builder.AppendLine($"{indent}for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}    if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}        {sorted}=false;");
+        builder.AppendLine($"{indent}        break;");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        if({secondSpan}[__i]<={secondSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}            {sorted}=false;");
+        builder.AppendLine($"{indent}            break;");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    var {j}=0;");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        var {value}={sourceSpan}[__i];");
+        builder.AppendLine($"{indent}        while({j}<{secondSpan}.Length&&{secondSpan}[{j}]<{value}){{");
+        builder.AppendLine($"{indent}            {j}++;");
+        builder.AppendLine($"{indent}        }}");
+        if(operation.SourceAcceptMethod=="Add") {
+            builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        } else {
+            builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        }
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}}}");
+    }
+
+    private static bool IsInt32Type(string typeName)
+        =>
+        string.Equals(typeName,"int",StringComparison.Ordinal)
+        ||string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        ||string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
+}
+
+/*
+SetByBase は UnionBy/ExceptBy/IntersectBy など、keySelector(item) で集合判定する二入力演算の共通基底。
+
+入力例:
+  first.ExceptBy(second, x => x.Id, comparer)
+
+生成例:
+  foreach(var right in second) secondKeys.Add(keySelector(right));
+  foreach(var left in first) {
+      var key = keySelector(left);
+      if(secondKeys.SourceAccept(key)) return left;
+  }
+
+バリエーション:
+  - keySelector が identity の場合は key 計算用の FuncAssign を省いた専用 body を使う。
+  - UnionBy は右側も「同じ key が未出なら右要素を返す」状態を持つ。
+  - non-identity では closure/delegate/hoisted local を constructor と direct consume の両方へ伝播する。
+*/
+internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(second is { } __visitorChild_second) {
+            yield return __visitorChild_second;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
+    protected override Enumerable PrimarySource => source;
+    private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
+    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
+    protected override string StructTypeConstraints =>
+        $"where TEnum1:struct,global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{second.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,second.GetEnumeratorExpression,this.Comparer);
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
+    public override string GetEnumeratorFields => $$"""
+        private readonly global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
+        private byte {{this.state}};
+        private static global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
+            if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
+                return new global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}>({{this.count}},comparer);
+            }else{
+                return new global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}>(comparer);
+            }
+        }
+        """;
+    public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup(this.second,this.comparer);";
+    public override string GetEnumerableExpression => operation.GetEnumerableExpression(source,second,keySelector,this.Comparer);
+    public override string GetTryGetNextBody => this.UseIdentityKeySelector ? this.GetTryGetNextIdentityBody : operation.PreloadSecondFirst ? $$"""
+            if(this.{{this.state}}==0){
+                while(second.TryGetNext(out var {{this.temp}})) this.{{this.lookup}}.Add({{this.SecondKeyExpression(this.temp)}});
+                this.{{this.state}}=1;
+            }
+            while(source.TryGetNext(out var {{this.item}})){
+                {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
+                if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.key}})){
+                    current=this.{{this.currentValue}}={{this.item}};
+                    return true;
+                }
+            }
+            current=default!;
+            return false;
+            """ : $$"""
+            // state は「source を使い切った」旗。second の走査に入る前に立てると、最初の未出要素を返した次の呼び出しで
+            // second の残りが読まれず欠落する。
+            if(this.{{this.state}}==0){
+                while(source.TryGetNext(out var {{this.item}})){
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                    {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.key}})){
+                        current=this.{{this.currentValue}}={{this.item}};
+                        return true;
+                    }
+                }
+                this.{{this.state}}=1;
+            }
+            while(second.TryGetNext(out var {{this.temp}})){
+                var {{this.item}}=({{source.ElementType}})(object?){{this.temp}}!;
+                {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
+                if(this.{{this.lookup}}.Add({{this.key}})){
+                    current=this.{{this.currentValue}}={{this.item}};
+                    return true;
+                }
+            }
+            current=default!;
+            return false;
+            """;
+    private string GetTryGetNextIdentityBody => operation.PreloadSecondFirst ? $$"""
+            if(this.{{this.state}}==0){
+                while(second.TryGetNext(out var {{this.temp}})) this.{{this.lookup}}.Add({{this.temp}});
+                this.{{this.state}}=1;
+            }
+            while(source.TryGetNext(out var {{this.item}})){
+                if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
+                    current=this.{{this.currentValue}}={{this.item}};
+                    return true;
+                }
+            }
+            current=default!;
+            return false;
+            """ : $$"""
+            if(this.{{this.state}}==0){
+                while(source.TryGetNext(out var {{this.item}})){
+                    if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
+                        current=this.{{this.currentValue}}={{this.item}};
+                        return true;
+                    }
+                }
+                this.{{this.state}}=1;
+            }
+            while(second.TryGetNext(out var {{this.temp}})){
+                if(this.{{this.lookup}}.Add({{this.temp}})){
+                    current=this.{{this.currentValue}}={{this.temp}};
+                    return true;
+                }
+            }
+            current=default!;
+            return false;
+            """;
+    public override string ElementType => source.ElementType;
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName = $"__src{番号}";
+        var secondName = $"__sec{番号}";
+        var setName = $"__set{番号}";
+        var builder = new StringBuilder();
+        builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
+        builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
+        var hoistedDeclarations = this.HoistedLocalDeclarations(keySelector);
+        if(!string.IsNullOrEmpty(hoistedDeclarations)) {
+            builder.AppendLine(hoistedDeclarations);
+        }
+        if(this.UseIdentityKeySelector) {
+            if(this.CanUseSortedIntSetFastPath()) {
+                this.AppendSortedIntSetFastPath(builder,sourceName,secondName,consumerName);
+            }
+            if(!operation.PreloadSecondFirst) {
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                if(operation.SourceAcceptMethod=="Add") {
+                // ExceptBy は第1ソースのキーも集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+            }
+            }
+            if(!operation.PreloadSecondFirst) {
+                TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
+                    if({{setName}}.Add(value)){
+                        {{consumerName}}.Consume(value);
+                    }
+                    """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
+                TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
+                    if({{setName}}.Add(value)){
+                        {{consumerName}}.Consume(value);
+                    }
+                    """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
+                return builder.ToString().TrimEnd();
+            }
+            TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
+                {{setName}}.Add(value);
+                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
+            TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
+                if(!{{setName}}.{{operation.SourceAcceptMethod}}(value)){
+                    continue;
+                }
+                {{consumerName}}.Consume(value);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
+            return builder.ToString().TrimEnd();
+        }
+        if(!operation.PreloadSecondFirst) {
+            // UnionBy: 第1引数→第2引数の順に、どちらの要素もキー選択子を通し、新しいキーの要素を出す(列挙子の TryGetNext と同じ)。
+            // 第2引数をキーの列として先に読むのは、ExceptBy / IntersectBy だけ。
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            this.AppendSetByConsumeLoop(builder,sourceName,consumerName,setName,"Add");
+            this.AppendUnionBySecondConsumeLoop(builder,secondName,consumerName,setName);
+            return builder.ToString().TrimEnd();
+        }
+        if(operation.SourceAcceptMethod=="Add") {
+            // ExceptBy は第1ソースのキーも集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+        } else {
+            TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+        }
+        this.AppendSetByCollectLoop(builder,secondName,setName);
+        this.AppendSetByConsumeLoop(builder,sourceName,consumerName,setName,operation.SourceAcceptMethod);
+        return builder.ToString().TrimEnd();
+    }
+    private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName) {
+        var keyType = FuncReturnTypeName(keySelector);
+        var sourceCount = $"__sourceCount_{setName}";
+        var secondCount = $"__secondCount_{setName}";
+        var sourceHasCount = $"__sourceHasCount_{setName}";
+        var secondHasCount = $"__secondHasCount_{setName}";
+        builder.AppendLine($"var {sourceCount}=0;");
+        builder.AppendLine($"var {secondCount}=0;");
+        builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
+        builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
+        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
+        builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
+        builder.AppendLine($"    ? new global::Seamless.Linq.HashSetSlim<{keyType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"    : {sourceHasCount}");
+        builder.AppendLine($"        ? new global::Seamless.Linq.HashSetSlim<{keyType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"        : {secondHasCount}");
+        builder.AppendLine($"            ? new global::Seamless.Linq.HashSetSlim<{keyType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"            : new global::Seamless.Linq.HashSetSlim<{keyType}>((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer});");
+    }
+    private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName) {
+        // 第2引数はキーの列なので、キー選択子は適用しない(System.Linq と同じ。構造体の列挙子も SecondKeyExpression で第2引数をそのままキーにする)。
+        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"value",$$"""
+            {{setName}}.Add({{this.SecondKeyExpression("value")}});
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName),second.ProvidesRemainingEnumerator);
+    }
+    private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod) {
+        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
+            {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
+            if(!{{setName}}.{{operationMethod}}({{this.key}})){
+                continue;
+            }
+            {{consumerName}}.Consume(value);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(enumeratorName),source.ProvidesRemainingEnumerator);
+    }
+    private void AppendUnionBySecondConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName) {
+        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"secondValue",$$"""
+            var value=({{source.ElementType}})(object?)secondValue!;
+            {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
+            if(!{{setName}}.Add({{this.key}})){
+                continue;
+            }
+            {{consumerName}}.Consume(value);
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName),second.ProvidesRemainingEnumerator);
+    }
+    private string SecondKeyExpression(string valueName) {
+        if(FuncReturnTypeName(keySelector)==second.ElementType) {
+            return valueName;
+        }
+        return $"({FuncReturnTypeName(keySelector)})(object?){valueName}!";
+    }
+    private bool UseIdentityKeySelector => keySelector.IsIdentity&&FuncReturnTypeName(keySelector)==source.ElementType;
+
+    private bool CanUseSortedIntSetFastPath() =>
+        operation.PreloadSecondFirst
+        &&source is RangeRoot
+        &&second is RangeRoot
+        &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,FuncReturnTypeName(keySelector))
+        &&IsInt32Type(source.ElementType)
+        &&IsInt32Type(second.ElementType)
+        &&source.CanTryProvideSpan
+        &&second.CanTryProvideSpan;
+
+    private void AppendSortedIntSetFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
+        var sourceSpan = $"__setSrcSpan{番号}";
+        var secondSpan = $"__setSecSpan{番号}";
+        var sorted = $"__setSorted{番号}";
+        var j = $"__setJ{番号}";
+        var value = $"__setValue{番号}";
+        var sourceDirectSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression = second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null&&secondDirectSpanExpression is not null) {
+            builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
+            builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
+            this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
+            builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
+            builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
+            this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
+        builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})&&{secondName}.TryGetSpan(out var {secondSpan})){{");
+        builder.AppendLine($"    var {sorted}=true;");
+        builder.AppendLine($"    for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"        if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
+        builder.AppendLine($"            {sorted}=false;");
+        builder.AppendLine("            break;");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    if({sorted}){{");
+        builder.AppendLine($"        for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"            if({secondSpan}[__i]<={secondSpan}[__i-1]){{");
+        builder.AppendLine($"                {sorted}=false;");
+        builder.AppendLine("                break;");
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    if({sorted}){{");
+        builder.AppendLine($"        var {j}=0;");
+        builder.AppendLine($"        for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"            var {value}={sourceSpan}[__i];");
+        builder.AppendLine($"            while({j}<{secondSpan}.Length&&{secondSpan}[{j}]<{value}){{");
+        builder.AppendLine($"                {j}++;");
+        builder.AppendLine("            }");
+        if(operation.SourceAcceptMethod=="Add") {
+            builder.AppendLine($"            if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
+            builder.AppendLine($"                {consumerName}.Consume({value});");
+            builder.AppendLine("            }");
+        } else {
+            builder.AppendLine($"            if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
+            builder.AppendLine($"                {consumerName}.Consume({value});");
+            builder.AppendLine("            }");
+        }
+        builder.AppendLine("        }");
+        builder.AppendLine("        return;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private void AppendSortedIntSetFastPathBody(
+        StringBuilder builder,
+        string sourceSpan,
+        string secondSpan,
+        string sorted,
+        string j,
+        string value,
+        string consumerName,
+        string indent) {
+        builder.AppendLine($"{indent}var {sorted}=true;");
+        builder.AppendLine($"{indent}for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}    if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}        {sorted}=false;");
+        builder.AppendLine($"{indent}        break;");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        if({secondSpan}[__i]<={secondSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}            {sorted}=false;");
+        builder.AppendLine($"{indent}            break;");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    var {j}=0;");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        var {value}={sourceSpan}[__i];");
+        builder.AppendLine($"{indent}        while({j}<{secondSpan}.Length&&{secondSpan}[{j}]<{value}){{");
+        builder.AppendLine($"{indent}            {j}++;");
+        builder.AppendLine($"{indent}        }}");
+        if(operation.SourceAcceptMethod=="Add") {
+            builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        } else {
+            builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        }
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}}}");
+    }
+
+    private static bool IsInt32Type(string typeName) =>
+        string.Equals(typeName,"int",StringComparison.Ordinal)
+        ||string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        ||string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
+}

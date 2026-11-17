@@ -48,8 +48,8 @@ foreach($variant in $Variants){
     }
     $target=Join-Path $work $variant;New-Item -ItemType Directory -Path $target | Out-Null
     Copy-Item -Path (Join-Path $test '*') -Destination $target -Recurse
-    if($variant -eq 'baseline'){Copy-Item -LiteralPath $BaselineGatewayAssembly -Destination (Join-Path $target 'Seamless.Database.Gateway.dll')}
-    $assembly=Join-Path $target 'Seamless.Database.Gateway.dll'
+    if($variant -eq 'baseline'){Copy-Item -LiteralPath $BaselineGatewayAssembly -Destination (Join-Path $target 'Server.dll')}
+    $assembly=Join-Path $target 'Server.dll'
     $manifest+=[ordered]@{Variant=$variant;Assembly=$assembly;Sha256=(Get-FileHash -LiteralPath $assembly -Algorithm SHA256).Hash}
     $result=& (Join-Path $repository 'TestSeamless\Invoke-LocalProcess.ps1') -Executable (Get-Command dotnet).Source -Arguments @((Join-Path $target 'Management.Tests.dll'),'--transport-probe') -WorkingDirectory $work -ArtifactDirectory (Join-Path $logs $variant) -TimeoutSeconds 300
     [ordered]@{Runs=$manifest;Scope='Loopback native RPC; separate processes; same client and dependencies; common affinity max 8'} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $logs 'manifest.json') -Encoding utf8

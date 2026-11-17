@@ -76,7 +76,28 @@ public sealed class UnorderedEnumerableAnalyzerTests {
         Assert.Contains(diagnostics,diagnostic=>diagnostic.Id=="SEAMLINQ002"&&diagnostic.GetMessage().Contains("Escapes"));
     }
 
-    private static async Task<ImmutableArray<Diagnostic>> Analyze(string body){
+    [Fact]
+    public async Task ProjectAndSourceOptionsPreserveAnalyzerSelection(){
+        const string body="class C{int M(Seamless.Collections.Tsavorite.HashSet<int> source)=>source.First();}";
+        Assert.Contains(await Analyze(body),diagnostic=>diagnostic.Id=="SEAMLINQ001"&&diagnostic.Severity==DiagnosticSeverity.Error);
+        Assert.Empty(await Analyze(body,"false"));
+        Assert.Empty(await Analyze(body,"false",""));
+        Assert.Contains(await Analyze(body,"false","true"),diagnostic=>diagnostic.Id=="SEAMLINQ001"&&diagnostic.Severity==DiagnosticSeverity.Error);
+        Assert.Empty(await Analyze(body,"true","false"));
+    }
+
+    private sealed class Options(string key,string? value):AnalyzerConfigOptions{
+        public override bool TryGetValue(string name,out string result){
+            if(name==key&&value is not null){result=value;return true;}
+            result="";return false;
+        }
+    }
+    internal sealed class OptionProvider(string? project,string? source):AnalyzerConfigOptionsProvider{
+        public override AnalyzerConfigOptions GlobalOptions{get;}=new Options("build_property.SeamlessLinqAnalysis",project);
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)=>new Options("build_metadata.Compile.SeamlessLinqAnalysis",source);
+        public override AnalyzerConfigOptions GetOptions(AdditionalText text)=>new Options("",null);
+    }
+    private static async Task<ImmutableArray<Diagnostic>> Analyze(string body,string? project=null,string? sourceOption=null){
         var source="""
             global using System.Linq;
             global using System.Collections.Generic;
@@ -102,6 +123,6 @@ public sealed class UnorderedEnumerableAnalyzerTests {
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         var errors=compilation.GetDiagnostics().Where(diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error).ToArray();
         Assert.True(errors.Length==0,string.Join(Environment.NewLine,errors.Select(static error=>error.ToString())));
-        return await compilation.WithAnalyzers([new UnorderedEnumerableAnalyzer()]).GetAnalyzerDiagnosticsAsync();
+        return await compilation.WithAnalyzers([new UnorderedEnumerableAnalyzer()],new AnalyzerOptions([],new OptionProvider(project,sourceOption))).GetAnalyzerDiagnosticsAsync();
     }
 }

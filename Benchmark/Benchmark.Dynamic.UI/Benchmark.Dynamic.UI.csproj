@@ -27,19 +27,19 @@
     <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
+    <ProjectReference Include="../Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
     <ProjectReference Include="../Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
-    <ProjectReference Include="..\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" ReferenceOutputAssembly="false" OutputItemType="BenchmarkDynamicWorkerOutput" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" Condition="'$(SkipBenchmarkDynamicWorkerBuild)'!='true'" />
+    <ProjectReference Include="../Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" ReferenceOutputAssembly="false" OutputItemType="BenchmarkDynamicWorkerOutput" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" Condition="'$(SkipBenchmarkDynamicWorkerBuild)'!='true'" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\Shared\UI.Core\BenchmarkCpuCoreModels.cs" Link="Shared\UI.Core\BenchmarkCpuCoreModels.cs" />
-    <Compile Include="..\..\Shared\UI.Core\BenchmarkCpuTopologyProvider.cs" Link="Shared\UI.Core\BenchmarkCpuTopologyProvider.cs" />
-    <Compile Include="..\..\Shared\UI.Core\BenchmarkStatusIconLogic.cs" Link="Shared\UI.Core\BenchmarkStatusIconLogic.cs" />
+    <Compile Include="../../Shared/UI.Core/BenchmarkCpuCoreModels.cs" Link="Shared\UI.Core\BenchmarkCpuCoreModels.cs" />
+    <Compile Include="../../Shared/UI.Core/BenchmarkCpuTopologyProvider.cs" Link="Shared\UI.Core\BenchmarkCpuTopologyProvider.cs" />
+    <Compile Include="../../Shared/UI.Core/BenchmarkStatusIconLogic.cs" Link="Shared\UI.Core\BenchmarkStatusIconLogic.cs" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Benchmark.History\Benchmark.History.projitems" Label="Shared" />
-  <Import Project="..\..\Shared\UI.Widgets\UI.Widgets.projitems" Label="Shared" />
+  <Import Project="../../Shared/Benchmark.History/Benchmark.History.projitems" Label="Shared" />
+  <Import Project="../../Shared/UI.Widgets/UI.Widgets.projitems" Label="Shared" />
   <ItemGroup>
-    <MauiImage Include="Resources\Images\*.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources/Images/*.svg" BaseSize="24,24" />
   </ItemGroup>
   <Target Name="CopyBenchmarkDynamicWorker" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)'!='true' and '$(TargetDir)'!='' and '$(SkipBenchmarkDynamicWorkerBuild)'!='true'">
     <PropertyGroup>

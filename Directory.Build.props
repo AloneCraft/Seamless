@@ -1,4 +1,9 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)tools/build/SingleFileCompilation.props" />
+  <ItemGroup>
+    <CompilerVisibleProperty Include="SeamlessLinqAnalysis" />
+    <CompilerVisibleProperty Include="SeamlessFLinqGeneration" />
+  </ItemGroup>
   <PropertyGroup>
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
     <ShouldUnsetParentConfigurationAndPlatform Condition="'$(ShouldUnsetParentConfigurationAndPlatform)'==''">false</ShouldUnsetParentConfigurationAndPlatform>

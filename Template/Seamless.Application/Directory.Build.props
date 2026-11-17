@@ -1,4 +1,12 @@
 <Project>
+  <PropertyGroup Condition="'$(MSBuildProjectName)'=='Server'">
+    <ArtifactsProjectName>Seamless.Application.Server</ArtifactsProjectName>
+  </PropertyGroup>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="SeamlessLinqAnalysis" />
+    <CompilerVisibleProperty Include="SeamlessFLinqGeneration" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>14</LangVersion>
