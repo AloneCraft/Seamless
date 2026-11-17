@@ -21,13 +21,13 @@
 
 ```powershell
 & .\TestSeamless\Invoke-HistoryStoreModes.ps1 `
-    -TaskRoot 'D:\CodexTemp\Seamless\history-modes' `
+    -TaskRoot 'F:\Seamless\history-modes' `
     -LogRoot 'F:\CodexTemp\Seamless\history-modes' `
     -BuildLogRoot 'F:\CodexTemp\Seamless\my-existing-cache' `
     -Configuration Debug -VerifyOnly
 
 & .\TestSeamless\Invoke-HistoryStoreModes.ps1 `
-    -TaskRoot 'D:\CodexTemp\Seamless\history-modes' `
+    -TaskRoot 'F:\Seamless\history-modes' `
     -LogRoot 'F:\CodexTemp\Seamless\history-modes' `
     -BuildLogRoot 'F:\CodexTemp\Seamless\my-existing-cache' `
     -Configuration Release
@@ -35,7 +35,7 @@
 # I/Oを揃える場合は、別のTaskRoot/LogRootにして上のRelease実行へ-BufferedControlを付ける。
 
 & .\TestSeamless\Test-HistoryStoreModes.ps1 `
-    -TaskRoot 'D:\CodexTemp\Seamless\history-modes' `
+    -TaskRoot 'F:\Seamless\history-modes' `
     -LogRoot 'F:\CodexTemp\Seamless\history-modes'
 ```
 

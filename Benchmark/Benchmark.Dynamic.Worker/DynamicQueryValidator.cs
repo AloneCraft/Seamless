@@ -36,19 +36,19 @@ public static class DynamicQueryValidator{
         var comparisons=new Dictionary<DynamicImplementationKind,DynamicQueryComparison>();
         foreach(var implementation in implementations.Where(loaded.Has)){
             cancellationToken.ThrowIfCancellationRequested();
-            try{
-                using var scope=global::Seamless.Linq.LinqCounterScope.Start();
+            var observed=DynamicFallbackCapture.Run(()=>{
                 var value=loaded.Run(implementation,primary,secondary);
                 value.Validate();
-                results[implementation]=value;
-                // 例外経路より後で検査する既存 Worker 契約を維持する。
-                // Run/Validate が投げたときは、この実装の fallback 数を記録しない。
-                if(implementation is DynamicImplementationKind.FLinqUnoptimized or DynamicImplementationKind.FLinq
-                    &&scope.Counter.EnumerableFallback>0){
-                    fallbacks[implementation]=scope.Counter.EnumerableFallback;
-                }
-            }catch(Exception exception) when(exception is not OperationCanceledException){
+                return value;
+            });
+            if(observed.Exception is{} exception){
                 exceptions[implementation]=new(exception.GetType().FullName??exception.GetType().Name,exception.Message,exception.StackTrace);
+            }else{
+                results[implementation]=observed.Value!;
+            }
+            if(implementation is DynamicImplementationKind.FLinqUnoptimized or DynamicImplementationKind.FLinq
+                &&observed.FallbackCount>0){
+                fallbacks[implementation]=observed.FallbackCount;
             }
         }
         if(exceptions.Count!=0&&!expectExceptions){
@@ -68,7 +68,7 @@ public static class DynamicQueryValidator{
         var status=WorkerExecutionStatus.Succeeded;
         if(comparisons.Values.Any(static comparison=>!comparison.IsMatch)){
             status=WorkerExecutionStatus.SemanticMismatch;
-        }else if(exceptions.Count==0&&fallbacks.Count!=0){
+        }else if(fallbacks.Count!=0){
             status=WorkerExecutionStatus.ExpansionIncomplete;
         }
         return new(status,results,exceptions,comparisons,fallbacks);

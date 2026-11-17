@@ -41,7 +41,7 @@ try{
             $status=& C:\Python314\python.exe -B G:\AI\Skills\MachineMemoryGuard\MemoryGuard.py --status|ConvertFrom-Json
             if(-not $status.healthy -or -not $status.lastStatus.codingActive -or $status.currentUsedPercent -ge 85){throw 'Memory guard prevents comparison.'}
             $id=[Guid]::NewGuid().ToString('N');$artifact=Join-Path $LogRoot ('paired-'+$rows+'-'+$storage+'-'+$workers+'-'+$revision.Name+'-'+$choice.Flavor+'-'+$id)
-            $data=Join-Path 'D:\CodexTemp\o' $id.Substring(0,12);[IO.Directory]::CreateDirectory($artifact)|Out-Null
+            $data=Join-Path 'F:\Seamless\MvccRevisions' $id.Substring(0,12);[IO.Directory]::CreateDirectory($artifact)|Out-Null
             @{Rows=$rows;Storage=$storage;Workers=$workers;Revision=$revision.Name;Flavor=$choice.Flavor;Order=$order;Rotation=$rotation;SourceManifestSha256=$revision.ManifestSha256;AssemblySha256=$revision.AssemblySha256;DataRoot=$data;RunnerSha256=(Get-FileHash -LiteralPath $PSCommandPath).Hash}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $artifact 'revision-spec.json') -Encoding utf8
             Copy-Item -LiteralPath $revision.Manifest -Destination (Join-Path $artifact 'source-manifest.json')
             $result=& (Join-Path $PSScriptRoot 'Invoke-LocalProcess.ps1') -Executable 'C:\Program Files\dotnet\dotnet.exe' -Arguments @($revision.Dll,'--ordered-comparison',$data,(Join-Path $artifact 'report.json'),$revision.ManifestSha256,$rows.ToString(),$storage,$workers.ToString(),$choice.Flavor,'10') -WorkingDirectory $revision.Directory -ArtifactDirectory $artifact -TimeoutSeconds 900

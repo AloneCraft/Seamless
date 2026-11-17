@@ -14,7 +14,7 @@ internal sealed partial class Program{
     private static readonly string[] CarrierQueryNames=[..OrderedQueryNames,"GroupJoinCounts","GroupJoinOwned","CarrierJoin","CarrierChain","Groups16","Groups8192","GroupsSkewed","CarrierWide"];
     private static async Task CompareOrdered(string root,string report,string sourceHash,int rows,DatabaseStorageMode storage,int workers,string flavor,int repeats,string profile="Standard"){
         root=Path.GetFullPath(root);report=Path.GetFullPath(report);
-        if(Path.GetPathRoot(root) is not("D:\\" or "F:\\")||Path.GetPathRoot(report)!="F:\\"||rows is not(4096 or 16384)||workers is not(1 or 4)||flavor is not("FLinq" or "Linq")||!Enum.IsDefined(storage)||repeats is<3 or>25){throw new ArgumentException("Invalid ordered comparison profile.");}
+        if(Path.GetPathRoot(root)!="F:\\"||Path.GetPathRoot(report)!="F:\\"||rows is not(4096 or 16384)||workers is not(1 or 4)||flavor is not("FLinq" or "Linq")||!Enum.IsDefined(storage)||repeats is<3 or>25){throw new ArgumentException("Invalid ordered comparison profile.");}
         if(Directory.Exists(root)&&Directory.EnumerateFileSystemEntries(root).Any()){throw new InvalidOperationException("Use a fresh private data root.");}
         Directory.CreateDirectory(root);Directory.CreateDirectory(Path.GetDirectoryName(report)!);
         if(profile is not ("Standard" or "Carrier" or "Baseline" or "Spill" or "Cpu" or "CarrierJoinOnly" or "JoinMultipleOnly" or "GroupJoinSpill")){
@@ -57,7 +57,7 @@ internal sealed partial class Program{
             }
             await db.CheckpointTransactionsAsync();
             Row[] source;
-            await using(var read=await db.BeginReadOnlyTransactionAsync()){source=read.Accounts.Rows.ToArray();await read.CommitAsync();}
+            await using(var read=await db.BeginReadOnlyTransactionAsync()){source=read.Accounts.ToArray();await read.CommitAsync();}
             if(source.Length!=rows||source.Select(static row=>row.Id).Distinct().Count()!=rows||source.Any(row=>row.Id<0||row.Id>=rows||row.Balance!=InitialBalance(row.Id))){throw new InvalidDataException("Source differs from the independent model.");}
             var expected=new object[queryNames.Length];
             foreach(var query in groupJoinSpill?queries.Prepend(0):isolated?queries:Enumerable.Range(0,expected.Length)){expected[query]=OrderedComparisonQueries.LinqCarrier(source,query,rows);}
@@ -137,7 +137,7 @@ internal sealed partial class Program{
     private static async Task CompareCollectionCarrier(string root,string report,string sourceHash,int rows,string provider,string flavor){
         root=Path.GetFullPath(root);
         report=Path.GetFullPath(report);
-        if(Path.GetPathRoot(root)!="D:\\"||Path.GetPathRoot(report)!="F:\\"||rows is not (4096 or 16384)
+        if(Path.GetPathRoot(root)!="F:\\"||Path.GetPathRoot(report)!="F:\\"||rows is not (4096 or 16384)
             ||provider is not ("Array" or "List" or "Tsavorite" or "Persisted")||flavor is not ("FLinq" or "Linq")){
             throw new ArgumentException("Invalid carrier comparison profile.");
         }
@@ -204,7 +204,7 @@ internal sealed partial class Program{
     }
     private static object RunOrdered(Database.TypedTransaction tx,int query,string flavor,int rows){
         if(flavor=="FLinq"){return OrderedComparisonQueries.ExpandedCarrier(tx,query,rows);}
-        return OrderedComparisonQueries.LinqCarrier(tx.Accounts.Rows,query,rows);
+        return OrderedComparisonQueries.LinqCarrier(tx.Accounts,query,rows);
     }
     private static void ValidateOrdered(object actual,object expected){
         if(actual is long[] values&&expected is long[] reference){if(!values.SequenceEqual(reference)){throw new InvalidDataException("Ordered scalar results differ.");}return;}

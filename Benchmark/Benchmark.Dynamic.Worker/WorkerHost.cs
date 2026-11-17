@@ -145,7 +145,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             ResultJSON=JsonSerializer.Serialize(
                 new WorkerValidationArtifact(結果一覧,例外一覧,比較一覧),
                 DynamicWorkerProtocol.JsonOptions);
-            if(検証.Status==WorkerExecutionStatus.ExpansionIncomplete){
+            if(検証.Fallbacks.Count!=0){
                 var 内訳=string.Join(", ",検証.Fallbacks.Select(static 項目=>$"{項目.Key}={項目.Value}"));
                 診断JSON=診断を追加(
                     診断JSON,

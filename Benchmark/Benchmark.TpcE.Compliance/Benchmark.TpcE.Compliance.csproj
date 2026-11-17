@@ -13,7 +13,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Benchmark.TpcE.Compliance.Tests" />
+    <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.2" />
   </ItemGroup>

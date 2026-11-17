@@ -33,7 +33,11 @@ public static partial class CSharpDatabaseGenerator {
         if(runtimeSql){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|RuntimeSqlV1")));}
         if(collectible){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|CollectibleV1")));}
         // [生成物の形] 行を Tables と [Key] で宣言する形(旧方式の Keys と Records の二重書きは廃止)。前の形の生成物を同じ指紋で使わない。
-        fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|DeclaredTablesV1")));
+        var declarationVersion="|DeclaredTablesV1";
+        if(originalCatalog.Schemas.SelectMany(static schema=>schema.Tables).Any(static table=>table.PrimaryKey is null)){
+            declarationVersion+="|SyntheticKeyMetadataV2";
+        }
+        fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+declarationVersion)));
         var views=viewImport is null?null:TranslateViews(catalog,schemas,typeNamespace,$"global::{typeNamespace}.{databaseName}",viewImport);
         if(views is not null){
             // 訳の版と、写しにすると選んだビューが変われば、生成物も変わる。

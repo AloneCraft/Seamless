@@ -5,6 +5,12 @@ namespace Benchmark.Dynamic.Worker;
 public static class Program{
     public static Task<int> Main(string[] args){
         Console.OutputEncoding=System.Text.Encoding.UTF8;
+        if(args.Length>0&&args[0]=="scalable"){
+            return ScalableCommand.RunAsync(args[1..]);
+        }
+        if(args.Length>0&&args[0]=="parameter-sweep"){
+            return ParameterSweepCommand.RunAsync(args[1..]);
+        }
         if(args.Length>0&&args[0]=="--regressions"){
             return Task.FromResult(Regressions(args));
         }

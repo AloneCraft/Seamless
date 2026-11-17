@@ -22,7 +22,8 @@ public sealed partial class SourceWorkspace{
             }
             if(!assemblies.ContainsKey("Seamless.Database.dll")||!assemblies.ContainsKey("Seamless.Execution.dll")){throw InvalidPackageManifest();}
             foreach(var (name,expected) in assemblies){
-                if(!Regex.IsMatch(name,@"\ASeamless(?:\.[A-Za-z0-9]+)*\.dll\z",RegexOptions.CultureInvariant|RegexOptions.NonBacktracking)||expected is not{Length:64}||!expected.All(char.IsAsciiHexDigit)){
+                var nativeDependency=name is "Tsavorite.core.dll" or "Garnet.common.dll" or "Tsavorite.devices.AzureStorageDevice.dll";
+                if((!nativeDependency&&!Regex.IsMatch(name,@"\ASeamless(?:\.[A-Za-z0-9]+)*\.dll\z",RegexOptions.CultureInvariant|RegexOptions.NonBacktracking))||expected is not{Length:64}||!expected.All(char.IsAsciiHexDigit)){
                     throw InvalidPackageManifest();
                 }
                 var runtimePath=Path.Combine(AppContext.BaseDirectory,name);

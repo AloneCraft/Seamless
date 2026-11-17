@@ -15,7 +15,7 @@ public static class Program{
             FaultInjection.Parse(options.InjectFault);
         }catch(Exception error) when(error is ArgumentException or FormatException or OverflowException){
             Console.Error.WriteLine(error.Message);
-            Console.Error.WriteLine("使い方: Benchmark.TpcE [run|generate|describe|replay|crash] [--seed N] [--customers N] [--initial-trade-days N] [--transactions N] [--variants TL,TF,PL,PF,VL,VF] ...(README.md)");
+            Console.Error.WriteLine("使い方: Benchmark.TpcE [run|generate|describe|replay|crash] [--seed N] [--customers N] [--initial-trade-days N] [--transactions N] [--variants TL,TF,VL,VF] ...(README.md)");
             return 3;
         }
         ApplyProcessSettings(options);
@@ -34,7 +34,7 @@ public static class Program{
             options=options with{SaveEvery=300};
         }
         if(!Environment.GetCommandLineArgs().Contains("--variants")){
-            options=options with{Variants=["TF","PF"]};
+            options=options with{Variants=["TL","TF"]};
         }
         var variants=new List<ITpcEVariant>();
         foreach(var name in options.Variants){

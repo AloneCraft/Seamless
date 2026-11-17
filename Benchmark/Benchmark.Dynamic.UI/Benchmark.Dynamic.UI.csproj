@@ -18,7 +18,6 @@
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
@@ -27,34 +26,29 @@
     <PackageReference Include="Syncfusion.Licensing" Version="33.2.15" />
     <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
-    <ProjectReference Include="..\Benchmark.Dynamic.Infrastructure\Benchmark.Dynamic.Infrastructure.csproj" />
+    <ProjectReference Include="../Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
     <ProjectReference Include="..\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" ReferenceOutputAssembly="false" OutputItemType="BenchmarkDynamicWorkerOutput" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" Condition="'$(SkipBenchmarkDynamicWorkerBuild)'!='true'" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="..\..\Shared\UI.Core\BenchmarkCpuCoreModels.cs" Link="Shared\UI.Core\BenchmarkCpuCoreModels.cs" />
     <Compile Include="..\..\Shared\UI.Core\BenchmarkCpuTopologyProvider.cs" Link="Shared\UI.Core\BenchmarkCpuTopologyProvider.cs" />
     <Compile Include="..\..\Shared\UI.Core\BenchmarkStatusIconLogic.cs" Link="Shared\UI.Core\BenchmarkStatusIconLogic.cs" />
   </ItemGroup>
-
   <Import Project="..\..\Shared\Benchmark.History\Benchmark.History.projitems" Label="Shared" />
   <Import Project="..\..\Shared\UI.Widgets\UI.Widgets.projitems" Label="Shared" />
-
   <ItemGroup>
     <MauiImage Include="Resources\Images\*.svg" BaseSize="24,24" />
   </ItemGroup>
-
   <Target Name="CopyBenchmarkDynamicWorker" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)'!='true' and '$(TargetDir)'!='' and '$(SkipBenchmarkDynamicWorkerBuild)'!='true'">
     <PropertyGroup>
-      <_BenchmarkDynamicWorkerDirectory>@(BenchmarkDynamicWorkerOutput->'%(RootDir)%(Directory)')</_BenchmarkDynamicWorkerDirectory>
+      <_BenchmarkDynamicWorkerDirectory>@(BenchmarkDynamicWorkerOutput-&gt;'%(RootDir)%(Directory)')</_BenchmarkDynamicWorkerDirectory>
     </PropertyGroup>
     <Error Condition="'$(_BenchmarkDynamicWorkerDirectory)'==''" Text="Dynamic Workerの出力先をProjectReferenceから解決できませんでした。" />
     <ItemGroup>
       <_BenchmarkDynamicWorkerFiles Include="$(_BenchmarkDynamicWorkerDirectory)**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_BenchmarkDynamicWorkerFiles)" DestinationFiles="@(_BenchmarkDynamicWorkerFiles->'$(TargetDir)DynamicWorker\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_BenchmarkDynamicWorkerFiles)" DestinationFiles="@(_BenchmarkDynamicWorkerFiles-&gt;'$(TargetDir)DynamicWorker\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>

@@ -3,7 +3,7 @@
 TPC-C 由来・非監査・TPC-C の結果と比較不可。
 HammerDB モードは TPROC-C v6.1 の SQL Server 向け規則を再現します。このランナーの速度は検査込みの直列実行の値です。HammerDB の結果でも、公式の性能結果でもありません。
 
-4 変種は TL (Tsavorite / LINQ)、TF (Tsavorite / FLinq)、PL (Persisted / LINQ)、PF (Persisted / FLinq) です。既定では全4変種に同じ入力を流し、区画数が2以上なら区画1つのシャドーも比較します。
+2 変種は TL (Tsavorite / LINQ)、TF (Tsavorite / FLinq) です。既定では両変種に同じ入力を流し、区画数が2以上なら区画1つのシャドーも比較します。
 
 ```powershell
 dotnet run -c Release --project Benchmark/Benchmark.TpcC -- describe
@@ -23,7 +23,7 @@ dotnet run -c Release --project Benchmark/Benchmark.TpcC -- replay --from '<実�
 | `--mode` | `hammerdb` (`hammerdb-mssql` も可)、または `spec` |
 | `--terminals` | `8`。入力生成器数。spec は倉庫あたり10以下 |
 | `--transactions`, `--warmup` | `15000`, `1000`。warmup中も正しさを検査 |
-| `--variants`, `--no-shadow` | `TL,TF,PL,PF`。シャドーを無効にするには `--no-shadow` |
+| `--variants`, `--no-shadow` | `TL,TF`。シャドーを無効にするには `--no-shadow` |
 | `--hop-threads` | `false`。`run`専用。`true`で各取引の全変種とL1〜L3を1本の専用thread Bへ直列移管 |
 | `--save-every`, `--reopen-every` | `5000`, `2`。保存間隔と開き直し間隔 |
 | `--memory-mb`, `--disk-gb` | メモリは規模から見積もる。ディスクは Store あたり16 GB |
@@ -33,7 +33,7 @@ dotnet run -c Release --project Benchmark/Benchmark.TpcC -- replay --from '<実�
 | `--cycles` | crash の変種ごとの周期数。既定12 |
 | `--inject-fault` | `ENGINE:TXN:KIND`。下記参照 |
 
-`crash` の既定は TF/PF、保存300取引ごとです。保存直前、最初の子資源のSave、最後のFlush、マニフェスト確定後、保存直後、取引途中の書き込み、親による時間指定停止を種から選びます。各周期で復旧した運転状態と、同じ入力を最初から流した参照の表・索引を比較します。初期投入が保存される前の時間停止は未確定状態として扱います。これはStoreの保存原子性の検査で、WALやSUTの検査ではありません。
+`crash` の既定は TL/TF、保存300取引ごとです。保存直前、最初の子資源のSave、最後のFlush、マニフェスト確定後、保存直後、取引途中の書き込み、親による時間指定停止を種から選びます。各周期で復旧した運転状態と、同じ入力を最初から流した参照の表・索引を比較します。初期投入が保存される前の時間停止は未確定状態として扱います。これはStoreの保存原子性の検査で、WALやSUTの検査ではありません。
 
 内部コマンド `crash-child` は共通引数に `--store PATH --variant TF --kill BeforeSave --kill-at 1 --kill-write 1` を加えます。`--kill` は `None`, `BeforeSave`, `InFirstSave`, `InLastFlush`, `AfterManifest`, `AfterSave`, `MidTransaction`, `Timed`。子の `--transactions` は保存済み位置から追加で流す件数です。
 

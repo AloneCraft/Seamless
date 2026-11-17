@@ -1,0 +1,141 @@
+<Project>
+  <PropertyGroup>
+    <ExperimentMode Condition="'$(ExperimentMode)'==''">TransactionModes</ExperimentMode>
+    <ArtifactsProjectName>Experiments.$(ExperimentMode)</ArtifactsProjectName>
+    <BaseOutputPath Condition="'$(ArtifactsPath)'==''">$(MSBuildThisFileDirectory)bin/$(ExperimentMode)/</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(ArtifactsPath)'==''">$(MSBuildThisFileDirectory)obj/$(ExperimentMode)/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <Choose>
+    <When Condition="'$(ExperimentMode)'=='TransactionModes'">
+      <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>14</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <IsPackable>false</IsPackable>
+        <Features>InterceptorsPreview</Features>
+        <InterceptorsNamespaces>$(InterceptorsNamespaces);Intercept</InterceptorsNamespaces>
+        <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)$(Configuration)/generated</CompilerGeneratedFilesOutputPath>
+        <WarningsAsErrors>$(WarningsAsErrors);FLINQ001;FLINQ002</WarningsAsErrors>
+      </PropertyGroup>
+      <ItemGroup>
+        <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
+        <ProjectReference Include="../../Seamless.Transactions/Seamless.Transactions.csproj" />
+      </ItemGroup>
+      <ItemGroup>
+        <Compile Include="../../Tests/Seamless.Core.Tests/Transactions/FakeWalDevice.cs" Link="FakeWalDevice.cs" />
+        <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+      </ItemGroup>
+      <ItemGroup>
+        <PackageReference Include="Microsoft.Garnet" Version="[2.2.8]" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
+        <ProjectReference Include="../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+        <Reference Include="Garnet.common">
+          <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
+          <Private>true</Private>
+        </Reference>
+        <Reference Include="Tsavorite.devices.AzureStorageDevice">
+          <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll</HintPath>
+          <Private>true</Private>
+        </Reference>
+      </ItemGroup>
+      <PropertyGroup>
+        <AssemblyName>TransactionModes</AssemblyName>
+        <RootNamespace>TransactionModes</RootNamespace>
+      </PropertyGroup>
+      <ItemGroup>
+        <Compile Include="TransactionModes/**/*.cs" Exclude="TransactionModes/bin/**;TransactionModes/obj/**" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(ExperimentMode)'=='ProductTransactions'">
+      <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>preview</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <InterceptorsNamespaces>$(InterceptorsNamespaces);Intercept</InterceptorsNamespaces>
+        <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)$(Configuration)/generated</CompilerGeneratedFilesOutputPath>
+        <WarningsAsErrors>$(WarningsAsErrors);FLINQ001;FLINQ002</WarningsAsErrors>
+      </PropertyGroup>
+      <ItemGroup>
+        <ProjectReference Include="../../Seamless.Database/Seamless.Database.csproj" />
+        <ProjectReference Include="../../Seamless.Database.Client/Seamless.Database.Client.csproj" />
+        <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
+        <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+        <Compile Include="../../Seamless.Database.Client.Results/ClientResultSpool.cs" Link="ClientResultSpool.cs" />
+        <Using Include="Seamless.Database.Client.Results" />
+      </ItemGroup>
+      <PropertyGroup>
+        <AssemblyName>ProductTransactions</AssemblyName>
+        <RootNamespace>ProductTransactions</RootNamespace>
+      </PropertyGroup>
+      <ItemGroup>
+        <Compile Include="ProductTransactions/**/*.cs" Exclude="ProductTransactions/bin/**;ProductTransactions/obj/**" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(ExperimentMode)'=='HistoryStoreModes'">
+      <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>14</LangVersion>
+        <RootNamespace>HistoryStoreModes</RootNamespace>
+        <AssemblyName>HistoryStoreModes</AssemblyName>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+      </PropertyGroup>
+      <ItemGroup>
+        <ProjectReference Include="../../Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+        <Compile Include="../../TestSeamless/ProcessMetrics.cs" Link="ProcessMetrics.cs" />
+      </ItemGroup>
+      <PropertyGroup>
+        <AssemblyName>HistoryStoreModes</AssemblyName>
+        <RootNamespace>HistoryStoreModes</RootNamespace>
+      </PropertyGroup>
+      <ItemGroup>
+        <Compile Include="HistoryStoreModes/**/*.cs" Exclude="HistoryStoreModes/bin/**;HistoryStoreModes/obj/**" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(ExperimentMode)'=='GroupByLazyBench'">
+      <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Optimize>true</Optimize>
+        <TieredPGO>true</TieredPGO>
+      </PropertyGroup>
+      <PropertyGroup>
+        <AssemblyName>GroupByLazyBench</AssemblyName>
+        <RootNamespace>GroupByLazyBench</RootNamespace>
+      </PropertyGroup>
+      <ItemGroup>
+        <Compile Include="GroupByLazyBench/**/*.cs" Exclude="GroupByLazyBench/bin/**;GroupByLazyBench/obj/**" />
+      </ItemGroup>
+    </When>
+  </Choose>
+  <ItemGroup>
+    <None Include="TransactionModes/**/*.cs" Exclude="**/bin/**;**/obj/**" Condition="'$(ExperimentMode)'!='TransactionModes'" />
+    <None Include="ProductTransactions/**/*.cs" Exclude="**/bin/**;**/obj/**" Condition="'$(ExperimentMode)'!='ProductTransactions'" />
+    <None Include="HistoryStoreModes/**/*.cs" Exclude="**/bin/**;**/obj/**" Condition="'$(ExperimentMode)'!='HistoryStoreModes'" />
+    <None Include="GroupByLazyBench/**/*.cs" Exclude="**/bin/**;**/obj/**" Condition="'$(ExperimentMode)'!='GroupByLazyBench'" />
+  </ItemGroup>
+  <Import Project="../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" Condition="'$(ExperimentMode)'=='TransactionModes'" />
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Target Name="ValidateExperimentMode" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(ExperimentMode)'!='TransactionModes' And '$(ExperimentMode)'!='ProductTransactions' And '$(ExperimentMode)'!='HistoryStoreModes' And '$(ExperimentMode)'!='GroupByLazyBench'" Text="Unknown ExperimentMode. Use TransactionModes, ProductTransactions, HistoryStoreModes or GroupByLazyBench." />
+  </Target>
+</Project>

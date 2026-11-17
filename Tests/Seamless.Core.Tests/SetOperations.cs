@@ -187,7 +187,7 @@ public sealed class SetOperations {
 
     // 列挙された回数を数える最小の集合。結果がコピーではなく元を読み直すことを確認するために使う。
     private sealed class CountingSet<T>(params T[] items):SeamlessSet.ISet<T> {
-        private readonly HashSet<T> items = [.. items];
+        private readonly System.Collections.Generic.HashSet<T> items = [.. items];
 
         public int Enumerations { get; private set; }
         public int Count => this.items.Count;

@@ -42,7 +42,7 @@ foreach($result in $results){
 $expectedRecords=600;$storages=@('Memory','ResidentStorage','SmallCacheStorage');$ioMode='NativeDefault_ArenaBuffered'
 if($bufferedControl){$expectedRecords=400;$storages=@('ResidentStorage','SmallCacheStorage');$ioMode='BufferedRandomAccess'}
 Require ($null -ne $report -and $report.Format -eq 'history-store-modes-v1' -and $report.IoMode -eq $ioMode -and $report.Records.Count -eq $expectedRecords -and $report.Affinity -eq 255 -and $report.ProcessorCount -eq 8 -and $report.Repeats -eq 5 -and $report.Keys -eq 1024 -and $report.ReadSamples -eq 128 -and $report.ParentMemoryLimit -eq 64MB -and $report.ArenaLogicalLimit -eq 8MB) 'Wrong comparison matrix/profile'
-$binary=Join-Path $TaskRoot 'source/Benchmark/Experiments/HistoryStoreModes/bin/Release/net10.0'
+$binary=Join-Path $TaskRoot 'source/Benchmark/Experiments/bin/HistoryStoreModes/Release/net10.0'
 Require ((Get-FileHash -LiteralPath (Join-Path $binary 'HistoryStoreModes.dll')).Hash -eq $assemblyHash -and $report.AssemblySha256 -eq $assemblyHash) 'Executable changed'
 Require ((Get-FileHash -LiteralPath (Join-Path $binary 'Tsavorite.core.dll')).Hash -eq $report.TsavoriteSha256) 'Tsavorite changed'
 $unique=[Collections.Generic.HashSet[string]]::new();$runPid=($proof|Where-Object Phase -eq 'run').Pid

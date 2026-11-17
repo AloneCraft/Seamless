@@ -38,7 +38,7 @@
 .NET SDK 10.0.401 とローカル NuGet キャッシュの Microsoft.Garnet 2.2.1 を使用する。このマシンの比較規約に従い、共有 BGO は使わず、共通8論理CPUに制限する。新規の作業ディレクトリを指定する。
 
 ```powershell
-$taskRoot='D:\CodexTemp\Seamless\TransactionModes\my-run'
+$taskRoot='F:\Seamless\TransactionModes\my-run'
 $logRoot='F:\CodexTemp\Seamless\TransactionModes\my-run'
 New-Item -ItemType Directory -Path $taskRoot -Force | Out-Null
 & .\TestSeamless\Invoke-LocalProcess.ps1 `

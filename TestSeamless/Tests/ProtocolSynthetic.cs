@@ -12,6 +12,7 @@ public readonly record struct ProtocolSyntheticKey(long SyntheticId);
 public readonly record struct ProtocolSyntheticRow(int Value,long SyntheticId);
 public sealed class ProtocolSyntheticDatabase(DatabaseContainerOptions options):DatabaseContainer(options){
     public Table<ProtocolSyntheticKey,ProtocolSyntheticRow> Rows{[return:Seamless.Linq.UnorderedEnumerable]get=>this.Table<ProtocolSyntheticKey,ProtocolSyntheticRow>(static row=>new(row.SyntheticId));}
+    protected override void EnsureTransactionSchema(){_=this.Rows;}
 }
 
 [Collection("Protocol serial")]public sealed class ProtocolSynthetic{

@@ -17,8 +17,8 @@ public sealed class ExternalImport{
 
     private static string? Connection=>Environment.GetEnvironmentVariable("SEAMLESS_SQLSERVER_TEST_CONNECTION");
 
-    [Fact,Trait("Category","LiveSqlServer")]public async Task ImportsNorthwindAndReplacesItWithBackup(){
-        if(Connection is null){return;}
+    [ExternalSqlServerFact,Trait("Category","LiveSqlServer")]public async Task ImportsNorthwindAndReplacesItWithBackup(){
+        Assert.False(string.IsNullOrWhiteSpace(Connection),"SEAMLESS_SQLSERVER_TEST_CONNECTION が必要です。");
         var source=Environment.GetEnvironmentVariable("SEAMLESS_EXTERNAL_IMPORT_DATABASE")??"Northwind";
         var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"external-"+Guid.NewGuid().ToString("N"));
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
@@ -75,5 +75,14 @@ public sealed class ExternalImport{
             await Task.Delay(200);status=transfer.Status(request.OperationId);
         }
         return status;
+    }
+}
+
+internal sealed class ExternalSqlServerFactAttribute:FactAttribute{
+    public ExternalSqlServerFactAttribute(){
+        if(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SEAMLESS_SQLSERVER_TEST_CONNECTION"))
+            &&Environment.GetEnvironmentVariable("SEAMLESS_REQUIRE_SQLSERVER_TESTS")!="1"){
+            this.Skip="実SQL Serverへの接続が未設定のため、取り込み・置換は未検証です。";
+        }
     }
 }

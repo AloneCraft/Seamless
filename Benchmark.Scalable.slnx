@@ -26,10 +26,10 @@
   </Folder>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
-    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Core/Benchmark.Scalable.Core.csproj" />
-    <Project Path="Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Tests/">
     <Project Path="Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj" />

@@ -11,7 +11,7 @@ public static partial class CSharpDatabaseGenerator{
             if(column.ComputedDefinition is not null){features.Add(new{Kind="Computed",column.Name,column.ComputedDefinition,column.IsComputedPersisted});}
         }
         // 主キーの名前・列の順と向き・索引の種類も、書き出しで元の形に戻すために残す。
-        if(table.PrimaryKey is{} primaryKey){features.Add(new{Kind="PrimaryKey",Definition=primaryKey});}
+        if(table.PrimaryKey is{} primaryKey&&!primaryKey.Columns.Any(key=>table.Columns.Any(column=>column.Name==key.Name&&column.IsSynthetic))){features.Add(new{Kind="PrimaryKey",Definition=primaryKey});}
         foreach(var key in table.UniqueKeys){features.Add(new{Kind="UniqueKey",Definition=key});}
         // 外部キーの列の組はタプルで持つが、JSON はタプルの中身(フィールド)を書かず [{}] になるので、名前付きで書く。
         foreach(var key in table.ForeignKeys){features.Add(new{Kind="ForeignKey",Definition=new{key.Name,key.ReferencedSchema,key.ReferencedTable,Columns=key.Columns.Select(static pair=>new{pair.Column,pair.ReferencedColumn}).ToArray(),key.DeleteAction,key.UpdateAction,key.IsSystemNamed}});}

@@ -57,12 +57,14 @@ public class StatementInterceptionBenchmarkTests(ITestOutputHelper output)
         return count;
     }
 
-    // ③ Seamless FLinq 自動インターセプト (属性も partial もない素の C# コード)
+    // GUIの共有assemblyは展開を無効にするため、測定対象を明示して両targetで同じ経路を通す。
+    [global::Seamless.FLinq.LinqIntercept(true)]
     private static int RunFLinq_NonCapturing(int[] array)
     {
         return array.Where(x => x > 10).Select(x => x * 2).Count();
     }
 
+    [global::Seamless.FLinq.LinqIntercept(true)]
     private static int RunFLinq_Capturing(int[] array, int threshold)
     {
         return array.Where(x => x > threshold).Select(x => x * 2).Count();
@@ -150,6 +152,7 @@ public class StatementInterceptionBenchmarkTests(ITestOutputHelper output)
     [Fact]
     public void Benchmark_Compare_SystemLinq_vs_Ideal_vs_PassThrough()
     {
+        using var counterScope=global::Seamless.Linq.LinqCounterScope.Start();
         var testSizes = new[] { 1_000, 100_000 };
         var results = new List<BenchmarkResult>();
 
@@ -210,6 +213,7 @@ public class StatementInterceptionBenchmarkTests(ITestOutputHelper output)
         }
 
         // ==========================================
+        Assert.Equal(0,counterScope.Counter.EnumerableFallback);
         // ベンチマーク結果テーブルの出力
         // ==========================================
         output.WriteLine("==========================================================================================");

@@ -162,111 +162,66 @@ try{
         if(-not $captured){$bitmap.Dispose();throw 'Window rendering capture failed'}
         try{$bitmap.Save((Join-Path $OutputDirectory ($Name+'.png')),[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
     }
-    function Wait-Run([int]$BeforeRuns){
-        $until=[DateTime]::UtcNow.AddMinutes(5)
+    function Read-CodeText([string]$Marker){
+        $texts=$root.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,[Windows.Automation.ControlType]::Text))
+        foreach($element in $texts){
+            $pattern=$null
+            $value=$element.Current.Name
+            if($element.TryGetCurrentPattern([Windows.Automation.TextPattern]::Pattern,[ref]$pattern)){$value=$pattern.DocumentRange.GetText(-1)}
+            if($value.Contains($Marker)){return [pscustomobject]@{Element=$element;Text=$value}}
+        }
+        throw "The visible code text is absent: $Marker"
+    }
+    function Run-SeedReplay([string]$Name){
+        Invoke-UI '動的ライブ.シード再現'
+        $until=[DateTime]::UtcNow.AddSeconds(15)
+        while(-not (Require-UI '動的ライブ.一時停止').Current.IsEnabled -and [DateTime]::UtcNow -lt $until){Start-Sleep -Milliseconds 50}
+        if(-not (Require-UI '動的ライブ.一時停止').Current.IsEnabled){throw 'The live replay did not start'}
+        Invoke-UI '動的ライブ.一時停止'
+        $until=[DateTime]::UtcNow.AddMinutes(3)
         do{
-            $status=Read-UI '回帰ケース.状態'
-            if($status.StartsWith('失敗') -or $status.StartsWith('実行失敗')){throw ($status+' '+(Read-UI '回帰ケース.詳細'))}
-            $saved=@(Get-ChildItem -LiteralPath (Join-Path $env:SEAMLESS_BENCHMARK_DATA_ROOT 'RegressionRuns') -Filter '*.jsonl' -ErrorAction SilentlyContinue)
-            if($status.StartsWith('完了') -and (Require-UI '回帰ケース.実行').Current.IsEnabled -and $saved.Count -eq $BeforeRuns+1){
-                if($status -notmatch '合格 1 / 失敗 0 / 未実行 0'){throw "Unexpected regression result $status"}
-                $detail=Read-UI '回帰ケース.詳細'
-                if(-not $detail.Contains($caseID) -or -not $detail.Contains('fallback=0') -or -not $detail.Contains('Passed')){throw "Unexpected case detail $detail"}
-                return
+            $state=Read-UI '動的ライブ.状態'
+            if($state.StartsWith('検証エラー') -or $state.StartsWith('別の操作')){throw $state}
+            $badge=Find-UI '動的ライブ.判定'
+            if((Require-UI '動的ライブ.停止').Current.IsEnabled -and $state -match '\[SystemArray / Int\] #2 Seed=' -and $badge){
+                $judgement=Read-UI '動的ライブ.判定'
+                if($judgement.StartsWith('✖')){throw ($judgement+' '+(Read-UI '動的ライブ.診断'))}
+                if($judgement -eq '✔ 展開・結果一致'){break}
             }
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 50
         }while([DateTime]::UtcNow -lt $until)
-        throw "Regression run did not complete. $status"
+        if($judgement -ne '✔ 展開・結果一致'){throw "The seed replay did not pass. $state $judgement"}
+        $source=Read-CodeText 'RunFLinqUnoptimized'
+        $expanded=Read-CodeText 'namespace Intercept'
+        if(-not $source.Text.Contains('RunZLinq') -or -not $source.Text.Contains('RunSystem')){throw 'The generated source omits comparison implementations'}
+        $scroll=$null
+        if($expanded.Element.TryGetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern,[ref]$scroll)){$scroll.ScrollIntoView()}
+        if($expanded.Element.Current.IsOffscreen){throw 'Expanded source is outside the visible viewport'}
+        $snapshots.Add([pscustomobject]@{State=$state;Judgement=$judgement;Diagnostic=(Read-UI '動的ライブ.診断');Source=$source.Text;Expanded=$expanded.Text})
+        Capture-UI $Name
+        Invoke-UI '動的ライブ.停止'
+        $until=[DateTime]::UtcNow.AddSeconds(20)
+        while(-not (Require-UI '動的ライブ.開始').Current.IsEnabled -and [DateTime]::UtcNow -lt $until){Start-Sleep -Milliseconds 100}
+        if((Require-UI '動的ライブ.停止').Current.IsEnabled -or (Read-UI '動的ライブ.状態') -ne '停止しました'){throw 'The live run did not stop'}
     }
     Capture-UI 'startup'
     if(-not $ProbeOnly){
-        foreach($id in @('動的ライブ.開始','動的ライブ.ランダム探索開始','動的ライブ.停止','動的ライブ.一時停止','動的ライブ.検証対象','動的ライブ.ランキング','動的ライブ.集計','動的ライブ.段階.1','動的ライブ.段階.2','動的ライブ.段階.3','動的詳細.Query再実行','動的詳細.Query縮小')){[void](Require-UI $id)}
+        foreach($id in @('動的ライブ.開始','動的ライブ.停止','動的ライブ.一時停止','動的ライブ.Source','動的ライブ.要素型','動的ライブ.Seed','動的ライブ.試行番号','動的ライブ.シード再現','動的ライブ.テストコピー','動的詳細.Query再実行','動的詳細.Query縮小')){[void](Require-UI $id)}
         foreach($id in @('動的設定.実行','動的結果.タブ.System','動的結果.タブ.Seamless')){
-            if($elements | Where-Object {$_.Current.AutomationId -eq $id}){throw "Obsolete UI control $id"}
+            if(Find-UI $id){throw "Obsolete UI control $id"}
         }
-        Invoke-UI '動的ライブ.検証対象'
-        foreach($id in @('動的ライブ.対象.SystemArray','動的ライブ.型.Int','動的ライブ.探索件数','動的ライブ.シード再現')){[void](Require-UI $id)}
-        Capture-UI 'live-targets';Record-Step 'LiveTabControls'
-        $targetLabel=Read-UI '動的ライブ.検証対象'
-        if($targetLabel -notmatch '有効 44組'){throw "Unexpected default coverage $targetLabel"}
-        $targetElements=$root.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
-        foreach($element in $targetElements){
-            $id=$element.Current.AutomationId
-            if($id -match '^動的ライブ\.(対象|型)\.' -and $id -notin @('動的ライブ.対象.SystemArray','動的ライブ.型.Int')){
-                $element.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern).Toggle()
-            }
-        }
-        $count=Require-UI '動的ライブ.探索件数'
-        $count.GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).SetValue('4')
-        if((Read-UI '動的ライブ.検証対象') -notmatch '有効 1組 / 探索予定 4件'){throw 'Expected four random queries on one target'}
-        Invoke-UI '動的ライブ.検証対象'
-        Invoke-UI '動的ライブ.ランダム探索開始'
-        $deadline=[DateTime]::UtcNow.AddMinutes(2)
-        do{
-            $status=Read-UI '動的ライブ.状態'
-            if($status.StartsWith('検証エラー')){throw $status}
-            if($status -eq '検証が完了しました' -and (Require-UI '動的ライブ.ランダム探索開始').Current.IsEnabled){break}
-            Start-Sleep -Milliseconds 200
-        }while([DateTime]::UtcNow -lt $deadline)
-        if($status -ne '検証が完了しました'){throw "Live exploration did not finish: $status"}
-        $ranking=Require-UI '動的ライブ.ランキング'
-        $rows=$ranking.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,[Windows.Automation.ControlType]::ListItem))
-        if($rows.Count -ne 4){throw "Expected four ranked queries, found $($rows.Count)"}
-        foreach($index in 1,2){
-            if((Read-UI "動的ライブ.段階状態.$index") -ne '○'){throw "Skipped stage $index must remain unexecuted"}
-        }
-        if((Read-UI '動的ライブ.段階状態.3') -ne '✔'){throw 'Completed random stage must be marked completed'}
-        if((Read-UI '動的ライブ.集計') -notmatch '幾何平均'){throw 'The random results did not include a measured speed comparison'}
-        $rows[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
-        $deadline=[DateTime]::UtcNow.AddSeconds(10)
-        do{
-            $status=Read-UI '動的ライブ.状態'
-            if($status -match 'SystemArray / Int.*#\d+'){break}
-            Start-Sleep -Milliseconds 100
-        }while([DateTime]::UtcNow -lt $deadline)
-        if($status -notmatch 'SystemArray / Int.*#\d+'){throw "Live ranking did not open its saved result: $status"}
-        Capture-UI 'live-random';Record-Step 'DirectRandomExplorationAndSavedResult'
+        (Require-UI '動的ライブ.Seed').GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).SetValue('0x10182026')
+        (Require-UI '動的ライブ.試行番号').GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).SetValue('2')
+        Record-Step 'LiveTabControls'
+        $snapshots=[Collections.Generic.List[object]]::new()
+        Run-SeedReplay 'first-result'
+        Record-Step 'SelectedCasePassedWithoutFallback'
         if(-not $LiveOnly){
-            Invoke-UI '動的結果.タブ.回帰ケース'
-            Start-Sleep -Milliseconds 500
-            foreach($id in @('回帰ケース.検索','回帰ケース.読込','回帰ケース.一覧','回帰ケース.実行','回帰ケース.全実行','回帰ケース.中止','回帰ケース.展開コード','回帰ケース.状態','回帰ケース.詳細')){[void](Require-UI $id)}
-            $caseID='Test.System.Linq.Intercept.EnumerableComparisonCatalogTests.BenchmarkMethodNames_match_enumerable_result[0]'
-            $search=Require-UI '回帰ケース.検索'
-            $edit=$search.FindFirst([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,[Windows.Automation.ControlType]::Edit))
-            if(-not $edit){throw 'The regression search does not expose its text editor'}
-            $edit.GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).SetValue($caseID)
-            Invoke-UI '回帰ケース.読込'
-            Record-Step 'SearchEnteredBeforeLoading'
-            $until=[DateTime]::UtcNow.AddMinutes(5)
-            do{
-                $status=Read-UI '回帰ケース.状態'
-                if($status -match '^1206ケース'){break}
-                if($status.StartsWith('失敗') -or $status.StartsWith('実行失敗')){throw ($status+' '+(Read-UI '回帰ケース.詳細'))}
-                Start-Sleep -Milliseconds 500
-            }while([DateTime]::UtcNow -lt $until)
-            if($status -notmatch '^1206ケース'){throw "Case list did not load. $status"}
-            $list=Require-UI '回帰ケース.一覧'
-            $items=$list.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,[Windows.Automation.ControlType]::ListItem))
-            if($items.Count -ne 1){throw "Search should retain one item, found $($items.Count)"}
-            $items[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
-            Start-Sleep -Milliseconds 500
-            $detail=Read-UI '回帰ケース.詳細'
-            if(-not $detail.Contains('ZLinq') -or -not $detail.Contains('System.Linq') -or -not $detail.Contains('FLinqUnoptimized')){throw 'Comparison implementations are absent from the selected case'}
-            Show-UI '回帰ケース.詳細'
-            Capture-UI 'selected-case';Record-Step 'CaseSearchSelectionAndComparisonSource'
-            Invoke-UI '回帰ケース.実行';Wait-Run 0
-            Show-UI '回帰ケース.詳細'
-            Capture-UI 'first-result';Record-Step 'SelectedCasePassedWithoutFallback'
-            Invoke-UI '回帰ケース.実行';Wait-Run 1
-            Show-UI '回帰ケース.詳細'
-            Capture-UI 'repeated-result';Record-Step 'RepeatedCasePassedWithoutFallback'
-            Invoke-UI '回帰ケース.展開コード'
-            $until=[DateTime]::UtcNow.AddSeconds(60)
-            do{$expanded=Read-UI '回帰ケース.詳細';if($expanded.Contains('namespace Intercept')){break};Start-Sleep -Milliseconds 500}while([DateTime]::UtcNow -lt $until)
-            if(-not $expanded.Contains('namespace Intercept')){throw 'Expanded code did not appear in the GUI'}
-            Show-UI '回帰ケース.詳細'
-            Capture-UI 'expanded-source';Record-Step 'SavedExpandedSourceVisible'
+            Run-SeedReplay 'repeated-result'
+            Record-Step 'RepeatedCasePassedWithoutFallback'
         }
+        $snapshots | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'live-results.json') -Encoding utf8
+        Record-Step 'SavedExpandedSourceVisible'
     }
     $status='Passed';if($ProbeOnly){$status='Probed'}
     $assemblyStream=[IO.File]::OpenRead([IO.Path]::ChangeExtension($Application,'.dll'))

@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$BaselineGatewayAssembly,
     [Parameter(Mandatory)][string]$ReleaseTestDirectory,
@@ -25,7 +25,7 @@ foreach($path in @($WorkDirectory,$LogDirectory)){
 }
 if(-not (Test-Path -LiteralPath $BaselineGatewayAssembly -PathType Leaf)){throw '移行前に凍結したGateway DLLが必要です。'}
 $test=[IO.Path]::GetFullPath($ReleaseTestDirectory)
-if(-not (Test-Path -LiteralPath (Join-Path $test 'Seamless.Database.Gateway.Tests.dll'))){throw 'Releaseテスト成果物がありません。'}
+if(-not (Test-Path -LiteralPath (Join-Path $test 'Management.Tests.dll'))){throw 'Releaseテスト成果物がありません。'}
 $run=[guid]::NewGuid().ToString('N');$work=Join-Path $WorkDirectory $run;$logs=Join-Path $LogDirectory $run
 $guard=& 'C:\Python314\python.exe' -B 'G:\AI\Skills\MachineMemoryGuard\MemoryGuard.py' --status | ConvertFrom-Json
 if(!$guard.healthy -or !$guard.lastStatus.codingActive -or $guard.currentUsedPercent -ge 85){throw 'メモリ監視または空きメモリを確認してください。'}
@@ -51,7 +51,7 @@ foreach($variant in $Variants){
     if($variant -eq 'baseline'){Copy-Item -LiteralPath $BaselineGatewayAssembly -Destination (Join-Path $target 'Seamless.Database.Gateway.dll')}
     $assembly=Join-Path $target 'Seamless.Database.Gateway.dll'
     $manifest+=[ordered]@{Variant=$variant;Assembly=$assembly;Sha256=(Get-FileHash -LiteralPath $assembly -Algorithm SHA256).Hash}
-    $result=& (Join-Path $repository 'TestSeamless\Invoke-LocalProcess.ps1') -Executable (Get-Command dotnet).Source -Arguments @((Join-Path $target 'Seamless.Database.Gateway.Tests.dll'),'--transport-probe') -WorkingDirectory $work -ArtifactDirectory (Join-Path $logs $variant) -TimeoutSeconds 300
+    $result=& (Join-Path $repository 'TestSeamless\Invoke-LocalProcess.ps1') -Executable (Get-Command dotnet).Source -Arguments @((Join-Path $target 'Management.Tests.dll'),'--transport-probe') -WorkingDirectory $work -ArtifactDirectory (Join-Path $logs $variant) -TimeoutSeconds 300
     [ordered]@{Runs=$manifest;Scope='Loopback native RPC; separate processes; same client and dependencies; common affinity max 8'} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $logs 'manifest.json') -Encoding utf8
     if($result.Outcome -ne 'Passed'){throw ('比較の条件を満たしませんでした。再送・OS設定の変更は行いません。結果: '+(Join-Path $logs $variant))}
 }

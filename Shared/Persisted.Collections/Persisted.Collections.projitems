@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildThisFileDirectory)..\Collections\Collections.projitems" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Collections\Collections.projitems" Condition="'$(SharedCollectionsDependenciesImported)'!='true'" />
   <PropertyGroup Label="Globals">
+    <SharedCollectionsDependenciesImported>true</SharedCollectionsDependenciesImported>
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
     <SharedGUID>{97A44F8D-5B8F-4F1F-AC04-E4CE389475ED}</SharedGUID>

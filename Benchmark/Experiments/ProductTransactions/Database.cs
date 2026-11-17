@@ -15,11 +15,11 @@ public sealed partial class Database(DatabaseContainerOptions options):DatabaseC
 }
 public sealed class Queries{
     [LinqIntercept(true)]
-    public static long Total(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id%2==0).Sum(static row=>row.Balance);
+    public static long Total(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id%2==0).Sum(static row=>row.Balance);
     [LinqIntercept(true)]
-    public static long Count(Database.TypedTransaction tx)=>tx.Accounts.Rows.LongCount();
+    public static long Count(Database.TypedTransaction tx)=>tx.Accounts.LongCount();
     [LinqIntercept(true)]
-    public static (int Key,long Count,long Total)[] Groups(Database.TypedTransaction tx)=>tx.Accounts.Rows.GroupBy(static row=>row.Id%64).Select(static group=>(group.Key,group.LongCount(),group.Sum(static row=>row.Balance))).ToArray();
+    public static (int Key,long Count,long Total)[] Groups(Database.TypedTransaction tx)=>tx.Accounts.GroupBy(static row=>row.Id%64).Select(static group=>(group.Key,group.LongCount(),group.Sum(static row=>row.Balance))).ToArray();
     [LinqIntercept(true)]
-    public static (int Left,int Right)[] Join(Database.TypedTransaction tx)=>tx.Accounts.Rows.Where(static row=>row.Id<64).Join(tx.Accounts.Rows,static row=>row.Id,static row=>row.Id%64,static(left,right)=>(left.Id,right.Id)).ToArray();
+    public static (int Left,int Right)[] Join(Database.TypedTransaction tx)=>tx.Accounts.Where(static row=>row.Id<64).Join(tx.Accounts,static row=>row.Id,static row=>row.Id%64,static(left,right)=>(left.Id,right.Id)).ToArray();
 }

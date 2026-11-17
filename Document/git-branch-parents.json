@@ -5,6 +5,11 @@
     "main": {
       "parent": null
     },
+    "codex/project-reduction-20261117": {
+      "parent": "main",
+      "forkPoint": "2f5f7acb185f971b2c9fd807b350eb23e7219aea",
+      "purpose": "保証目的を維持したテスト・比較環境のプロジェクト統合"
+    },
     "0.1": {
       "parent": "main"
     },

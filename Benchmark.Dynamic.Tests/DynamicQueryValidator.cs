@@ -19,7 +19,10 @@ public sealed class DynamicQueryValidator{
     [InlineData("exception","value","exception",true,WorkerExecutionStatus.SemanticMismatch,false)]
     [InlineData("value","fallback","value",true,WorkerExecutionStatus.ExpansionIncomplete,false)]
     [InlineData("value","fallback-mismatch","value",true,WorkerExecutionStatus.SemanticMismatch,false)]
-    [InlineData("exception","fallback-exception","exception",true,WorkerExecutionStatus.Succeeded,false)]
+    [InlineData("exception","fallback-exception","exception",true,WorkerExecutionStatus.ExpansionIncomplete,false)]
+    [InlineData("value","fallback-reset","value",true,WorkerExecutionStatus.ExpansionIncomplete,false)]
+    [InlineData("value","fallback-nested","value",true,WorkerExecutionStatus.ExpansionIncomplete,false)]
+    [InlineData("exception","fallback-nested-exception","exception",true,WorkerExecutionStatus.ExpansionIncomplete,false)]
     [InlineData("exception","fallback","exception",true,WorkerExecutionStatus.SemanticMismatch,false)]
     public void Validate(string system,string flinq,string unoptimized,bool expectExceptions,WorkerExecutionStatus expectedStatus,bool shouldMeasure){
         var loaded=Compile(system,flinq,unoptimized);
@@ -29,12 +32,12 @@ public sealed class DynamicQueryValidator{
             Assert.Equal(shouldMeasure,result.ShouldMeasure);
             if(expectedStatus==WorkerExecutionStatus.SemanticMismatch){Assert.Contains(result.Comparisons.Values,comparison=>!comparison.IsMatch);}
             if(expectedStatus==WorkerExecutionStatus.Succeeded){Assert.All(result.Comparisons.Values,comparison=>Assert.True(comparison.IsMatch));}
-            if(flinq=="fallback-exception"){
-                Assert.Empty(result.Fallbacks);
+            if(flinq is "fallback-exception" or "fallback-nested-exception"){
+                Assert.Equal(1,result.Fallbacks[DynamicImplementationKind.FLinq]);
                 Assert.Equal(3,result.Exceptions.Count);
                 Assert.All(result.Exceptions.Values,exception=>Assert.Equal(typeof(InvalidOperationException).FullName,exception.Type));
             }
-            if(flinq is "fallback" or "fallback-mismatch"){Assert.Equal(1,result.Fallbacks[DynamicImplementationKind.FLinq]);}
+            if(flinq is "fallback" or "fallback-mismatch" or "fallback-reset" or "fallback-nested"){Assert.Equal(1,result.Fallbacks[DynamicImplementationKind.FLinq]);}
         }finally{Assert.True(loaded.UnloadAndVerify().Unloaded);}
     }
 
@@ -70,6 +73,9 @@ public sealed class DynamicQueryValidator{
                 "fallback"=>"global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerableFallback(\"validation-contract\");",
                 "fallback-mismatch"=>"global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerableFallback(\"validation-contract\");source=new[]{1,2};",
                 "fallback-exception"=>"global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerableFallback(\"validation-contract\");if(source.Length>=0){throw new global::System.InvalidOperationException(\"after fallback\");}",
+                "fallback-reset"=>"global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerableFallback(\"validation-contract\");global::Seamless.Linq.LinqCounterScope.Counter.Reset();",
+                "fallback-nested"=>"using(var nested=global::Seamless.Linq.LinqCounterScope.Start()){nested.Counter.IncrementEnumerableFallback(\"nested-validation\");nested.Counter.Reset();}",
+                "fallback-nested-exception"=>"using(var nested=global::Seamless.Linq.LinqCounterScope.Start()){nested.Counter.IncrementEnumerableFallback(\"nested-validation\");nested.Counter.Reset();if(source.Length>=0){throw new global::System.InvalidOperationException(\"nested fallback\");}}",
                 _=>throw new ArgumentOutOfRangeException(nameof(behavior))
             };
             source=source.Insert(resultStart,action);
@@ -86,7 +92,8 @@ public sealed class DynamicQueryValidator{
             var repository=new BenchmarkRepository(new BenchmarkDatabase(Path.Combine(directory,"history.db")));
             var runner=new FixedCaseRunner(repository);
             var measurements=runner.Run(count:0,caseID:"chain-01");
-            Assert.Equal(4,measurements.Count);
+            var implementations=new[]{"FLinq","FLinqUnoptimized","Ideal","System","ZLinq"};
+            Assert.Equal(implementations,measurements.Select(item=>item.Conditions.Implementation).Order(StringComparer.Ordinal));
             var run=Assert.Single(repository.GetRuns("Dynamic.Fixed"));
             Assert.Equal("Passed",run.Status);
             using(var settings=JsonDocument.Parse(run.SettingsJSON)){
@@ -96,7 +103,10 @@ public sealed class DynamicQueryValidator{
                 Assert.Equal("Succeeded",validation.GetProperty("Status").GetString());
                 Assert.False(validation.GetProperty("MeasurementSkipped").GetBoolean());
                 Assert.Empty(validation.GetProperty("Exceptions").EnumerateObject());
-                Assert.Equal(3,validation.GetProperty("Comparisons").EnumerateObject().Count());
+                var comparisons=validation.GetProperty("Comparisons").EnumerateObject().ToArray();
+                Assert.Equal(implementations.Where(item=>item!="System"),comparisons.Select(item=>item.Name).Order(StringComparer.Ordinal));
+                Assert.All(comparisons,item=>Assert.True(item.Value.GetProperty("IsMatch").GetBoolean()));
+                Assert.Empty(validation.GetProperty("Fallbacks").EnumerateObject());
             }
             Assert.Throws<ArgumentException>(()=>runner.Run(count:0,caseID:"unknown-case"));
             var failed=Assert.Single(repository.GetRuns("Dynamic.Fixed"),candidate=>candidate.Status=="Failed");

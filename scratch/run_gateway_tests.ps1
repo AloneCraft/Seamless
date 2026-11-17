@@ -10,7 +10,7 @@ $res = & "G:\GitHub\Seamless\TestSeamless\Invoke-LocalProcess.ps1" `
     -Executable "C:\Program Files\dotnet\dotnet.exe" `
     -Arguments @(
         "test",
-        "G:\GitHub\Seamless\Tests\Seamless.Database.Gateway.Tests\Seamless.Database.Gateway.Tests.csproj",
+        "G:\GitHub\Seamless\Tests\Management.Tests\Management.Tests.csproj",
         "-c", "Debug",
         "--filter", "FullyQualifiedName~NativeRecordTransportTests|FullyQualifiedName~MultiProjectTemplateE2ETests"
     ) `

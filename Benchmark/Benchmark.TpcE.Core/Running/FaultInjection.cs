@@ -1,7 +1,7 @@
 using System.Globalization;
 namespace Benchmark.TpcE.Core;
 /// <summary>
-/// 故障注入(検出できるかの確認用)。書式は ENGINE:TXN:KIND(例 PF:500:Output)。ライブラリには手を入れず、ハーネス側で壊す。
+/// 故障注入(検出できるかの確認用)。書式は ENGINE:TXN:KIND(例 TF:500:Output)。ライブラリには手を入れず、ハーネス側で壊す。
 /// Output=出力の status をずらす(L1 で検出)、DropWrite=書いた行を生で消す(L3 で検出)、
 /// ReopenTamper=TXN 以降の最初の開き直しの直後に行を 1 つ生で消す(開き直しの比較で検出)。
 /// </summary>

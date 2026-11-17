@@ -38,15 +38,17 @@ try{
 '@
     [IO.File]::WriteAllText($props,$xml.Replace('__REPO__',$repository.Replace('\','/')).Replace('__CACHE__',$CacheRoot.Replace('\','/')).Replace('__DATA__',$DataRoot.Replace('\','/')))
     $projects=@()
-    if($Suite -in @('Conversion','All')){$projects+="$repository/Tests/Database.Compilation.Tests/Database.Compilation.Tests.csproj"}
-    if($Suite -in @('Verification','All')){$projects+="$repository/Tests/Database.Verification.Tests/Database.Verification.Tests.csproj"}
+    if($Suite -in @('Conversion','Verification','All')){$projects+="$repository/Tests/Database.Query.Tests/Database.Query.Tests.csproj"}
     if($Suite -in @('Tool','All')){$projects+="$repository/Seamless.Database.Tool/Seamless.Database.Tool.csproj"}
     foreach($project in $projects){
         $command='test';if([IO.Path]::GetFileNameWithoutExtension($project) -eq 'Seamless.Database.Tool'){$command='build'}
         $arguments=@($command,$project,'-c',$Configuration,'--nologo','-m:1',('-p:DirectoryBuildPropsPath='+$props),'-p:UseSharedCompilation=false')
         if($command -eq 'test'){
             $arguments+=@('--logger','trx','--results-directory',(Join-Path $CacheRoot "results-$Configuration"))
-            if($Filter){$arguments+=@('--filter',$Filter)}else{$arguments+=@('--filter','Category!=LiveSqlServer')}
+            $purpose='FullyQualifiedName~Database.Compilation.Tests|FullyQualifiedName~Database.Verification.Tests'
+            if($Suite -eq 'Conversion'){$purpose='FullyQualifiedName~Database.Compilation.Tests'}
+            if($Suite -eq 'Verification'){$purpose='FullyQualifiedName~Database.Verification.Tests'}
+            if($Filter){$arguments+=@('--filter',"($purpose)&($Filter)")}else{$arguments+=@('--filter',"($purpose)&Category!=LiveSqlServer")}
         }
         $run=Join-Path $CacheRoot ('test-'+[IO.Path]::GetFileNameWithoutExtension($project)+'-'+$Configuration+'-'+[guid]::NewGuid().ToString('N'))
         $result=& "$repository/TestSeamless/Invoke-LocalProcess.ps1" -Executable $dotnet -Arguments $arguments -WorkingDirectory $DataRoot -ArtifactDirectory $run -TimeoutSeconds 900

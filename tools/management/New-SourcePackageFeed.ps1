@@ -22,7 +22,7 @@ $staging=Join-Path $published ('packages.stage-'+[guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Path $staging | Out-Null
 $runner=Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1'
 $dotnet=(Get-Command dotnet).Source
-$projects=@('Seamless','Seamless.Collections','Seamless.Collections.Persisted','Seamless.Collections.Tsavorite','Seamless.Database','Seamless.Database.Client','Seamless.Database.Generator','Seamless.Execution','Seamless.FLinq.Generator','Seamless.Linq','Seamless.Transactions','Seamless.Transactions.Collections','Seamless.Database.SqlServer.Functions')
+$projects=@('Seamless','Seamless.Collections','Seamless.Collections.Persisted','Seamless.Collections.Tsavorite','Seamless.Tsavorite.Core','Seamless.Database','Seamless.Database.Client','Seamless.Database.Generator','Seamless.Execution','Seamless.FLinq.Generator','Seamless.Linq','Seamless.Transactions','Seamless.Transactions.Collections','Seamless.Database.SqlServer.Functions')
 $packageIds=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach($name in $projects){[void]$packageIds.Add($name)}
 
@@ -93,7 +93,7 @@ foreach($package in $packages){
             try{$hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream))}finally{$stream.Dispose()}
             $payload.Add($id+'/'+$name+'='+$hash)
             $file=[IO.Path]::GetFileName($name)
-            if($file.StartsWith('Seamless',[StringComparison]::Ordinal) -and $file.EndsWith('.dll',[StringComparison]::Ordinal)){
+            if(($name.StartsWith('lib/',[StringComparison]::Ordinal) -or $name.StartsWith('analyzers/',[StringComparison]::Ordinal)) -and $file.EndsWith('.dll',[StringComparison]::Ordinal)){
                 if($assemblies.ContainsKey($file) -and $assemblies[$file] -cne $hash){throw ('同名DLLの内容が異なります: '+$file)}
                 $assemblies[$file]=$hash
                 $runtime=Join-Path $published $file

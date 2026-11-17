@@ -59,7 +59,7 @@ jobs:
         run: |
           $results=Join-Path $env:RUNNER_TEMP 'gateway-transport-results'
           $filter='FullyQualifiedName~KestrelTransport|FullyQualifiedName~KestrelHttpHost|FullyQualifiedName~HttpServerTests|(FullyQualifiedName~NativeTransport&FullyQualifiedName!~BufferedScalarResultsReplayAfterDisconnect)|FullyQualifiedName~TdsLoopbackTests|FullyQualifiedName~TdsNtextRpcTests|FullyQualifiedName~TdsVariantTests|FullyQualifiedName~TdsLargeValueTests.WriteDeadlineStopsStreaming'
-          dotnet test Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj -c ${{ matrix.configuration }} --artifacts-path "$env:RUNNER_TEMP/gateway-artifacts" -p:UseSharedCompilation=false -m:1 --filter $filter --logger 'trx;LogFileName=gateway-transport.trx' --results-directory $results -- xUnit.MaxParallelThreads=4
+          dotnet test Tests/Management.Tests/Management.Tests.csproj -c ${{ matrix.configuration }} --artifacts-path "$env:RUNNER_TEMP/gateway-artifacts" -p:UseSharedCompilation=false -m:1 --filter $filter --logger 'trx;LogFileName=gateway-transport.trx' --results-directory $results -- xUnit.MaxParallelThreads=4
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           [xml]$report=Get-Content -LiteralPath (Join-Path $results 'gateway-transport.trx')
           if([int]$report.TestRun.ResultSummary.Counters.passed -eq 0){throw 'No gateway transport tests passed.'}

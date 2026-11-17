@@ -1,6 +1,8 @@
 # 製品MVCCの代表測定
 
-中間ValueTupleとGroupJoinの比較は`TestSeamless/Invoke-FlinqCarrierComparison.ps1`を使う。旧版と改善版のD上の保存ソースを、同じ`Program.cs`、`Program.OrderedComparison.cs`、`OrderedComparisonQueries.cs`でReleaseビルドし、両方のmanifestを渡す。DBのMemory／Storageとworker上限1／4、配列・List・Tsavorite・Persistedを4,096／16,384行で比較する。Spill用のセルは16,384行で親予算を18MiBにする。
+実行プロジェクトは `Benchmark/Experiments/Experiments.csproj`。`-p:ExperimentMode=ProductTransactions` でこの用途を選び、従来の引数を `--` の後へ渡す。データと報告書はFへ配置する。
+
+中間ValueTupleとGroupJoinの比較は`TestSeamless/Invoke-FlinqCarrierComparison.ps1`を使う。旧版と改善版のF上の保存ソースを、同じ`Program.cs`、`Program.OrderedComparison.cs`、`OrderedComparisonQueries.cs`でReleaseビルドし、両方のmanifestを渡す。DBのMemory／Storageとworker上限1／4、配列・List・Tsavorite・Persistedを4,096／16,384行で比較する。Spill用のセルは16,384行で親予算を18MiBにする。
 
 ```powershell
 & .\TestSeamless\Invoke-FlinqCarrierComparison.ps1 -BeforeSource $before -BeforeManifest $beforeManifest -AfterSource $after -AfterManifest $afterManifest -LogRoot $logRoot
@@ -10,9 +12,9 @@
 
 `-IsolatedQuery CarrierJoinOnly -Cells 0,2,3`は4,096行のDB条件で匿名複合キーJoinだけを実行する。`-IsolatedQuery JoinMultipleOnly`はJoin後2段整列だけを実行する。いずれも同じfixtureで旧版・改善版をビルドし、`-Cells`でDB条件を指定する。
 
-`--carrier-comparison <Dのデータルート> <Fのreport.json> <source SHA-256> 16384 Memory 4 FLinq 5 GroupJoinSpill` は、親予算18 MiB、ページ16 KiBでGroupJoinの件数取得と一致列の所有化を測る。FLinqは各形状で実際の一時領域予約を要求し、所有した一致列の内容と同じ内側groupの共有を取引確定後に照合する。通常LINQの対照は同じ条件で `Linq` を指定する。
+`--carrier-comparison <Fのデータルート> <Fのreport.json> <source SHA-256> 16384 Memory 4 FLinq 5 GroupJoinSpill` は、親予算18 MiB、ページ16 KiBでGroupJoinの件数取得と一致列の所有化を測る。FLinqは各形状で実際の一時領域予約を要求し、所有した一致列の内容と同じ内側groupの共有を取引確定後に照合する。通常LINQの対照は同じ条件で `Linq` を指定する。
 
-`--client-results <Dのデータルート> <Fのreport.json> <source SHA-256> 16384 RawBuffered` は、同じ型付きNativeフレームをメモリ上の入力から読む。4,096／16,384行で `Stream`、`Memory`、`Persisted`、`Raw`、`RawBuffered`、`RawValidated` を指定できる。受信と保存の完了まで、再列挙の初行と完了まで、managed割当、作業予算、一時ファイル容量を別々に記録する。バッファ付きの2経路は64 KiBを予算に計上する。 `RawValidated` は保存前にNativeの型付き検査を行い、切り詰めた行の拒否も確認する。保持経路は受信元を閉じてから行順と値を2回照合し、全ファイルと予約が解放されることを確かめる。
+`--client-results <Fのデータルート> <Fのreport.json> <source SHA-256> 16384 RawBuffered` は、同じ型付きNativeフレームをメモリ上の入力から読む。4,096／16,384行で `Stream`、`Memory`、`Persisted`、`Raw`、`RawBuffered`、`RawValidated` を指定できる。受信と保存の完了まで、再列挙の初行と完了まで、managed割当、作業予算、一時ファイル容量を別々に記録する。バッファ付きの2経路は64 KiBを予算に計上する。 `RawValidated` は保存前にNativeの型付き検査を行い、切り詰めた行の拒否も確認する。保持経路は受信元を閉じてから行順と値を2回照合し、全ファイルと予約が解放されることを確かめる。
 
 Joinの処理区間を観察するときは`TestSeamless/Invoke-FlinqJoinSampling.ps1 -Source $after -Manifest $afterManifest -LogRoot $traceRoot`を使う。別プロセスの.NETスタック標本を採る。待機を含むスレッド時間の推定であり、通常の時間比較とは別に扱う。`-AnalyzeOnly`は保存済みの変換済みトレースから処理区間を集計する。
 
@@ -20,13 +22,13 @@ Join・整列の追加経路の比較は`TestSeamless/Invoke-MvccOrderedComparis
 
 ```powershell
 & .\TestSeamless\Invoke-MvccOrderedComparison.ps1 `
-    -TaskRoot 'D:\CodexTemp\Seamless\ordered-comparison' `
+    -TaskRoot 'F:\Seamless\ordered-comparison' `
     -LogRoot 'F:\CodexTemp\Seamless\ordered-comparison'
 ```
 
 完了後は`TestSeamless/Test-MvccOrderedComparison.ps1 -LogRoot 'F:\CodexTemp\Seamless\ordered-comparison'`で全16条件・640標本、結果/入力/生成コードのhash、強制ビルド、CPU/予算の返却を監査し、JSONとCSVの中央値表を出力する。
 
-実装前後の時間を比較する場合は、異なるDのTaskRoot/FのLogRootでそれぞれ上の16条件を保存した後、`Invoke-MvccOrderedRevisionComparison.ps1 -BaselineLogRoot ... -CandidateLogRoot ... -LogRoot ...`を使う。保存済みのDLLを再ビルドせず、同じ行数/保存方式/workerの中で旧FLinq・新FLinq・旧LINQ・新LINQを巡回する。全32プロセス・1,280標本・128メモリ観測を別のFのLogRootへ残し、`Test-MvccOrderedRevisionComparison.ps1 -LogRoot ...`で監査する。旧版は保存snapshotと照合し、新版は現在の入力とも照合する。全runtime DLLと生成物のhashも確認する。異なる測定日時の中央値だけを比べるより同居負荷の変動を抑える方法だが、OSの実時間スケジューリングの揺れを除去するものではない。
+実装前後の時間を比較する場合は、異なるFの個別TaskRoot/LogRootでそれぞれ上の16条件を保存した後、`Invoke-MvccOrderedRevisionComparison.ps1 -BaselineLogRoot ... -CandidateLogRoot ... -LogRoot ...`を使う。保存済みのDLLを再ビルドせず、同じ行数/保存方式/workerの中で旧FLinq・新FLinq・旧LINQ・新LINQを巡回する。全32プロセス・1,280標本・128メモリ観測を別のFのLogRootへ残し、`Test-MvccOrderedRevisionComparison.ps1 -LogRoot ...`で監査する。旧版は保存snapshotと照合し、新版は現在の入力とも照合する。全runtime DLLと生成物のhashも確認する。異なる測定日時の中央値だけを比べるより同居負荷の変動を抑える方法だが、OSの実時間スケジューリングの揺れを除去するものではない。
 
 各条件/flavorを別プロセスで逐次実行し、flavorの実行順と反復内のquery順を巡回する。TieredCompilation=0、ログに収まるwarm状態。初期投入・取引開始/enlist/Commit・結果照合を時間とmanaged割当から除く。各出力の全要素とgroup内順序を通常LINQの期待値へ照合し、取引終了後のgroup寿命、CPU枠と親予算の返却も確認する。予備検証は`-Configuration Debug -Repeats 3 -Smoke`で4,096行/Memory/worker1の2方式だけを実行する。
 
@@ -38,7 +40,7 @@ runnerはオフラインの復元を使う。Garnet 2.2.5と推移依存を含�
 
 ```powershell
 & .\TestSeamless\Invoke-MvccComparison.ps1 `
-    -TaskRoot 'D:\CodexTemp\Seamless\comparison' `
+    -TaskRoot 'F:\Seamless\comparison' `
     -LogRoot 'F:\CodexTemp\Seamless\comparison' `
     -Rows 10000 -StorageMode Memory -OperationsPerWorker 64 -Stage all
 # 同じTaskRoot/LogRootで、残る保存方式と行数には-UseExistingBuildを指定する。
@@ -70,12 +72,12 @@ runnerはオフラインの復元を使う。Garnet 2.2.5と推移依存を含�
 
 ```powershell
 & .\TestSeamless\Invoke-MvccProbe.ps1 `
-    -TaskRoot 'D:\CodexTemp\Seamless\MvccImplementation\my-run' `
+    -TaskRoot 'F:\Seamless\MvccImplementation\my-run' `
     -LogRoot 'F:\CodexTemp\Seamless\MvccImplementation\my-run' `
     -Rows 100000
 ```
 
-runnerはDの隔離snapshotをReleaseビルドし、生成コードのnative走査・Count分割・GroupBy/Join接続を検査してから、共通8論理CPU以内で実行する。Dに実データ、Fに結果、source/生成コードのhash、PID・生成時刻・affinityとログを残す。巨大な全件複製やOSキャッシュの消去は行わない。Debug/Releaseの正確性回帰は`Invoke-MvccValidation.ps1`で別途実行する。
+runnerはFの隔離snapshotをReleaseビルドし、生成コードのnative走査・Count分割・GroupBy/Join接続を検査してから、共通8論理CPU以内で実行する。Fの個別領域に実データと結果、source/生成コードのhash、PID・生成時刻・affinityとログを残す。巨大な全件複製やOSキャッシュの消去は行わない。Debug/Releaseの正確性回帰は`Invoke-MvccValidation.ps1`で別途実行する。
 
 `TestSeamless/Invoke-MvccEndurance.ps1 -TaskRoot ... -LogRoot ... -Cycles 32`は、Memory/Storageそれぞれ256行で反復する独立した検証入口。各周期で古い読取りを保持したまま4つの更新取引を準備し、別行の更新をworker当たり8回確定する。更新後にも古い全行・FLinq Count/Sum/GroupBy/Joinを照合し、新しい取引は独立した256要素の期待値モデルと照合する。業務処理を自動再実行しない。各周期で共通の履歴回収と保存を通し、Storageは8周期ごとと最後に再オープンする。
 
@@ -89,7 +91,7 @@ ChurnのStorageは8周期ごとの共通checkpoint後と最後に、その時点
 
 ```powershell
 & .\TestSeamless\Invoke-MvccEndurance.ps1 `
-    -TaskRoot 'D:\CodexTemp\Seamless\MvccImplementation\churn' `
+    -TaskRoot 'F:\Seamless\MvccImplementation\churn' `
     -LogRoot 'F:\CodexTemp\Seamless\MvccImplementation\churn' `
     -Workload Churn -Cycles 512 -Configuration Release
 ```

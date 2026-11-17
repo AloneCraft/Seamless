@@ -8,6 +8,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $sourceRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
+$cpuPolicy=& (Join-Path $sourceRoot 'TestSeamless/Invoke-LocalProcess.ps1') -InitializeOnly -MaxLogicalProcessors 8
 [IO.Directory]::CreateDirectory($TaskRoot)|Out-Null
 [IO.Directory]::CreateDirectory($LogRoot)|Out-Null
 $env:TEMP=Join-Path $LogRoot 'temp';$env:TMP=$env:TEMP
@@ -21,14 +22,14 @@ $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT='1'
 $env:MSBUILDDISABLENODEREUSE='1'
 $snapshot=Join-Path $TaskRoot 'source'
-$project=Join-Path $snapshot 'Benchmark/Experiments/TransactionModes/TransactionModes.csproj'
+$project=Join-Path $snapshot 'Benchmark/Experiments/Experiments.csproj'
 $activity=& C:\Python314\python.exe -B G:\AI\Skills\MachineMemoryGuard\MemoryGuard.py --activity-start
 if($LASTEXITCODE -ne 0){throw 'Memory guard registration failed'}
 $token=($activity|ConvertFrom-Json).token
 try{
     if(-not $Reuse){
         $pending=[Collections.Generic.Queue[string]]::new();$seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        $pending.Enqueue('Benchmark/Experiments/TransactionModes/TransactionModes.csproj')
+        $pending.Enqueue('Benchmark/Experiments/Experiments.csproj')
         $manifest=[Collections.Generic.List[object]]::new()
         while($pending.Count){
             $relative=$pending.Dequeue();if(-not $seen.Add($relative)){continue}
@@ -44,12 +45,22 @@ try{
                 $manifest.Add(@{Path=$file.FullName;Sha256=(Get-FileHash -LiteralPath $file.FullName).Hash})
             }
             [xml]$xml=Get-Content -LiteralPath $sourceProject -Raw
+            foreach($linked in $xml.SelectNodes('//Compile[@Include]')){
+                if($linked.Include -match '[*?]' -or $linked.Include.Contains('$(')){continue}
+                $sourceFile=[IO.Path]::GetFullPath((Join-Path $directory $linked.Include))
+                $relativeFile=[IO.Path]::GetRelativePath($sourceRoot,$sourceFile)
+                $targetFile=Join-Path $snapshot $relativeFile
+                [IO.Directory]::CreateDirectory((Split-Path $targetFile))|Out-Null
+                Copy-Item -LiteralPath $sourceFile -Destination $targetFile
+                $manifest.Add(@{Path=$sourceFile;Sha256=(Get-FileHash -LiteralPath $sourceFile).Hash})
+            }
             foreach($reference in $xml.SelectNodes('//ProjectReference')){
                 $absolute=[IO.Path]::GetFullPath((Join-Path $directory $reference.Include))
                 $pending.Enqueue([IO.Path]::GetRelativePath($sourceRoot,$absolute))
             }
         }
         foreach($rootFile in Get-ChildItem -LiteralPath $sourceRoot -Filter 'Directory.Build.*' -File){Copy-Item -LiteralPath $rootFile.FullName -Destination (Join-Path $snapshot $rootFile.Name)}
+        Copy-Item -LiteralPath (Join-Path $sourceRoot 'global.json') -Destination (Join-Path $snapshot 'global.json')
         $manifest|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $LogRoot 'source-manifest.json') -Encoding utf8
     }
     Set-Location (Split-Path $project)
@@ -57,15 +68,17 @@ try{
     $status=& C:\Python314\python.exe -B G:\AI\Skills\MachineMemoryGuard\MemoryGuard.py --status
     Write-Output $status
     if(($status|ConvertFrom-Json).currentUsedPercent -ge 85){throw 'Memory pressure: no new build/test started'}
-    & 'C:\Program Files\dotnet\dotnet.exe' build $project -c $Configuration -m:1 -p:UseSharedCompilation=false -p:RestoreSources=C:\Users\kazuh\.nuget\packages -p:RestoreFallbackFolders=C:\Users\kazuh\.nuget\packages -p:NuGetAudit=false --disable-build-servers
+    & 'C:\Program Files\dotnet\dotnet.exe' build $project -c $Configuration -p:ExperimentMode=TransactionModes -m:1 -p:UseSharedCompilation=false -p:RestoreSources=C:\Users\kazuh\.nuget\packages -p:RestoreFallbackFolders=C:\Users\kazuh\.nuget\packages -p:NuGetAudit=false --disable-build-servers
     if($LASTEXITCODE -ne 0){throw 'Build failed'}
-    $generated=Join-Path (Split-Path $project) "obj/$Configuration/generated"
+    $generated=& 'C:\Program Files\dotnet\dotnet.exe' msbuild $project -p:Configuration=$Configuration -p:ExperimentMode=TransactionModes -getProperty:CompilerGeneratedFilesOutputPath -nologo
+    if($LASTEXITCODE -ne 0){throw 'Generated output path could not be resolved'}
     $nativeFiles=@(Get-ChildItem -LiteralPath $generated -Recurse -Filter '*.cs'|Where-Object{(Get-Content -LiteralPath $_.FullName -Raw) -match '\.Iterate\('})
     if($nativeFiles.Count -eq 0){throw 'FLinq native generated code was not found; no performance claim is allowed'}
     $nativeFiles.FullName|Set-Content (Join-Path $LogRoot ($Configuration+'-native-generated.txt'))
     if($Stage -eq 'build'){exit 0}
     & C:\Python314\python.exe -B G:\AI\Skills\MachineMemoryGuard\MemoryGuard.py --activity-refresh $token
-    $assembly=Join-Path (Split-Path $project) "bin/$Configuration/net10.0/TransactionModes.dll"
+    $assembly=& 'C:\Program Files\dotnet\dotnet.exe' msbuild $project -p:Configuration=$Configuration -p:ExperimentMode=TransactionModes -getProperty:TargetPath -nologo
+    if($LASTEXITCODE -ne 0){throw 'Experiment assembly path could not be resolved'}
     Get-FileHash -LiteralPath $assembly
     $data=Join-Path $TaskRoot ('data-'+$Configuration+'-'+$Stage)
     # 再開時も完了済みのレポートを使う一方、fixture の WAL は常に新規領域へ作る。

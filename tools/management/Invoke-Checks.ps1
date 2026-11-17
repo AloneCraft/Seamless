@@ -30,9 +30,11 @@ if($isolated){Copy-Item -LiteralPath (Join-Path $repository 'global.json') -Dest
 & (Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1') -InitializeOnly | Out-Null
 $target=Join-Path $repository 'Tests/Management.Tests/Management.Tests.csproj'
 if($Suite -eq 'Execution'){$target=Join-Path $repository 'Tests/Seamless.Core.Tests/Seamless.Core.Tests.csproj'}
-if($Suite -eq 'Transactions'){$target=Join-Path $repository 'Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj'}
-if($Suite -eq 'TransactionCore'){$target=Join-Path $repository 'Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj'}
-if($Suite -eq 'Gateway'){$target=Join-Path $repository 'Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj'}
+if($Suite -eq 'Transactions'){$target=Join-Path $repository 'Tests/Database.Query.Tests/Database.Query.Tests.csproj'}
+if($Suite -eq 'TransactionCore'){$target=Join-Path $repository 'Tests/Seamless.Core.Tests/Seamless.Core.Tests.csproj'}
+if(!$Filter -and $Suite -eq 'Transactions'){$Filter='FullyQualifiedName~Seamless.Database.Transactions.Tests'}
+if(!$Filter -and $Suite -eq 'TransactionCore'){$Filter='FullyQualifiedName~Seamless.Transactions.Tests'}
+if(!$Filter -and $Suite -eq 'Gateway'){$Filter='FullyQualifiedName~Seamless.Database.Gateway.Tests'}
 $buildOptions=@('-p:UseSharedCompilation=false','-m:1')
 if($isolated){$buildOptions+=@('--artifacts-path',(Join-Path $work 'artifacts'))}
 if($PackageFallbackRoot){

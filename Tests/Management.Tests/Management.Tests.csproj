@@ -1,9 +1,67 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><StartupObject>Management.Tests.CrashProbe</StartupObject><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable><AssemblyName>Management.Tests</AssemblyName><RootNamespace>Management.Tests</RootNamespace></PropertyGroup>
-  <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" /><PackageReference Include="xunit" Version="2.9.3" /><PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" /><Using Include="Xunit" /></ItemGroup>
-  <ItemGroup><ProjectReference Include="../../Seamless.Management/Seamless.Management.csproj" /><ProjectReference Include="../../Seamless.Management.Server/WindowsServer.csproj" /></ItemGroup>
-  <ItemGroup><ProjectReference Include="../../Seamless.Management.Components/Seamless.Management.Components.csproj" /></ItemGroup>
-  <ItemGroup><ProjectReference Include="../../Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" /></ItemGroup>
-  <ItemGroup><ProjectReference Include="../../Seamless.Database.Server/Seamless.Database.Server.csproj" /></ItemGroup>
-  <ItemGroup><PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" /></ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <StartupObject>Management.Tests.TestProcessEntryPoint</StartupObject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Management.Tests</AssemblyName>
+    <RootNamespace>Management.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Seamless.Management/Seamless.Management.csproj" />
+    <ProjectReference Include="../../Seamless.Management.Server/WindowsServer.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Seamless.Management.Components/Seamless.Management.Components.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Seamless.Database.Server/Seamless.Database.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+  </ItemGroup>
+  <PropertyGroup>
+    <LangVersion>14</LangVersion>
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Gateway/SsmsCorpus/DroppedLedgerAppendOnly.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.DroppedLedgerAppendOnly.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/DroppedLedgerUpdatable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.DroppedLedgerUpdatable.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/DroppedLedgerView.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.DroppedLedgerView.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/ExternalTable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.ExternalTable.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/FileTable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.FileTable.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/GraphEdge.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.GraphEdge.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/GraphNode.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.GraphNode.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/LedgerAppendOnly.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.LedgerAppendOnly.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/LedgerUpdatable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.LedgerUpdatable.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/LedgerView.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.LedgerView.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/MemoryTable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.MemoryTable.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/MemoryTemporalTable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.MemoryTemporalTable.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/NativeProcedure.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.NativeProcedure.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/NativeScalarFunctions.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.NativeScalarFunctions.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/ScalarFunctions.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.ScalarFunctions.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/ServerProperties.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.ServerProperties.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/TableChangeTracking.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.TableChangeTracking.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/TableFunctions.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.TableFunctions.sql" />
+    <EmbeddedResource Include="Gateway/SsmsCorpus/TemporalTable.sql" LogicalName="Seamless.Database.Gateway.Tests.SsmsCorpus.TemporalTable.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Seamless.Database/Seamless.Database.csproj" />
+    <ProjectReference Include="../../Seamless.Database.Client.Results/Seamless.Database.Client.Results.csproj" />
+    <ProjectReference Include="../../Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="../../Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
+  </ItemGroup>
 </Project>

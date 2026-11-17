@@ -5,9 +5,8 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Seamless.Collections.Persisted")]
 [assembly: InternalsVisibleTo("Seamless.Collections.Tsavorite")]
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Test.Tsavorite.Collections")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Seamless.Core.Tests")]
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Test.Persisted.Collections")]
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Benchmark.Dynamic.Tests")]
 

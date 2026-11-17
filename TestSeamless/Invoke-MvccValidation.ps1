@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][string]$TaskRoot,
     [Parameter(Mandatory)][string]$LogRoot,
-    [string]$Project='Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj',
+    [string]$Project='Tests/Database.Query.Tests/Database.Query.Tests.csproj',
+    [ValidateSet('TransactionModes','ProductTransactions','HistoryStoreModes','GroupByLazyBench')][string]$ExperimentMode,
     [ValidateSet('Debug','Release')][string]$Configuration='Debug',
     [string]$Filter,
     [switch]$BuildOnly,
@@ -108,7 +109,7 @@ if($SnapshotOnly){
 }
 # NuGet fallbackはCを読めても、Native DTO fixtureはFの明示analyzerパスを使う。
 # 新規LogRootでも再現できるよう、既存packageをFへ複製する。Cへrestore/出力しない。
-if($seen.Contains([IO.Path]::GetFullPath((Join-Path $sourceRoot 'Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj')))){
+if($seen.Contains([IO.Path]::GetFullPath((Join-Path $sourceRoot 'Tests/Management.Tests/Management.Tests.csproj')))){
     # MemoryPack は 1.* で常に最新を使うので、生成器も利用者の置き場にある一番新しい版を複製する。
     $analyzerSource=Get-ChildItem -LiteralPath 'C:\Users\kazuh\.nuget\packages\memorypack.generator' -Directory|Where-Object{$_.Name -match '^\d+\.\d+\.\d+$'}|Sort-Object{[version]$_.Name} -Descending|Select-Object -First 1 -ExpandProperty FullName
     if(-not $analyzerSource){throw 'The offline MemoryPack generator fixture dependency is missing.'}
@@ -135,6 +136,7 @@ $env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $snapshot ('Seamless.Database.Ge
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $run 'source-manifest.json')
 @{Project=$Project;Configuration=$Configuration;Filter=$Filter;EmitGeneratedSources=[bool]$EmitGeneratedSources;ForceCompile=[bool]$ForceCompile;RunnerSha256=(Get-FileHash -LiteralPath $PSCommandPath).Hash;DataRoot=$env:SEAMLESS_TEST_DATA_ROOT;SourceManifestSha256=(Get-FileHash -LiteralPath $manifestPath).Hash}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $run 'validation-spec.json') -Encoding utf8
 $arguments=@($stage,(Join-Path $snapshot $Project),'-c',$Configuration,'-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false','-p:RestoreSources=C:\Users\kazuh\.nuget\packages','-p:RestoreFallbackFolders=C:\Users\kazuh\.nuget\packages','--disable-build-servers')
+if($ExperimentMode){$arguments+="-p:ExperimentMode=$ExperimentMode"}
 if($ForceCompile){
     # 内容が同じ既存コピーも最終検証では再コンパイルする。コピー元の古い更新時刻で旧DLLを再利用させない。
     foreach($relative in $manifest.Keys){

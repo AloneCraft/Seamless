@@ -12,9 +12,9 @@ internal static partial class Program{
     private static readonly JsonSerializerOptions Json=new(){WriteIndented=true};
     private static int Main(string[] args){
         try{
-            if(args.Length is not(4 or 5)||args[0] is not("--verify" or "--run")||args.Length==5&&(args[0]!="--run"||args[4]!="--buffered")){throw new ArgumentException("--verify|--run D:data F:report source-manifest-sha256 [--buffered]");}
+            if(args.Length is not(4 or 5)||args[0] is not("--verify" or "--run")||args.Length==5&&(args[0]!="--run"||args[4]!="--buffered")){throw new ArgumentException("--verify|--run F:data F:report source-manifest-sha256 [--buffered]");}
             var root=Path.GetFullPath(args[1]);var report=Path.GetFullPath(args[2]);
-            if(Path.GetPathRoot(root)!="D:\\"||Path.GetPathRoot(report)!="F:\\"||Directory.Exists(root)&&Directory.EnumerateFileSystemEntries(root).Any()){throw new ArgumentException("Use a fresh private D root and F report.");}
+            if(Path.GetPathRoot(root)!="F:\\"||Path.GetPathRoot(report)!="F:\\"||Directory.Exists(root)&&Directory.EnumerateFileSystemEntries(root).Any()){throw new ArgumentException("Use a fresh private F root and F report.");}
             Directory.CreateDirectory(root);Directory.CreateDirectory(Path.GetDirectoryName(report)!);
             if(args[0]=="--verify"){Verify(root);File.WriteAllText(report,JsonSerializer.Serialize(new{Outcome="Passed",Format="history-store-modes-verification-v1",SourceManifestSha256=args[3],Checks=checks},Json));}
             else{Run(root,report,args[3],args.Length==5).GetAwaiter().GetResult();}

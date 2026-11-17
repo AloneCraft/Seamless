@@ -19,8 +19,11 @@
     <ProjectReference Include="../Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
   </ItemGroup>
   <PropertyGroup Condition="'$(TargetFramework)'=='net10.0-windows'">
-    <UseMaui>true</UseMaui><WindowsPackageType>None</WindowsPackageType>
-    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion><TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion><TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <UseMaui>true</UseMaui>
+    <WindowsPackageType>None</WindowsPackageType>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Worker/Worker.csproj" />
@@ -60,7 +63,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='net10.0'">
     <ProjectReference Include="../Benchmark.Audit/Benchmark.Audit.csproj" />
-    <ProjectReference Include="../Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
+    <ProjectReference Include="../Benchmark.Scalable.Core/Benchmark.Scalable.Core.csproj" />
     <PackageReference Include="ZLinq" Version="1.5.6" />
     <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
@@ -86,12 +89,9 @@
     <ProjectReference Include="../Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <Target Name="WriteAuditedBenchmarkPaths" AfterTargets="Build" Condition="'$(TargetFramework)'=='net10.0'">
-    <MSBuild Projects="@(AuditBenchmarkProject)" Targets="GetTargetPath"
-             Properties="Configuration=$(Configuration);TargetFramework=net10.0"
-             RemoveProperties="RuntimeIdentifier;SelfContained;TargetFramework;TargetFrameworks;TargetPlatformIdentifier;TargetPlatformVersion;TargetPlatformMinVersion;UseMaui">
+    <MSBuild Projects="@(AuditBenchmarkProject)" Targets="GetTargetPath" Properties="Configuration=$(Configuration);TargetFramework=net10.0" RemoveProperties="RuntimeIdentifier;SelfContained;TargetFramework;TargetFrameworks;TargetPlatformIdentifier;TargetPlatformVersion;TargetPlatformMinVersion;UseMaui">
       <Output TaskParameter="TargetOutputs" ItemName="AuditedBenchmarkOutput" />
     </MSBuild>
-    <WriteLinesToFile File="$(TargetDir)AuditedBenchmarkPaths.txt" Lines="@(AuditedBenchmarkOutput->'%(FullPath)')"
-                      Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
+    <WriteLinesToFile File="$(TargetDir)AuditedBenchmarkPaths.txt" Lines="@(AuditedBenchmarkOutput-&gt;'%(FullPath)')" Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
   </Target>
 </Project>
