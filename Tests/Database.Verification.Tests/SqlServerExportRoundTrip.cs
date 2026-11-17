@@ -45,6 +45,9 @@ public sealed class SqlServerExportRoundTrip(ITestOutputHelper output){
                 await using var sourceConnection=new SqlConnection(source);await sourceConnection.OpenAsync();
                 await using var targetConnection=new SqlConnection(target);await targetConnection.OpenAsync();
                 var compared=0;
+                // XML スキーマコレクション(型付きの xml の列が従う形の決まり)が、名前も本文も同じであること。
+                static string Collections(DatabaseCatalog catalog)=>string.Join(" | ",catalog.XmlSchemaCollections.Select(static item=>item.Schema+"."+item.Name+"="+item.Definition).Order(StringComparer.Ordinal));
+                if(Collections(sourceCatalog)!=Collections(targetCatalog)){failures.Add($"{name}: XML スキーマコレクションが違う(元 {sourceCatalog.XmlSchemaCollections.Count} / 書き出し先 {targetCatalog.XmlSchemaCollections.Count})");}
                 foreach(var schema in sourceCatalog.Schemas){
                     foreach(var table in schema.Tables){
                         var other=targetCatalog.Schemas.SingleOrDefault(item=>item.Name==schema.Name)?.Tables.SingleOrDefault(item=>item.Name==table.Name);

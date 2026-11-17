@@ -13,7 +13,8 @@ internal static class SqlRowSet{
         var rows=new SortedSet<string>(StringComparer.Ordinal);
         while(reader.Read()){
             var values=new object?[reader.FieldCount];
-            for(var i=0;i<values.Length;i++){values[i]=reader.IsDBNull(i)?null:reader.GetValue(i);}
+            // hierarchyid・geography・geometry などの SQL Server の独自の型(型名が「DB.スキーマ.型」)は、.NET の型を読み込まずにバイト列で比べる。
+            for(var i=0;i<values.Length;i++){values[i]=reader.IsDBNull(i)?null:reader.GetDataTypeName(i).Contains('.')?reader.GetSqlBytes(i).Value:reader.GetValue(i);}
             rows.Add(Key(values));
         }
         return rows;

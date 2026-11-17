@@ -47,6 +47,7 @@ public static class SqlServerDatabaseExporter{
         await using var connection=new SqlConnection(builder.ConnectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         foreach(var statement in script.Schemas){await ExecuteAsync(connection,statement,cancellationToken).ConfigureAwait(false);}
+        foreach(var statement in script.XmlSchemaCollections){await ExecuteAsync(connection,statement,cancellationToken).ConfigureAwait(false);}
         // 関数を表より先に作る(計算列・既定値・CHECK が使う)。表を使う関数はここでは作れないので、残りは後で作る。
         var excludedViews=new HashSet<string>(options.ExcludedViews,StringComparer.OrdinalIgnoreCase);
         var objects=catalog.Routines.Select(static routine=>(Definition:routine,Kind:RoutineKind(routine.Definition)))
@@ -98,7 +99,7 @@ public static class SqlServerDatabaseExporter{
         var schemas=catalog.Schemas.Select(schema=>new SchemaCatalog(schema.Name,schema.Tables.Where(table=>!excluded.Contains(schema.Name+"."+table.Name)).Select(table=>
             new TableCatalog(table.Name,table.Columns,table.PrimaryKey,table.UniqueKeys,table.ForeignKeys.Where(key=>!excluded.Contains(key.ReferencedSchema+"."+key.ReferencedTable)).ToArray(),table.CheckConstraints,table.Triggers)).ToArray()))
             .Where(static schema=>schema.Tables.Count>0).ToArray();
-        return new(catalog.Name,schemas,catalog.DefaultCollation);
+        return new(catalog.Name,schemas,catalog.DefaultCollation){XmlSchemaCollections=catalog.XmlSchemaCollections};
     }
 
     // DB を用意する。無ければ作る。あれば、作り直す指定のときだけ、(指定があれば)バックアップを取ってから消して作る。

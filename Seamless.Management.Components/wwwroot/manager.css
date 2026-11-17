@@ -321,3 +321,11 @@ button.テキストボタン.ツリー追加行:hover{color:#405b49}
 .生成コード項目[aria-current=true]{background:#e7efe3}
 .生成コード内容{flex:1;min-width:0;overflow:auto}
 .生成コード表示 .未対応通知{color:#d00000;font-size:20px;font-weight:800;margin:4px 0}
+/* 外部DBの取り込み: 左ツリーの「外部DBから取り込む」から開く窓。接続 → 下見 → 取り込み → 報告の順に下へ伸びる。 */
+.外部DB取り込み{position:fixed;inset:5vh 8vw;z-index:60;background:#fff;border:1px solid #d6d6cf;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:8px;padding:12px 16px}
+.外部DB本体{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.外部DB取り込み .未対応通知{color:#d00000;font-weight:800;margin:4px 0}
+.外部DB差の一覧{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+.外部DB差の一覧>li{border-top:1px solid #e6e6df;padding-top:6px}
+.外部DB回避策{margin-left:16px}
+.外部DB下書き{white-space:pre-wrap;font-size:12px;background:#f6f6f2;padding:6px;border-radius:4px;max-height:240px;overflow:auto}

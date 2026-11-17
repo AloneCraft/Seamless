@@ -10,10 +10,13 @@ namespace Seamless.Database.SqlServer;
 /// トリガーは行を入れた後に作る(行を入れるときに動かさない)。
 /// </summary>
 public sealed record SqlServerSchemaScript(IReadOnlyList<string> Schemas,IReadOnlyList<string> Tables,IReadOnlyList<string> Constraints,IReadOnlyList<string> Triggers){
+    /// <summary>XML スキーマコレクションを作る文。スキーマの後、表の前に流す(型付きの xml の列が使う)。</summary>
+    public IReadOnlyList<string> XmlSchemaCollections{get;init;}=[];
+
     /// <summary>目録から文を作る。</summary>
     public static SqlServerSchemaScript Create(DatabaseCatalog catalog){
         ArgumentNullException.ThrowIfNull(catalog);
-        var schemas=catalog.Schemas.Select(static schema=>schema.Name).Where(static name=>!string.Equals(name,"dbo",StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase)
+        var schemas=catalog.Schemas.Select(static schema=>schema.Name).Concat(catalog.XmlSchemaCollections.Select(static collection=>collection.Schema)).Where(static name=>!string.Equals(name,"dbo",StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(static name=>$"CREATE SCHEMA {Quote(name)};").ToArray();
         var tables=new List<string>();
         var constraints=new List<string>();
@@ -43,7 +46,8 @@ public sealed record SqlServerSchemaScript(IReadOnlyList<string> Schemas,IReadOn
                 }
             }
         }
-        return new(schemas,tables,constraints,triggers);
+        var collections=catalog.XmlSchemaCollections.Select(static collection=>$"CREATE XML SCHEMA COLLECTION {Quote(collection.Schema)}.{Quote(collection.Name)} AS N'{collection.Definition.Replace("'","''",StringComparison.Ordinal)}';").ToArray();
+        return new(schemas,tables,constraints,triggers){XmlSchemaCollections=collections};
     }
 
     private static string Column(ColumnCatalog column){
@@ -70,6 +74,7 @@ public sealed record SqlServerSchemaScript(IReadOnlyList<string> Schemas,IReadOn
             "time" or "datetime2" or "datetimeoffset"=>type.Scale is{} scale?$"{name}({scale})":name,
             "float"=>"float",
             "timestamp" or "rowversion"=>"rowversion",
+            "xml" when type.XmlSchemaCollectionName is{} collection=>$"xml({(type.IsXmlDocument?"DOCUMENT":"CONTENT")} {Quote(type.XmlSchemaCollectionSchema??"dbo")}.{Quote(collection)})",
             _=>name,
         };
     }

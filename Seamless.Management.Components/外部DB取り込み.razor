@@ -1,0 +1,187 @@
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+
+<div class="外部DB取り込み" role="dialog" aria-modal="true" aria-label="@表示文言.取得("外部DBから取り込む")" tabindex="-1" @onkeydown="キー押下時Async">
+    <header class="生成コード見出し">
+        <strong>@表示文言.取得("外部DBから取り込む")</strong>
+        <button type="button" class="省略ボタン" title="@表示文言.取得("閉じる")" aria-label="@表示文言.取得("閉じる")" disabled="@実行中か" @onclick="()=>閉じる時.InvokeAsync()"><操作アイコン 種類="閉じる"/></button>
+    </header>
+    @if(案内.Length>0){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
+    <div class="外部DB本体">
+        <fieldset class="設定入力枠" disabled="@(処理中か||実行中か)"><legend>@表示文言.取得("1. 接続（SQL Server）")</legend>
+            <div class="設定入力一覧">
+                <label>@表示文言.取得("接続文字列（パスワードは入れない）")<input aria-label="@表示文言.取得("接続文字列")" list="外部DB接続履歴" placeholder="Server=localhost;Integrated Security=True;Encrypt=False" @bind="接続文字列" @bind:event="oninput"/></label>
+                <datalist id="外部DB接続履歴">@foreach(var 項目 in 履歴){<option value="@項目"></option>}</datalist>
+                <label>@表示文言.取得("パスワード（Windows 認証では空）")<input type="password" aria-label="@表示文言.取得("パスワード")" autocomplete="off" @bind="パスワード" @bind:event="oninput"/></label>
+            </div>
+            <label class="設定チェック"><input type="checkbox" aria-label="@表示文言.取得("パスワードを資格情報マネージャーに保存する")" @bind="パスワードを保存するか"/>@表示文言.取得("パスワードを、Manager を動かす PC の Windows 資格情報マネージャーに保存する")</label>
+            @if(履歴診断 is not null){<p class="小案内">@表示文言.取得(履歴診断)</p>}
+            <div class="適用操作"><button type="button" class="主要ボタン" disabled="@(string.IsNullOrWhiteSpace(接続文字列))" @onclick="接続Async"><操作アイコン 種類="DB"/>@表示文言.取得("接続して DB の一覧を取る")</button></div>
+            @if(接続 is{} 情報){<p class="小案内">@表示文言.取得("接続先 {0} · {1}",情報.Server,情報.IntegratedSecurity?表示文言.取得("Windows 認証"):情報.UserName)@if(情報.PasswordSaved){<span> · @表示文言.取得("パスワードは保存済み")</span>}</p>}
+        </fieldset>
+        @if(接続 is{} 接続情報){
+            <fieldset class="設定入力枠" disabled="@(処理中か||実行中か)"><legend>@表示文言.取得("2. 取り込む DB と置き場所")</legend>
+                <div class="設定入力一覧">
+                    <label>@表示文言.取得("元の DB")<select aria-label="@表示文言.取得("元の DB")" value="@元DB" @onchange="元DB変更時"><option value="">@表示文言.取得("選んでください")</option>@foreach(var 名前 in 接続情報.Databases){<option value="@名前">@名前</option>}</select></label>
+                    <label>@表示文言.取得("取り込み先の DB の名前")<input aria-label="@表示文言.取得("取り込み先の DB の名前")" @bind="取り込み先" @bind:event="oninput"/></label>
+                    <label>@表示文言.取得("生成した C# のプロジェクトの保存先（空のフォルダー）")<input aria-label="@表示文言.取得("プロジェクトの保存先")" @bind="保存先" @bind:event="oninput"/></label>
+                </div>
+                <div class="適用操作"><button type="button" class="主要ボタン" disabled="@(string.IsNullOrWhiteSpace(元DB)||string.IsNullOrWhiteSpace(取り込み先))" @onclick="下見Async"><操作アイコン 種類="変更を確認"/>@表示文言.取得(下見 is null?"下見する":"選び直して下見する")</button></div>
+            </fieldset>
+        }
+        @if(下見 is{} 結果){
+            <section class="設定入力枠" aria-label="@表示文言.取得("3. 下見")">
+                <h2>@表示文言.取得("3. 下見")</h2>
+                <p>@表示文言.取得("表 {0} 個・行 約 {1} 件・生成する C# {2} ファイル（{3} KB）",結果.Tables.Length,結果.Tables.Sum(項目=>項目.Rows).ToString("N0"),結果.Files,(結果.SourceBytes/1024).ToString("N0"))</p>
+                <p>@表示文言.取得("ビュー：訳した {0} 個・写し {1} 個・取り込まない {2} 個",結果.Views.Count(項目=>項目.State=="Translated"),結果.Views.Count(項目=>項目.State=="Snapshot"),結果.Views.Count(項目=>項目.State=="NotImported"))</p>
+                @if(結果.TargetExists){
+                    <p class="未対応通知">@表示文言.取得("Seamless に同じ名前の DB「{0}」があります。",結果.TargetDatabase)</p>
+                    <label class="設定チェック"><input type="checkbox" aria-label="@表示文言.取得("置き換える")" disabled="@実行中か" @bind="置き換えるか"/>@表示文言.取得("丸ごと置き換える（取り込んで件数を確かめてから入れ替え、古いものはバックアップに残す）")</label>
+                }
+                <details open="@(結果.Issues.Length>0)"><summary>@表示文言.取得("SQL Server と同じ動きにならない所 {0} 件",結果.Issues.Length)</summary>
+                    @if(結果.Issues.Length==0){<p class="小案内">@表示文言.取得("ありません。")</p>}
+                    <ul class="外部DB差の一覧">
+                    @foreach(var 差 in 結果.Issues){
+                        var 名前=差.Schema+"."+差.Name;
+                        <li>
+                            <strong>@(差.Kind) @名前@(差.Column is null?"":"."+差.Column)</strong> <code>@差.Code</code>
+                            <p>@差.Difference</p>
+                            @foreach(var 回避 in 差.Workarounds){
+                                <div class="外部DB回避策">
+                                    @if(回避.Code=="Snapshot"&&差.Kind=="View"){
+                                        <label class="設定チェック"><input type="checkbox" disabled="@(処理中か||実行中か)" checked="@写し.Contains(名前)" @onchange="値=>写し切り替え(名前,値)"/>@表示文言.取得("写しにする")：@回避.Description</label>
+                                    }else{
+                                        <p>@表示文言.取得("回避策")（@回避.Code）：@回避.Description</p>
+                                    }
+                                    @if(回避.Draft is{} 下書き){<details><summary>@表示文言.取得("下書き")</summary><pre class="外部DB下書き">@下書き</pre></details>}
+                                </div>
+                            }
+                        </li>
+                    }
+                    </ul>
+                </details>
+                @if(写しが下見と違うか){<p class="未対応通知">@表示文言.取得("写しにするビューを変えました。取り込む前に、選び直して下見してください。")</p>}
+                <div class="適用操作"><button type="button" class="主要ボタン" disabled="@(!取り込めるか)" @onclick="取り込みAsync"><操作アイコン 種類="適用"/>@表示文言.取得("取り込む")</button></div>
+            </section>
+        }
+        @if(状態 is{} 進み){
+            <section class="設定入力枠" aria-label="@表示文言.取得("4. 取り込み")" role="status">
+                <h2>@表示文言.取得("4. 取り込み")</h2>
+                <p>@段階名(進み.Phase)@if(進み.Table is not null){<span> · @進み.Table · @進み.Rows.ToString("N0") @表示文言.取得("行")</span>}</p>
+                @if(進み.State=="Failed"||進み.State=="Cancelled"){<p class="未対応通知">@表示文言.取得("取り込めませんでした：{0}",進み.Error)</p><p class="小案内">@表示文言.取得("公開していないので、元の DB はそのままです。")</p>}
+                @if(進み.Report is{} 報告){
+                    <p>@表示文言.取得("DB「{0}」を版 {1} として公開しました。",報告.Database,報告.Version)</p>
+                    @if(報告.Backup is not null){<p>@表示文言.取得("古い世代のバックアップ：{0}",報告.Backup)</p>}
+                    @if(報告.ProjectPath is not null){<p>@表示文言.取得("DB のソースのプロジェクト：{0}",報告.ProjectPath)</p>}
+                    <details><summary>@表示文言.取得("表ごとの行数（{0} 個）",報告.Tables.Length)</summary><ul>@foreach(var 表 in 報告.Tables){<li>@表.Schema.@表.Name：@表.Rows.ToString("N0")</li>}</ul></details>
+                    <details><summary>@表示文言.取得("残った差と回避策（{0} 件）",報告.Issues.Length)</summary><ul>@foreach(var 差 in 報告.Issues){<li><code>@差.Code</code> @差.Schema.@差.Name：@差.Difference</li>}</ul></details>
+                    <div class="適用操作"><button type="button" class="主要ボタン" @onclick="()=>完了時.InvokeAsync(報告)"><操作アイコン 種類="DB"/>@表示文言.取得("取り込んだ DB を開く")</button></div>
+                }
+            </section>
+        }
+    </div>
+</div>
+
+@code{
+    [Parameter,EditorRequired]public IManagementTransferOperations 操作{get;set;}=null!;
+    /// <summary>接続文字列の履歴をこのブラウザーに残す鍵(画面の利用者ごと)。無ければ履歴を使わない。</summary>
+    [Parameter]public string? 履歴キー{get;set;}
+    [Parameter]public EventCallback 閉じる時{get;set;}
+    [Parameter]public EventCallback<ExternalImportReport> 完了時{get;set;}
+    private string 接続文字列="",パスワード="",元DB="",取り込み先="",保存先="",案内="";
+    private bool パスワードを保存するか,処理中か,エラーか,置き換えるか;
+    private ExternalConnectionInfo? 接続;
+    private ExternalImportPreview? 下見;
+    private ExternalImportPreviewRequest? 下見の要求;
+    private ExternalTransferStatus? 状態;
+    private readonly SortedSet<string> 写し=new(StringComparer.OrdinalIgnoreCase);
+    private string[] 履歴=[];
+    private string? 履歴診断;
+    private IJSObjectReference? 履歴モジュール;
+    private readonly CancellationTokenSource 寿命=new();
+    private bool 実行中か=>this.状態?.State=="Running";
+    private bool 写しが下見と違うか=>this.下見の要求 is{} 要求&&!要求.SnapshotViews.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(this.写し);
+    private bool 取り込めるか=>this.下見 is{} 結果&&!this.処理中か&&!this.実行中か&&this.状態?.Report is null&&!this.写しが下見と違うか&&(!結果.TargetExists||this.置き換えるか)&&!string.IsNullOrWhiteSpace(this.保存先);
+    private ExternalConnectionRequest 接続要求=>new("SqlServer",this.接続文字列.Trim(),this.パスワード.Length==0?null:this.パスワード,this.パスワードを保存するか);
+
+    protected override async Task OnAfterRenderAsync(bool 初回){
+        if(!初回){return;}
+        if(this.履歴キー is null){this.履歴診断="この画面では接続文字列の履歴を使えません（認証済みの利用者の表示状態を確かめられません）。";this.StateHasChanged();return;}
+        try{
+            this.履歴モジュール=await this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/external-history.js");
+            this.履歴=await this.履歴モジュール.InvokeAsync<string[]>("read",this.履歴キー);
+        }catch(Exception 例外)when(例外 is JSException or InvalidOperationException){this.履歴診断="このブラウザーの接続文字列の履歴を読めません。";}
+        this.StateHasChanged();
+    }
+
+    private Task 接続Async()=>this.処理Async(async()=>{
+        this.接続=null;this.下見=null;this.下見の要求=null;this.状態=null;
+        this.接続=await this.操作.ConnectExternalAsync(this.接続要求,this.寿命.Token);
+        this.パスワード="";this.パスワードを保存するか=false;
+        await this.履歴に残すAsync(this.接続文字列.Trim());
+        this.案内=表示文言.取得("接続しました。DB {0} 個",this.接続.Databases.Length);
+    });
+
+    private async Task 履歴に残すAsync(string 項目){
+        if(this.履歴モジュール is null||this.履歴キー is null){return;}
+        var 新しい=new[]{項目}.Concat(this.履歴.Where(既存=>既存!=項目)).Take(20).ToArray();
+        try{await this.履歴モジュール.InvokeVoidAsync("write",this.履歴キー,新しい);this.履歴=新しい;}
+        catch(JSException){this.履歴診断="このブラウザーに接続文字列の履歴を残せません。";}
+    }
+
+    private void 元DB変更時(ChangeEventArgs 引数){
+        var 前=this.元DB;this.元DB=引数.Value?.ToString()??"";
+        if(this.取り込み先.Length==0||this.取り込み先==前){this.取り込み先=this.元DB;}
+        this.下見=null;this.下見の要求=null;this.写し.Clear();this.状態=null;
+    }
+
+    private void 写し切り替え(string 名前,ChangeEventArgs 引数){if(引数.Value is true){this.写し.Add(名前);}else{this.写し.Remove(名前);}}
+
+    private Task 下見Async()=>this.処理Async(async()=>{
+        this.状態=null;
+        var 要求=new ExternalImportPreviewRequest(this.接続要求 with{SavePassword=false},this.元DB,this.取り込み先.Trim(),this.写し.ToArray());
+        this.下見=await this.操作.PreviewExternalImportAsync(要求,this.寿命.Token);
+        this.下見の要求=要求;this.置き換えるか=false;
+        this.案内=表示文言.取得("下見しました。内容を確かめてから取り込んでください。");
+    });
+
+    private Task 取り込みAsync()=>this.処理Async(async()=>{
+        if(this.下見 is not{} 結果||this.下見の要求 is not{} 要求){return;}
+        var ID=Guid.NewGuid();
+        this.状態=await this.操作.StartExternalImportAsync(new(要求,結果.Token,this.保存先.Trim(),this.置き換えるか,ID),this.寿命.Token);
+        this.処理中か=false;this.StateHasChanged();
+        // 裏で動く取り込みの進み具合を見に行く。
+        while(this.状態.State=="Running"&&!this.寿命.IsCancellationRequested){
+            await Task.Delay(500,this.寿命.Token);
+            this.状態=await this.操作.ExternalTransferStatusAsync(ID,this.寿命.Token);
+            this.StateHasChanged();
+        }
+        if(this.状態.State=="Succeeded"){this.案内=表示文言.取得("取り込みました。");}else{throw new ManagementException("ImportFailed",this.状態.Error??this.状態.State);}
+    });
+
+    private static string 段階名(string 段階)=>段階 switch{
+        "Reading"=>表示文言.取得("元の DB を読んでいます"),
+        "Building"=>表示文言.取得("C# をビルドしています"),
+        "Loading"=>表示文言.取得("行を入れています"),
+        "Publishing"=>表示文言.取得("件数を確かめて公開しています"),
+        "WritingProject"=>表示文言.取得("プロジェクトを書いています"),
+        "Done"=>表示文言.取得("終わりました"),
+        _=>段階,
+    };
+
+    private async Task 処理Async(Func<Task> 処理){
+        if(this.処理中か){return;}
+        this.処理中か=true;this.エラーか=false;this.案内="";
+        try{await 処理();}
+        catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){}
+        catch(Exception 例外)when(例外 is not OperationCanceledException){this.案内=例外.Message;this.エラーか=true;}
+        finally{this.処理中か=false;}
+    }
+
+    private async Task キー押下時Async(KeyboardEventArgs 引数){if(引数.Key=="Escape"&&!this.実行中か){await this.閉じる時.InvokeAsync();}}
+
+    public async ValueTask DisposeAsync(){
+        this.寿命.Cancel();this.寿命.Dispose();
+        if(this.履歴モジュール is not null){try{await this.履歴モジュール.DisposeAsync();}catch(JSDisconnectedException){}}
+    }
+}

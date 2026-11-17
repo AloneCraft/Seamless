@@ -100,7 +100,9 @@ public static partial class CSharpDatabaseGenerator {
             var definitions=catalog.Schemas.SelectMany(static schema=>schema.Views.Where(static view=>view.Definition is not null)
                 .Select(view=>$"[assembly: global::Seamless.Database.ImportedDatabaseView({Literal(schema.Name)},{Literal(view.Name)},{Verbatim(view.Definition!)})]"))
                 .Concat(catalog.Schemas.SelectMany(static schema=>schema.Routines.Where(static routine=>routine.Definition is not null)
-                .Select(routine=>$"[assembly: global::Seamless.Database.ImportedDatabaseRoutine({Literal(schema.Name)},{Literal(routine.Name)},{Verbatim(routine.Definition!)})]"))).ToArray();
+                .Select(routine=>$"[assembly: global::Seamless.Database.ImportedDatabaseRoutine({Literal(schema.Name)},{Literal(routine.Name)},{Verbatim(routine.Definition!)})]")))
+                // 型付きの xml の列が従う XML スキーマコレクションの本文も残す(書き出しで表より先に作る)。
+                .Concat(catalog.XmlSchemaCollections.Select(collection=>$"[assembly: global::Seamless.Database.ImportedDatabaseXmlSchemaCollection({Literal(collection.Schema)},{Literal(collection.Name)},{Verbatim(collection.Definition)})]")).ToArray();
             if(definitions.Length>0){
                 var builder=Header();
                 foreach(var definition in definitions){builder.AppendLine(definition);}
@@ -108,6 +110,7 @@ public static partial class CSharpDatabaseGenerator {
             }
             compatibility.AddRange(views.Issues);
             compatibility.AddRange(RoutineIssues(routines));
+            compatibility.AddRange(XmlSchemaIssues(catalog));
         }
         return new(catalog.Name,FileName(databaseName),fingerprint,files.AsReadOnly(),tables){Routines=routines.AsReadOnly(),RootNamespace=runtimeSql?typeNamespace:null,IsCollectible=collectible,Compatibility=compatibility.AsReadOnly(),Views=views?.Views??[]};
     }
@@ -187,8 +190,9 @@ public static partial class CSharpDatabaseGenerator {
         var builder = Header();
         builder.AppendLine($"namespace {typeNamespace} {{");
         builder.AppendLine();
-        if(collectible){builder.AppendLine("internal static class DatabaseGenerator{public const bool Collectible=true;}");}
-        else{builder.AppendLine("internal static class DatabaseGenerator;");}
+        // partial にする：Manager の内蔵のコンパイルが、同じ印のクラスに自分の部分を足す(取り込んだ DB を Manager の DB にする)。
+        if(collectible){builder.AppendLine("internal static partial class DatabaseGenerator{public const bool Collectible=true;}");}
+        else{builder.AppendLine("internal static partial class DatabaseGenerator;");}
         builder.AppendLine();
         if(runtimeSql){
             builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.Query.RuntimeSqlDatabaseContainer {{");
@@ -287,7 +291,10 @@ public static partial class CSharpDatabaseGenerator {
                 // 書き出しで元の型(decimal(p,s)・datetime2(n) など)に戻せるよう、精度と小数部の桁も残す。
                 var precision=column.Source.Type.Precision is{} p?$",Precision={p}":"";
                 var scale=column.Source.Type.Scale is{} s?$",Scale={s}":"";
-                builder.AppendLine($"    [global::Seamless.Database.ImportedDatabaseColumn({Literal(column.Source.Name)},{column.Source.Type.MaximumLength??-1},{Literal(column.Source.Type.SqlTypeName)},{Literal(column.Source.Type.Collation)},IsSynthetic={column.Source.IsSynthetic.ToString().ToLowerInvariant()}{precision}{scale})]");
+                // 型付きの xml の列は、従う XML スキーマコレクションも残す(書き出しで同じ型の列に戻す)。
+                var xml=column.Source.Type.XmlSchemaCollectionName is{} collection
+                    ?$",XmlSchemaCollectionSchema={Literal(column.Source.Type.XmlSchemaCollectionSchema)},XmlSchemaCollectionName={Literal(collection)},IsXmlDocument={column.Source.Type.IsXmlDocument.ToString().ToLowerInvariant()}":"";
+                builder.AppendLine($"    [global::Seamless.Database.ImportedDatabaseColumn({Literal(column.Source.Name)},{column.Source.Type.MaximumLength??-1},{Literal(column.Source.Type.SqlTypeName)},{Literal(column.Source.Type.Collation)},IsSynthetic={column.Source.IsSynthetic.ToString().ToLowerInvariant()}{precision}{scale}{xml})]");
             }
             if(column.Source.ComputedDefinition is not null){builder.AppendLine($"    [global::Seamless.Database.ComputedColumn({column.Source.Ordinal})]");}
             builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
@@ -398,6 +405,10 @@ public static partial class CSharpDatabaseGenerator {
         var canonical = new StringBuilder();
         Append(canonical,catalog.Name);
         if(catalog.DefaultCollation is not null){Append(canonical,"DatabaseCollation");Append(canonical,catalog.DefaultCollation);}
+        // XML スキーマコレクションは、ある DB だけ指紋に混ぜる(無い DB の指紋は前と同じ)。
+        foreach(var collection in catalog.XmlSchemaCollections.OrderBy(static value=>value.Schema,StringComparer.Ordinal).ThenBy(static value=>value.Name,StringComparer.Ordinal)){
+            Append(canonical,"XmlSchemaCollection");Append(canonical,collection.Schema);Append(canonical,collection.Name);Append(canonical,collection.Definition);
+        }
         foreach(var schema in catalog.Schemas.OrderBy(static value=>value.Name,StringComparer.Ordinal)) {
             Append(canonical,schema.Name);
             foreach(var table in schema.Tables.OrderBy(static value=>value.Name,StringComparer.Ordinal)) {
@@ -523,6 +534,7 @@ public static partial class CSharpDatabaseGenerator {
         Append(builder,type.SourceMaximumLength?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
         Append(builder,type.SourcePrecision?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
         Append(builder,type.SourceScale?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
+        if(type.XmlSchemaCollectionName is not null){Append(builder,"XmlSchemaCollection");Append(builder,type.XmlSchemaCollectionSchema??string.Empty);Append(builder,type.XmlSchemaCollectionName);Append(builder,type.IsXmlDocument.ToString());}
         if(type.ResultSqlTypeName is not null||type.ResultMaximumLength is not null){Append(builder,"ResultSqlType");Append(builder,type.ResultSqlTypeName??string.Empty);Append(builder,type.ResultMaximumLength?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);}
     }
 

@@ -1,7 +1,7 @@
 namespace Seamless.Management.Server;
 
 /// <summary>画面の回線が残っていても、新しい管理操作の受付時にセッションを検査する。</summary>
-public sealed class BrowserManagementOperations:IManagementOperations,IManagementSourceOperations{
+public sealed partial class BrowserManagementOperations:IManagementOperations,IManagementSourceOperations{
     public Task<CatalogPage<CatalogSchema>> SchemasAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.SchemasAsync(request,cancellationToken));
     public Task<CatalogObjectDetails> GetObjectDetailsAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.GetObjectDetailsAsync(request,cancellationToken));
     public Task<QueryTracePage> QueryTraceAsync(QueryTraceQuery query,CancellationToken cancellationToken=default)=>this.InvokeTraceAsync(()=>this.operations.QueryTraceAsync(query,cancellationToken));

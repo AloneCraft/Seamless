@@ -86,6 +86,20 @@ public static partial class CSharpDatabaseGenerator{
             columns.Where(static column=>!column.Source.IsSynthetic).Select(static column=>new ViewTranslationColumn(column.Source.Name,FileName(column.Name),column.Source.Type)).ToArray(),isView);
 
     // 中身を訳していない関数と手続きは、呼ぶと NotSupportedException になる。下書きは生成した呼び口そのもの。
+    // 型付きの xml の列。値はそのまま取り込むが、Seamless で書き換えるときに XML スキーマコレクションの形の検査をしない(残った差)。
+    private static IEnumerable<CompatibilityIssue> XmlSchemaIssues(DatabaseCatalog catalog){
+        foreach(var schema in catalog.Schemas){
+            foreach(var table in schema.Tables){
+                foreach(var column in table.Columns.Where(static column=>column.Type.XmlSchemaCollectionName is not null)){
+                    yield return new(CompatibilityObjectKind.Column,schema.Name,table.Name,column.Name,"XML_SCHEMA",
+                        $"列は XML スキーマコレクション {column.Type.XmlSchemaCollectionSchema}.{column.Type.XmlSchemaCollectionName} に従う型付きの xml。取り込んだ値はそのまま持つが、Seamless で値を書き換えるときに形の検査をしないので、形に合わない XML も入る。",
+                        [new("ValidateInCode","値を書き換える処理の中で、XML Schema に照らして検査する(System.Xml.Schema の XmlSchemaSet に、元の決まりの本文を読み込む)。"),
+                         new("ExportCheck","SQL Server へ書き出すときは型付きの列に戻すので、形に合わない値はそのとき SQL Server が断る。")]);
+                }
+            }
+        }
+    }
+
     private static IEnumerable<CompatibilityIssue> RoutineIssues(IReadOnlyList<GeneratedRoutineBinding> routines){
         foreach(var routine in routines.Where(static routine=>routine.IsStub)){
             var kind=routine.Kind switch{

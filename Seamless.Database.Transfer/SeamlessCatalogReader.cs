@@ -33,6 +33,7 @@ public static class SeamlessCatalogReader{
     private const string ColumnAttribute="Seamless.Database.ImportedDatabaseColumnAttribute";
     private const string ViewAttribute="Seamless.Database.ImportedDatabaseViewAttribute";
     private const string RoutineAttribute="Seamless.Database.ImportedDatabaseRoutineAttribute";
+    private const string XmlSchemaCollectionAttribute="Seamless.Database.ImportedDatabaseXmlSchemaCollectionAttribute";
     private const string ForeignKeyAttributeName="Seamless.Database.ForeignKeyAttribute";
 
     /// <summary>コンテナの型から目録を読む。</summary>
@@ -126,7 +127,8 @@ public static class SeamlessCatalogReader{
             .Select(static data=>new ExportSourceDefinition((string)data.ConstructorArguments[0].Value!,(string)data.ConstructorArguments[1].Value!,(string)data.ConstructorArguments[2].Value!)).ToArray();
         var views=Definitions(ViewAttribute);
         // DB の既定の照合順序は生成物に残していない。列ごとの照合順序は元の型と一緒に戻す。
-        return new(new DatabaseCatalog(containerType.Name,schemas),exports,views,issues){Routines=Definitions(RoutineAttribute)};
+        var collections=Definitions(XmlSchemaCollectionAttribute).Select(static item=>new XmlSchemaCollectionCatalog(item.Schema,item.Name,item.Definition)).ToArray();
+        return new(new DatabaseCatalog(containerType.Name,schemas){XmlSchemaCollections=collections},exports,views,issues){Routines=Definitions(RoutineAttribute)};
     }
 
     // C# で書いた表は、コンテナからたどる名前の最後が表、その前がスキーマ。スキーマの無い表は dbo。
@@ -156,7 +158,12 @@ public static class SeamlessCatalogReader{
         byte? precision=imported.NamedArguments.Any(static argument=>argument.MemberName=="Precision")?(byte)Named<int>(imported,"Precision"):null;
         byte? scale=imported.NamedArguments.Any(static argument=>argument.MemberName=="Scale")?(byte)Named<int>(imported,"Scale"):null;
         var kind=NativeType(clrType,nullable)?.Kind??DatabaseTypeKind.Binary;
-        return new(kind,nullable,maximumLength<0?null:maximumLength,precision,scale,null,sqlTypeName,collation);
+        // 型付きの xml の列は、従う XML スキーマコレクションと、文書か断片かも戻す。
+        return new(kind,nullable,maximumLength<0?null:maximumLength,precision,scale,null,sqlTypeName,collation){
+            XmlSchemaCollectionSchema=Named<string?>(imported,"XmlSchemaCollectionSchema"),
+            XmlSchemaCollectionName=Named<string?>(imported,"XmlSchemaCollectionName"),
+            IsXmlDocument=Named<bool>(imported,"IsXmlDocument"),
+        };
     }
 
     // C# の型から、値を変えずに持てる SQL Server の型にする。持てない型は null。

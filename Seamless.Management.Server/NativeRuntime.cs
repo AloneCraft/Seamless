@@ -141,7 +141,7 @@ internal sealed partial class NativeRuntime:IDisposable{
         if(this.databases.TryGetValue(version.Definition.Id,out var cached)&&(cached.Path!=path||cached.Compiled.Result.ArtifactHash!=version.ArtifactHash)){if(this.databases.TryRemove(version.Definition.Id,out var stale)){stale.Dispose();}}
         return this.databases.GetOrAdd(version.Definition.Id,_=>{var instance=new DatabaseInstance(version.Definition,path,this.ReadArtifact(version));try{instance.Open();this.AuditOriginOpened(version,instance);return instance;}catch{instance.Dispose();throw;}});
     }
-    internal void Publish(Definition definition,CancellationToken cancellationToken,Action<PreparedPublication> commit,string? backupPath=null,Guid? enableAuditGeneration=null,Action<string,long>? migrationCheckpoint=null,CompiledSource? selected=null){
+    internal void Publish(Definition definition,CancellationToken cancellationToken,Action<PreparedPublication> commit,string? backupPath=null,Guid? enableAuditGeneration=null,Action<string,long>? migrationCheckpoint=null,CompiledSource? selected=null,Action<DatabaseInstance,CancellationToken>? fill=null){
         var databaseId=definition.Id;if(definition.Kind==DefinitionKind.Query){databaseId=this.DatabaseDefinition(this.store.CurrentDatabase(definition)).Definition.Id;}var gate=this.Gate("db:"+databaseId);gate.Wait(cancellationToken);
         try{
             if(selected is not null&&(selected.ImportedBuild is null||selected.ImportedBuild.Build.DefinitionHash!=definition.Hash()||selected.Result.SourceHash!=definition.Source.Hash())){throw new ManagementException("Conflict","適用定義と選択済み成果物が一致しません。");}
@@ -154,7 +154,8 @@ internal sealed partial class NativeRuntime:IDisposable{
             if(enableAuditGeneration is not null){auditWrites=true;}
             var candidate=this.Save(definition,compiled,old?.Version??0,auditWrites:auditWrites);var instance=new DatabaseInstance(definition,this.Full(System.IO.Path.Combine(candidate.StoragePath,"data")),compiled.Retain());
             try{
-                instance.Open();if(old is not null){if(enableAuditGeneration is not null){TypedMigration.Copy(this.Open(old),instance,cancellationToken,migration:null,checkpoint:migrationCheckpoint);}else{this.Copy(this.Open(old),instance,cancellationToken);}CopyDirectSets(this.Open(old).Database,instance.Database,cancellationToken);}
+                // 外部DBの取り込み(fill)は、古い世代から写さずに、取り込み元の行で新しい世代を作る(置き換えるときの古い世代はバックアップに残す)。
+                instance.Open();if(fill is not null){fill(instance,cancellationToken);}else if(old is not null){if(enableAuditGeneration is not null){TypedMigration.Copy(this.Open(old),instance,cancellationToken,migration:null,checkpoint:migrationCheckpoint);}else{this.Copy(this.Open(old),instance,cancellationToken);}CopyDirectSets(this.Open(old).Database,instance.Database,cancellationToken);}
                 var rebuilt=new List<PreparedDefinition>();long cursor=0;
                 do{var page=this.store.List<DefinitionVersion>("active",cursor,predicate:item=>item.Database==this.store.CurrentDatabase(definition)&&item.Definition.Kind==DefinitionKind.Query);
                     foreach(var query in page.Items){cancellationToken.ThrowIfCancellationRequested();var result=this.CompileQuery(query.Definition,compiled.AssemblyBytes);rebuilt.Add(this.Save(query.Definition,result,query.Version,candidate.ArtifactHash));}

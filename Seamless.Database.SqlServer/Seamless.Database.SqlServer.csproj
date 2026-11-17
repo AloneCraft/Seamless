@@ -21,6 +21,8 @@
     <ProjectReference Include="..\Seamless.Database.Rdbms\Seamless.Database.Rdbms.csproj" />
     <!-- 取り込むビューを C# のビューへ訳す(T-SQL 翻訳器の段階4)。 -->
     <ProjectReference Include="..\Seamless.Database.SqlTranslation\Seamless.Database.SqlTranslation.csproj" />
+    <!-- bit の型(Types.Bit)はここにある(取り込んだ DB の成果物が SqlClient を持たずに済むよう移した)。 -->
+    <ProjectReference Include="..\Seamless.Database.SqlServer.Functions\Seamless.Database.SqlServer.Functions.csproj" />
     <!-- 書き出し(SqlServerDatabaseExporter)が、DB の定義の読み直し(SeamlessCatalogReader)と取り込みの進み具合の型を使う。 -->
     <ProjectReference Include="..\Seamless.Database.Transfer\Seamless.Database.Transfer.csproj" />
   </ItemGroup>
