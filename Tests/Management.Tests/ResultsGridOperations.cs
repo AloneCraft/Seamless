@@ -41,6 +41,23 @@ public sealed class ResultsGridOperations{
             Invoke(grid,"行追加開始");Assert.Empty((IList)Get(grid,"新規行")!);await grid.保存実行Async();((TestGrid)grid).Refresh();Assert.Null(operations.Saved);Assert.Contains("行を変更する権限がありません。",System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString()));
         });
     }
+    [Fact]public async Task InitialReadFailureShowsRetryAndOnlySuccessfulEmptyMetadataShowsMissingColumns(){
+        var operations=new GridOperations{Read=(_,_)=>Task.FromException<TableRows>(new ManagementException("BuildMismatch","Database DLL mismatch"))};
+        using var provider=Services(operations);
+        await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async()=>{
+            var rendered=await renderer.RenderComponentAsync<TestGrid>(Parameters("First"));
+            var html=System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.Contains("Database DLL mismatch",html);
+            Assert.Contains("再読込",html);
+            Assert.DoesNotContain("列が定義されていません",html);
+            operations.Read=(_,_)=>Task.FromResult(Page([]) with{Columns=[]});
+            await operations.Component!.再読込Async();
+            html=System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.DoesNotContain("Database DLL mismatch",html);
+            Assert.Contains("列が定義されていません",html);
+        });
+    }
     [Fact]public async Task EmptyTableSupportsInsertionAndKeyReplacementWithVisibleConfirmation(){
         var operations=new GridOperations();var empty=Page([]);operations.Read=(_,_)=>Task.FromResult(empty);
         using var provider=Services(operations);await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
