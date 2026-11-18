@@ -6,7 +6,6 @@
     <Project Path="Seamless/Database/Client/Client.csproj" />
     <Project Path="Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
     <Project Path="Seamless/Management/Manager.csproj" />
-    <Project Path="aaa/11.csproj" />
   </Folder>
   <Folder Name="/Main/SourceGenerator/">
     <Project Path="Seamless/Database/Generator/Generator.csproj" />
