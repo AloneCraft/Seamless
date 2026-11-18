@@ -9,6 +9,13 @@
     <ShouldUnsetParentConfigurationAndPlatform Condition="'$(ShouldUnsetParentConfigurationAndPlatform)'==''">false</ShouldUnsetParentConfigurationAndPlatform>
   </PropertyGroup>
 
+  <!-- IDE の共有 DLL は公開済み DB がファイルの指紋で参照する。
+       管理画面だけのコミットで、共有ライブラリと生成器の指紋が変わらないようにする。 -->
+  <PropertyGroup Condition="'$(Configuration)'=='Debug' And ('$(MSBuildProjectName)'=='Compiler' Or '$(MSBuildProjectName)'=='Generator' Or '$(MSBuildProjectName)'=='Runtime' Or '$(MSBuildProjectName)'=='Database' Or '$(MSBuildProjectName)'=='Client' Or '$(MSBuildProjectName)'=='Tsavorite.Core')">
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
   <!-- NuGet 共通メタデータ。出荷対象プロジェクトが IsPackable=true で上書きする。 -->
   <PropertyGroup>
     <Version>0.0.0</Version>

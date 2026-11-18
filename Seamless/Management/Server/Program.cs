@@ -24,6 +24,7 @@ public static partial class Program{
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("初回設定: setup-local --root <新しい保存先> --admin <管理者> --config <起動設定ファイル> / 既存登録: configure-local --root <保存先> --certificate <pfx> --config <起動設定ファイル> / 起動: serve --config <起動設定ファイル> またはIDE用 serve --workspace-config。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("既存DBへ更新監査を導入: enable-update-audit --root <停止中の管理領域> --database <DB名> --backup <空の退避先> [--operation-id <GUID>] / 結果照会: get-operation --root <停止中の管理領域> --operation-id <GUID>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("空DBの公開版を復旧: rebuild-empty-database --root <停止中の管理領域> --database-id <定義ID> --version <公開版> --artifact <成果物SHA-256> --backup <空の退避先> --verification-copy <空の検証先> --verifier <旧依存DLLで動かす検証用実行ファイル>。");}
+            if(args.Length==0||args[0]=="--help"){Console.WriteLine("主キー付き表の行を保持してDBを現ホスト向けに復旧: rebuild-database-host。引数は rebuild-empty-database と同じです。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("通常読み取りの集計: 形式5では既定で1分単位・5秒ごとに保存。--read-audit-window-seconds <秒数>と--read-audit-save-seconds <秒数>で変更、--no-read-auditで停止。旧形式の自動更新は行いません。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("分割WALへの明示移行は upgrade-prepared-wal --root <停止中の形式5管理領域> --backup <空の退避先>。中断時の明示取消は rollback-prepared-wal-upgrade --root <管理領域>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("利用者・設定の型付き行への明示移行は upgrade-managed-types --root <停止中の形式6管理領域> --backup <空の退避先>。中断時の取消は rollback-managed-types-upgrade --root <管理領域>。");}
@@ -39,16 +40,16 @@ public static partial class Program{
                 if(!long.TryParse(value,global::System.Globalization.NumberStyles.None,global::System.Globalization.CultureInfo.InvariantCulture,out var number)||number<=0){throw new ArgumentException(name+" には正の整数を指定してください。");}
                 return number;
             }
-            if(args[0] is "rebuild-empty-database" or "verify-empty-database"){
+            if(args[0] is "rebuild-empty-database" or "verify-empty-database" or "rebuild-database-host" or "export-database-for-host-rebuild"){
                 var recoveryRoot=Required("--root");var id=Required("--database-id");var artifact=Required("--artifact");
                 var version=OptionalPositiveNumber("--version")??throw new ArgumentException("--version が必要です。");
-                if(args[0]=="verify-empty-database"){
+                if(args[0] is "verify-empty-database" or "export-database-for-host-rebuild"){
                     Console.OutputEncoding=new System.Text.UTF8Encoding(false);
-                    Console.WriteLine(EmptyDatabaseRebuild.Verify(recoveryRoot,id,version,artifact));return 0;
+                    Console.WriteLine(EmptyDatabaseRebuild.Verify(recoveryRoot,id,version,artifact,args[0]=="export-database-for-host-rebuild"?Required("--output"):null));return 0;
                 }
                 using var cancellation=new CancellationTokenSource();ConsoleCancelEventHandler commandCancel=(_,eventArgs)=>{eventArgs.Cancel=true;cancellation.Cancel();};Console.CancelKeyPress+=commandCancel;
                 try{
-                    var rebuilt=EmptyDatabaseRebuild.Run(recoveryRoot,id,version,artifact,Required("--backup"),Required("--verification-copy"),Required("--verifier"),cancellation.Token);
+                    var rebuilt=EmptyDatabaseRebuild.Run(recoveryRoot,id,version,artifact,Required("--backup"),Required("--verification-copy"),Required("--verifier"),cancellation.Token,preserveRows:args[0]=="rebuild-database-host");
                     Console.WriteLine(JsonSerializer.Serialize(rebuilt,ManagementJson.Options));return 0;
                 }finally{Console.CancelKeyPress-=commandCancel;}
             }

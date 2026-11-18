@@ -141,7 +141,7 @@ internal sealed partial class NativeRuntime:IDisposable{
         if(this.databases.TryGetValue(version.Definition.Id,out var cached)&&(cached.Path!=path||cached.Compiled.Result.ArtifactHash!=version.ArtifactHash)){if(this.databases.TryRemove(version.Definition.Id,out var stale)){stale.Dispose();}}
         return this.databases.GetOrAdd(version.Definition.Id,_=>{var instance=new DatabaseInstance(version.Definition,path,this.ReadArtifact(version));try{instance.Open();this.AuditOriginOpened(version,instance);return instance;}catch{instance.Dispose();throw;}});
     }
-    internal void Publish(Definition definition,CancellationToken cancellationToken,Action<PreparedPublication> commit,string? backupPath=null,Guid? enableAuditGeneration=null,Action<string,long>? migrationCheckpoint=null,CompiledSource? selected=null,Action<DatabaseInstance,CancellationToken>? fill=null){
+    internal void Publish(Definition definition,CancellationToken cancellationToken,Action<PreparedPublication> commit,string? backupPath=null,Guid? enableAuditGeneration=null,Action<string,long>? migrationCheckpoint=null,CompiledSource? selected=null,Action<DatabaseInstance,CancellationToken>? fill=null,Action<DatabaseInstance,CancellationToken>? verifyReopened=null){
         var databaseId=definition.Id;if(definition.Kind==DefinitionKind.Query){databaseId=this.DatabaseDefinition(this.store.CurrentDatabase(definition)).Definition.Id;}var gate=this.Gate("db:"+databaseId);gate.Wait(cancellationToken);
         try{
             if(selected is not null&&(selected.ImportedBuild is null||selected.ImportedBuild.Build.DefinitionHash!=definition.Hash()||selected.Result.SourceHash!=definition.Source.Hash())){throw new ManagementException("Conflict","適用定義と選択済み成果物が一致しません。");}
@@ -162,6 +162,7 @@ internal sealed partial class NativeRuntime:IDisposable{
                     cursor=page.NextCursor;if(!page.HasMore){break;}
                 }while(true);
                 instance.Dispose();instance=new(definition,this.Full(System.IO.Path.Combine(candidate.StoragePath,"data")),compiled.Retain());instance.Open();cancellationToken.ThrowIfCancellationRequested();
+                verifyReopened?.Invoke(instance,cancellationToken);
                 candidate=candidate with{AuditOrigin=this.CreateAuditOrigin(candidate,instance)};commit(new(candidate,rebuilt.ToArray()));
                 if(this.databases.TryRemove(definition.Id,out var previous)){previous.Dispose();}this.databases[definition.Id]=instance;instance=null!;
             }finally{instance?.Dispose();}
