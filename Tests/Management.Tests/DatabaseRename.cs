@@ -165,7 +165,11 @@ public sealed class DatabaseRename{
         component.GetType().GetMethod("DB名前変更開始時",flags)!.Invoke(component,[service.Databases(Admin()).Items.Single(item=>item.Id=="db:db")]);
         await Invoke("DB名前変更確定時Async","Taken");Assert.Equal("db:db",Field("DB名前変更ID"));Assert.True((bool)Field("エラーか")!);
         await Invoke("DB名前変更確定時Async","After");Assert.Null(Field("DB名前変更ID"));
-        Assert.Equal("After",((CatalogDatabase[])Field("DB一覧")!).Single(item=>item.Id=="db:db").Name);
-        var documents=(Dictionary<string,Document>)Field("文書一覧")!;Assert.Equal("After",documents["db:db"].DB.Name);
+        var catalog=Assert.Single((CatalogDatabase[])Field("DB一覧")!,item=>item.Id=="db:db");
+        Assert.Equal("Before",catalog.Name);
+        Assert.Equal("After",component.GetType().GetMethod("DB表示名",flags)!.Invoke(component,[catalog]));
+        var documents=(Dictionary<string,Document>)Field("文書一覧")!;
+        Assert.Equal(new DatabaseDraftChange("Before","After"),documents["db:db"].DB変更);
+        Assert.Equal("Before",Assert.Single(service.Databases(Admin()).Items,item=>item.Id=="db:db").Name);
     }
 }

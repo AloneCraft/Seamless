@@ -7,14 +7,17 @@ internal sealed class 文書状態{
         this.DB=情報;
     }
     public Definition 定義{get;set;}
-    private Definition 公開定義;
+    private Definition? 公開定義;
     private HashSet<(string 種類,string ID)>? 公開オブジェクト;
     public bool 公開済みか(string 種類,string ID){
+        if(this.公開定義 is null){return false;}
         this.公開オブジェクト??=DatabaseDesigner.Objects(this.公開定義).Select(項目=>(項目.Kind,項目.Id)).ToHashSet();
         return this.公開オブジェクト.Contains((種類,ID));
     }
     private string 公開ハッシュ;
     private string 保存済みハッシュ;
+    private DatabaseDraftChange? 保存済みDB変更;
+    public DatabaseDraftChange? DB変更{get;set;}
     public long 下書き版{get;private set;}
     public long 基準版{get;private set;}
     public string 選択ファイル{get;set;}
@@ -39,8 +42,8 @@ internal sealed class 文書状態{
         if(this.選択成果物 is null||this.未確定操作 is not null){this.取込済み成果物=前;return false;}
         this.プレビュー=null;return true;
     }
-    public bool 未適用か=>this.定義.Hash()!=this.公開ハッシュ;
-    public bool 未保管か=>this.定義.Hash()!=this.保存済みハッシュ;
+    public bool 未適用か=>this.基準版==0||this.DB変更 is not null||this.定義.Hash()!=this.公開ハッシュ;
+    public bool 未保管か=>this.DB変更!=this.保存済みDB変更||this.定義.Hash()!=this.保存済みハッシュ;
     public string コード=>this.定義.Source.Files.First(ファイル=>ファイル.Path==this.選択ファイル).Text;
     public string 状態{
         get{
@@ -49,26 +52,29 @@ internal sealed class 文書状態{
             return "すべての変更を公開済み";
         }
     }
-    public 文書状態(CatalogDatabase DB,DefinitionVersion 公開,Draft? 下書き){
+    public 文書状態(CatalogDatabase DB,DefinitionVersion? 公開,Draft? 下書き){
         this.DB=DB;
-        this.定義=公開.Definition.Freeze() with{Migration=null};
-        this.公開定義=this.定義;
-        this.基準版=公開.Version;
-        this.公開ハッシュ=this.定義.Hash();
+        this.定義=公開 is null?下書き!.Definition.Freeze():公開.Definition.Freeze() with{Migration=null};
+        this.公開定義=公開 is null?null:this.定義;
+        this.基準版=公開?.Version??0;
+        this.公開ハッシュ=公開 is null?"":this.定義.Hash();
         if(下書き is not null){
             this.下書き版=下書き.Revision;
-            if(下書き.Definition.Hash()!=公開.Definition.Hash()){
+            if(公開 is null||下書き.Definition.Hash()!=公開.Definition.Hash()){
                 this.定義=下書き.Definition.Freeze();
                 this.基準版=下書き.BaseVersion;
             }
+            this.DB変更=下書き.DatabaseChange;
         }
-        this.保存済みハッシュ=this.定義.Hash();
+        this.保存済みDB変更=this.DB変更;
+        this.保存済みハッシュ=公開 is null&&this.下書き版==0?"":this.定義.Hash();
         this.選択ファイル=this.定義.Source.Files[0].Path;
     }
     public void 保管完了(Definition 保存対象,Draft 結果){
         if(ReferenceEquals(this.定義,保存対象)){this.定義=結果.Definition.Freeze();}
         this.下書き版=結果.Revision;
         this.保存済みハッシュ=結果.Definition.Hash();
+        this.保存済みDB変更=結果.DatabaseChange;
         this.プレビュー=null;
     }
     public bool プレビューを設定(Definition 検証対象,ChangePreview 結果){
@@ -79,6 +85,7 @@ internal sealed class 文書状態{
     public void 公開完了(long 版){
         this.未確定操作=null;
         this.基準版=版;
+        this.DB変更=null;this.保存済みDB変更=null;
         // 適用済みの移行設定を次の編集へ持ち越すと、既存の表を新規表として扱ってしまう。
         this.定義=this.定義 with{Migration=null};
         this.公開定義=this.定義;this.公開オブジェクト=null;

@@ -32,6 +32,8 @@ internal sealed class AuthenticatedManagementOperations(ConcurrentManagementOper
     public Task<CatalogPage<CatalogObject>> ObjectsAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.Objects(user,request),cancellationToken);
     public Task<Draft> GetDraftAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.GetDraft(user,id),cancellationToken);
     public Task<Draft?> FindDraftAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.FindDraft(user,id),cancellationToken);
+    public Task<Page<DraftSummary>> UnpublishedDatabasesAsync(long cursor=0,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync((service,user)=>service.UnpublishedDatabases(user,cursor),cancellationToken);
     public Task<DefinitionVersion> GetDefinitionAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.GetDefinition(user,id),cancellationToken);
     public Task<Draft> SaveDraftAsync(SaveDraftRequest request,CancellationToken cancellationToken=default){
         var frozen=request with{Definition=request.Definition.Freeze()};

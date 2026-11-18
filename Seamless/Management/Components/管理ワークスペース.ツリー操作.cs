@@ -8,7 +8,7 @@ public partial class 管理ワークスペース{
     // コマンドパレット(Ctrl+K)は従来どおり全操作を検索できる。
     private bool ツリーメニュー操作か(管理対象 対象,string ID){
         if(this.パレットか){return true;}
-        if(対象.種類=="DB"){return ID is "DB名変更" or "全ソース";}
+        if(対象.種類=="DB"){return ID is "DB名変更" or "DB削除" or "全ソース";}
         if(対象.種類=="分類"){return ID=="全ソース";}
         if(対象.種類 is "表" or "問い合わせ"){return ID is "対象名前変更" or "対象コピー" or "対象削除" or "生成コード";}
         if(対象.種類=="スキーマ"){return ID is "生成コード" or "スキーマ削除";}

@@ -32,11 +32,20 @@ public sealed record DefinitionVersion(Definition Definition,long Version,string
 public sealed record DefinitionHeader(string Id,string Database,DefinitionKind Kind,string EntryType,string EntryMember,bool WritesData);
 public sealed record DefinitionSummary(DefinitionHeader Definition,long Version,string Owner,DateTimeOffset CreatedAt,string ArtifactHash);
 public sealed record PublishedDefinitionInfo(DefinitionHeader Definition,long Version,string ArtifactHash,AuditQueryInfo? Method=null);
-public sealed record Draft(Definition Definition,string Owner,long Revision,long BaseVersion,DateTimeOffset SavedAt);
+public sealed record DatabaseDraftChange(string? ExpectedName,string? NewName=null,bool Delete=false);
+public sealed record Draft(Definition Definition,string Owner,long Revision,long BaseVersion,DateTimeOffset SavedAt){
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public DatabaseDraftChange? DatabaseChange{get;init;}
+}
 public sealed record DraftLookup(Draft? Draft);
 public sealed record DraftSummary(DefinitionHeader Definition,long Revision,long BaseVersion,DateTimeOffset SavedAt);
 public sealed record SaveDraftRequest(Definition Definition,long ExpectedRevision,long BaseVersion,
-    [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]long? ExpectedPublishedVersion=null);
+    [property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]long? ExpectedPublishedVersion=null){
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public DatabaseDraftChange? DatabaseChange{get;init;}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ClearDatabaseChange{get;init;}
+}
 public sealed record DraftKey(string Id,long Revision){
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? BundleHash{get;init;}

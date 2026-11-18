@@ -194,10 +194,15 @@ internal sealed partial class NativeRuntime:IDisposable{
         try{return RuntimeValueJson.Deserialize(RuntimeValueJson.Serialize(row),type)??throw new InvalidDataException("null");}
         catch(Exception error) when(error is not OperationCanceledException and not ManagementException){throw new ManagementException("Validation","取引を通さない表の行の形が新しい定義と合わないため、写せません: "+path+"（"+error.Message+"）");}
     }
-    private void BackupGeneration(DefinitionVersion version,string destination,CancellationToken cancellation){
-        if(Directory.Exists(destination)||File.Exists(destination)){throw new IOException("バックアップ先は未使用の場所を指定してください。");}
+    internal void BackupGeneration(DefinitionVersion version,string destination,CancellationToken cancellation){
         if(this.databases.TryRemove(version.Definition.Id,out var active)){active.Dispose();}
-        var source=this.Full(version.StoragePath);Directory.CreateDirectory(destination);
+        CopyGenerationDirectory(this.Full(version.StoragePath),destination,cancellation);
+        File.WriteAllText(System.IO.Path.Combine(destination,"definition-version.json"),JsonSerializer.Serialize(version,ManagementJson.Options));
+    }
+    internal static void CopyGenerationDirectory(string source,string destination,CancellationToken cancellation){
+        if(Directory.Exists(destination)||File.Exists(destination)){throw new IOException("コピー先は未使用の場所を指定してください。");}
+        SourceWorkspace.CheckLinks(destination);
+        Directory.CreateDirectory(destination);
         void CopyDirectory(string from,string to){
             if((File.GetAttributes(from)&FileAttributes.ReparsePoint)!=0){throw new IOException("バックアップ対象にリンクがあります。");}
             foreach(var entry in Directory.EnumerateFileSystemEntries(from)){
@@ -205,7 +210,7 @@ internal sealed partial class NativeRuntime:IDisposable{
                 var target=System.IO.Path.Combine(to,System.IO.Path.GetFileName(entry));if((attributes&FileAttributes.Directory)!=0){Directory.CreateDirectory(target);CopyDirectory(entry,target);}else{File.Copy(entry,target,false);}
             }
         }
-        CopyDirectory(source,destination);File.WriteAllText(System.IO.Path.Combine(destination,"definition-version.json"),JsonSerializer.Serialize(version,ManagementJson.Options));
+        CopyDirectory(source,destination);
     }
     internal ValidationDatabase CreateValidation(DefinitionVersion version,string owner){
         if(version.Definition.Kind!=DefinitionKind.Database){throw new ManagementException("Validation","DB定義を選択してください。");}

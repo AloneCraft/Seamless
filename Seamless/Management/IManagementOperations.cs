@@ -19,6 +19,8 @@ public interface IManagementOperations{
     Task<AuthorizationChangeResult> AuthorizationChangeResultAsync(Guid operationId,CancellationToken cancellationToken=default)=>Task.FromException<AuthorizationChangeResult>(new ManagementException("Unsupported","共通ロール管理に対応していません。"));
     Task<ServerInfo> InfoAsync(CancellationToken cancellationToken=default);
     Task<CatalogPage<CatalogDatabase>> DatabasesAsync(long cursor=0,string versionToken="",CancellationToken cancellationToken=default);
+    Task<Page<DraftSummary>> UnpublishedDatabasesAsync(long cursor=0,CancellationToken cancellationToken=default)=>
+        Task.FromException<Page<DraftSummary>>(new ManagementException("Unsupported","この接続は未公開DBの一覧に対応していません。"));
     Task<CatalogDatabase> RenameDatabaseAsync(RenameDatabaseRequest request,CancellationToken cancellationToken=default)=>
         Task.FromException<CatalogDatabase>(new ManagementException("Unsupported","この接続はDB名変更に対応していません。"));
     Task<CatalogPage<CatalogObject>> ObjectsAsync(CatalogRequest request,CancellationToken cancellationToken=default);

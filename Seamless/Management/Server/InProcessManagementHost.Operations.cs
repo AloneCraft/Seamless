@@ -22,6 +22,8 @@ public sealed partial class InProcessManagementHost{
     public Draft? FindDraft(string id)=>this.Invoke((service,user)=>service.FindDraft(user,id));
     public Task<Draft?> FindDraftAsync(string id,CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.FindDraft(user,id),cancellationToken).AsTask();
+    public Task<Page<DraftSummary>> UnpublishedDatabasesAsync(long cursor=0,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync((service,user)=>service.UnpublishedDatabases(user,cursor),cancellationToken).AsTask();
     public DefinitionVersion GetDefinition(string id)=>this.Invoke((service,user)=>service.GetDefinition(user,id));
     public Task<DefinitionVersion> GetDefinitionAsync(string id,CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.GetDefinition(user,id),cancellationToken).AsTask();

@@ -21,6 +21,8 @@ public sealed partial class ManagementClient{
         this.CallAsync<UserProfile>("editUserProfile","*",request.Freeze(),cancellationToken);
     public Task<CatalogDatabase> RenameDatabaseAsync(RenameDatabaseRequest request,CancellationToken cancellationToken=default)=>
         this.CallAsync<CatalogDatabase>("renameDatabase",request.ExpectedName,request,cancellationToken);
+    public Task<Page<DraftSummary>> UnpublishedDatabasesAsync(long cursor=0,CancellationToken cancellationToken=default)=>
+        this.CallAsync<Page<DraftSummary>>("unpublishedDatabases","",new{cursor},cancellationToken);
     public Task<CatalogPage<CatalogObject>> ObjectsAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>
         this.CallAsync<CatalogPage<CatalogObject>>("catalogObjects","",request,cancellationToken);
     public Task<Draft> GetDraftAsync(string id,CancellationToken cancellationToken=default)=>

@@ -43,6 +43,8 @@ public sealed partial class BrowserManagementOperations:IManagementOperations,IM
         this.InvokeAsync(()=>this.operations.ObjectsAsync(request,cancellationToken));
     public Task<Draft> GetDraftAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.GetDraftAsync(id,cancellationToken));
     public Task<Draft?> FindDraftAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.FindDraftAsync(id,cancellationToken));
+    public Task<Page<DraftSummary>> UnpublishedDatabasesAsync(long cursor=0,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync(()=>this.operations.UnpublishedDatabasesAsync(cursor,cancellationToken));
     public Task<DefinitionVersion> GetDefinitionAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.GetDefinitionAsync(id,cancellationToken));
     public Task<Draft> SaveDraftAsync(SaveDraftRequest request,CancellationToken cancellationToken=default){
         var frozen=request with{Definition=request.Definition.Freeze()};

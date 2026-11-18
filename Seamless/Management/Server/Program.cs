@@ -25,6 +25,7 @@ public static partial class Program{
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("既存DBへ更新監査を導入: enable-update-audit --root <停止中の管理領域> --database <DB名> --backup <空の退避先> [--operation-id <GUID>] / 結果照会: get-operation --root <停止中の管理領域> --operation-id <GUID>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("空DBの公開版を復旧: rebuild-empty-database --root <停止中の管理領域> --database-id <定義ID> --version <公開版> --artifact <成果物SHA-256> --backup <空の退避先> --verification-copy <空の検証先> --verifier <旧依存DLLで動かす検証用実行ファイル>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("主キー付き表の行を保持してDBを現ホスト向けに復旧: rebuild-database-host。引数は rebuild-empty-database と同じです。");}
+            if(args.Length==0||args[0]=="--help"){Console.WriteLine("削除したDBをバックアップから復元: restore-deleted-database --root <停止中の管理領域> --operation-id <削除の操作ID>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("通常読み取りの集計: 形式5では既定で1分単位・5秒ごとに保存。--read-audit-window-seconds <秒数>と--read-audit-save-seconds <秒数>で変更、--no-read-auditで停止。旧形式の自動更新は行いません。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("分割WALへの明示移行は upgrade-prepared-wal --root <停止中の形式5管理領域> --backup <空の退避先>。中断時の明示取消は rollback-prepared-wal-upgrade --root <管理領域>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("利用者・設定の型付き行への明示移行は upgrade-managed-types --root <停止中の形式6管理領域> --backup <空の退避先>。中断時の取消は rollback-managed-types-upgrade --root <管理領域>。");}
@@ -64,6 +65,13 @@ public static partial class Program{
                 try{Console.WriteLine(JsonSerializer.Serialize(new{operationId=id,phase="Requested"},ManagementJson.Options));var result=UpdateAuditUpgrade.Enable(Required("--root"),Required("--database"),Required("--backup"),id,cancellation.Token);Console.WriteLine(JsonSerializer.Serialize(result,ManagementJson.Options));if(result.State==OperationState.Succeeded){return 0;}return 1;}finally{Console.CancelKeyPress-=commandCancel;}
             }
             if(args[0]=="get-operation"){var result=UpdateAuditUpgrade.GetOperation(Required("--root"),Guid.Parse(Required("--operation-id")));Console.WriteLine(JsonSerializer.Serialize(result,ManagementJson.Options));return 0;}
+            if(args[0]=="restore-deleted-database"){
+                using var cancellation=new CancellationTokenSource();ConsoleCancelEventHandler commandCancel=(_,eventArgs)=>{eventArgs.Cancel=true;cancellation.Cancel();};Console.CancelKeyPress+=commandCancel;
+                try{
+                    var restored=RestoreDeletedDatabase.Run(Required("--root"),Guid.Parse(Required("--operation-id")),cancellation.Token);
+                    Console.WriteLine(JsonSerializer.Serialize(new{restored.Database,restored.Version,restored.Definition.Id},ManagementJson.Options));return 0;
+                }finally{Console.CancelKeyPress-=commandCancel;}
+            }
             if(args[0]=="upgrade-audit"){ManagementStoreUpgrade.Upgrade(Required("--root"),Required("--backup"));Console.WriteLine("監査用の型付きテーブルへ更新しました。");return 0;}
             if(args[0]=="rollback-audit-upgrade"){ManagementStoreUpgrade.Rollback(Required("--root"));Console.WriteLine("中断した監査更新を取り消しました。");return 0;}
             if(args[0]=="upgrade-prepared-wal"){

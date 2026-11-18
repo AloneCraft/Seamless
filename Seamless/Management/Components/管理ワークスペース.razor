@@ -27,8 +27,10 @@
                 <対象操作ホスト DB表示順対象か="true" 表示順ドラッグ可能か="DB表示順を保存できるか(DB.Id)" 追加ボタンを表示するか="false" @key="DB.Id" ID="@DB.Id" 名前="@DB.Name" 展開中か="DBツリー状態(DB.Id).展開中か" 展開変更時="展開=>DBツリー開閉時Async(DB.Id,展開)" 選択中か="@(選択DBID==DB.Id&&ツリー選択オブジェクト(DB.Id) is null&&選択スキーマ名.Length==0)" メニュー表示中か="@(メニューID==DB.Id)" 選択時="()=>DBを開く時Async(DB.Id)" 名前変更時="()=>DB名前変更開始時(DB)" メニュー要求時="メニュー要求時Async" 追加メニュー要求時="追加メニュー要求時Async" 追加の説明="@表示文言.取得("{0}に追加",DB.Name)" 追加可能か="@(権限があるか(DB.Name,ManagementPermission.Edit)&&!操作中か)">
                     <span class="DBアイコン"><操作アイコン 種類="DB"/></span>
                     @if(DB名前変更ID==DB.Id){
-                        <span class="DB名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="データベース名を変更" 初期値="@(DB名前変更要求?.Name??DB.Name)" クラス="DB名前入力" 無効か="DB名前変更中か" 確定時="DB名前変更確定時Async" 取消時="DB名前変更取消時"/></span>
-                    }else{<span class="対象名" @ondblclick="()=>DB名前変更開始時(DB)">@DB.Name</span>}
+                        <span class="DB名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="データベース名を変更" 初期値="@(DB名前変更要求?.Name??DB表示名(DB))" クラス="DB名前入力" 無効か="@(DB名前変更中か||操作中か)" 確定時="DB名前変更確定時Async" 取消時="DB名前変更取消時"/></span>
+                    }else{<span class="対象名" @ondblclick="()=>DB名前変更開始時(DB)">@DB表示名(DB)</span>}
+                    @if(DB.Version==0){<span class="未適用印">@表示文言.取得("未公開")</span>}
+                    @if(文書一覧.GetValueOrDefault(DB.Id)?.DB変更 is{Delete:true}){<span class="未適用印">@表示文言.取得("削除予定")</span>}
                     @if(DBに変更があるか(DB.Id)){<span class="変更印" role="img" title="@表示文言.取得("未適用の変更")" aria-label="@表示文言.取得("未適用の変更")">*</span>}
                 </対象操作ホスト>
                 @if(公開情報表示か(DB.Id)){
@@ -112,16 +114,19 @@
         }else if(!ロール表示か&&!設定表示か&&!利用者管理表示か&&!プロジェクト表示か&&現在文書 is{} 文書&&現在対象文書?.対象 is null){
             <section class="文書領域">
                 <div class="文書見出し"><div>@if(現在対象文書?.スキーマ is{} スキーマ見出し){<div class="種類ラベル">@表示文言.取得("スキーマ")</div><h1>@スキーマ見出し</h1>}else{<h1>@表示文言.取得("データベース")</h1>}<p class="文書説明">@(表示文言.取得("構造を整え、変更を確認してから公開します。"))</p></div>
-                    <div class="文書操作"><span class="版ラベル">@表示文言.取得("公開版 v{0}",文書.基準版)</span>
+                    <div class="文書操作"><span class="版ラベル">@(文書.基準版==0?表示文言.取得("未公開"):表示文言.取得("公開版 v{0}",文書.基準版))</span>
                         <button @ref="文書操作起点" class="省略ボタン" aria-label="@表示文言.取得("文書の操作")" @onclick="文書のメニュー時Async"><操作アイコン 種類="その他"/></button>
                     </div>
                 </div>
                 <section class="DB情報" aria-label="@表示文言.取得("DB情報")">
                     <dl class="対象情報">
-                    <dt>@表示文言.取得("公開版")</dt><dd>v@(文書.基準版)</dd><dt>@表示文言.取得("下書き")</dt><dd>@表示文言.取得(対象の保存状態(文書))</dd>
+                    <dt>@表示文言.取得("公開版")</dt><dd>@(文書.基準版==0?表示文言.取得("未公開"):"v"+文書.基準版)</dd><dt>@表示文言.取得("下書き")</dt><dd>@表示文言.取得(対象の保存状態(文書))</dd>
                     <dt>@表示文言.取得("ソースプロジェクト")</dt><dd>@文書.定義.Source.TargetFramework · @文書.定義.Source.Files.Length @表示文言.取得("ファイル")</dd></dl>
                     <div class="適用操作"><button class="控えめボタン" disabled="@(操作中か||!権限があるか(文書.DB.Name,ManagementPermission.Edit))" @onclick="()=>下書きを保管Async(文書)"><操作アイコン 種類="保存"/>@表示文言.取得("下書きを保管")</button>
-                    @if(ソース操作できるか){<button class="控えめボタン" @onclick="()=>プロジェクト表示か=true"><操作アイコン 種類="ソース"/>@表示文言.取得("ソースプロジェクトを開く")</button>}</div>
+                    @if(ソース操作できるか){<button class="控えめボタン" @onclick="()=>プロジェクト表示か=true"><操作アイコン 種類="ソース"/>@表示文言.取得("ソースプロジェクトを開く")</button>}
+                    @if(DB削除を下書きにできるか(文書.DB)){
+                        <button class="控えめボタン" disabled="@操作中か" @onclick="()=>DB削除を切り替えるAsync(文書.DB)"><操作アイコン 種類="削除"/>@表示文言.取得(文書.DB変更 is{Delete:true}?"DBの削除予定を取り消す":"データベースを削除")</button>
+                    }</div>
                 </section>
                     @if(作成入力表示中か&&問い合わせ入力 is{} 問い合わせ){var 作成ID=新規作成入力?.ID;<問い合わせ設計 @key="作成ID" 定義="問い合わせ" 型候補="型候補" 入力変更時="値=>問い合わせ入力変更時(作成ID,値)" 確定時="問い合わせを下書きに追加時Async" 取消時="作成入力を取消す"/>}
                     @if(作成入力表示中か&&表入力中か){

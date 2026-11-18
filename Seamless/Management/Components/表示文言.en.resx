@@ -2590,4 +2590,19 @@
   <data name="データを削除するには確認が必要です。" xml:space="preserve"><value>Confirm the deletion before applying.</value></data>
   <data name="編集中の入力を確定するか取り消してから削除してください。" xml:space="preserve"><value>Finish or cancel the edit before deleting.</value></data>
   <data name="「{0}」の削除を下書きに追加しました。" xml:space="preserve"><value>Marked “{0}” for deletion in the draft.</value></data>
+  <data name="未公開" xml:space="preserve"><value>Unpublished</value></data>
+  <data name="削除予定" xml:space="preserve"><value>Pending deletion</value></data>
+  <data name="DB名の重複・使用できない名前・権限を確認してください。" xml:space="preserve"><value>Check that the database name is allowed, unique, and permitted.</value></data>
+  <data name="データベースを下書きに追加しました。" xml:space="preserve"><value>Added the database to the draft.</value></data>
+  <data name="DB名の変更を下書きに反映しました。" xml:space="preserve"><value>Staged the database rename in the draft.</value></data>
+  <data name="DBの削除予定を取り消しました。" xml:space="preserve"><value>Cancelled the pending database deletion.</value></data>
+  <data name="行の編集を保存するか取り消してからDBを削除してください。" xml:space="preserve"><value>Save or discard row edits before deleting the database.</value></data>
+  <data name="DBの削除を下書きに追加しました。" xml:space="preserve"><value>Marked the database for deletion in the draft.</value></data>
+  <data name="データベースを削除しました。" xml:space="preserve"><value>Deleted the database.</value></data>
+  <data name="公開版を確認できませんでした。" xml:space="preserve"><value>Could not determine the published version.</value></data>
+  <data name="データベースの削除・取消" xml:space="preserve"><value>Mark database for deletion or undo</value></data>
+  <data name="データベースを削除" xml:space="preserve"><value>Delete database</value></data>
+  <data name="DBの削除予定を取り消す" xml:space="preserve"><value>Undo pending database deletion</value></data>
+  <data name="削除の対象とバックアップの確認をしてください。" xml:space="preserve"><value>Review what will be deleted and confirm the backup.</value></data>
+  <data name="バックアップ: {0}" xml:space="preserve"><value>Backup: {0}</value></data>
 </root>

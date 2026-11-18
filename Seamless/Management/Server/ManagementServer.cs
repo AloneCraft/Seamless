@@ -209,6 +209,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 "draft"=>this.service.GetDraft(user,Id(request.Payload)),
                 "findDraft"=>new DraftLookup(this.service.FindDraft(user,Id(request.Payload))),
                 "drafts"=>this.service.Drafts(user,Cursor(request.Payload)),
+                "unpublishedDatabases"=>this.service.UnpublishedDatabases(user,Cursor(request.Payload)),
                 "saveDraft"=>this.service.SaveDraft(user,ManagementJson.Read<SaveDraftRequest>(request.Payload)),
                 "build"=>this.service.Build(user,ManagementJson.Read<DraftKey>(request.Payload)),
                 "analyze"=>this.service.Analyze(user,ManagementJson.Read<Definition>(request.Payload)),
