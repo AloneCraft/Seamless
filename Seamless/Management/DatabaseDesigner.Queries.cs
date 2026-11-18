@@ -89,6 +89,33 @@ public static partial class DatabaseDesigner{
         }
         throw new ManagementException("Unsupported","処理本体の形式を解釈できません。C#で編集してください。");
     }
+    internal static Definition RemoveQuery(Definition definition,string path){
+        var compilation=Compilation(definition);
+        var query=FindQueryMember(compilation,definition,path)??throw new ManagementException("NotFound","問い合わせがありません: "+path);
+        var declaration=query.Syntax;
+        MemberDeclarationSyntax removal=declaration;
+        if(declaration.Parent is ExtensionBlockDeclarationSyntax extension&&extension.Members.Count==1){
+            removal=extension;
+            if(extension.Parent is ClassDeclarationSyntax owner&&owner.Members.Count==1){removal=owner;}
+        }
+        var sourcePath=removal.SyntaxTree.FilePath;
+        var sourceFile=definition.Source.Files.Single(file=>file.Path==sourcePath);
+        var updatedText=sourceFile.Text.Remove(removal.SpanStart,removal.Span.Length);
+        var generatedPath="Queries/"+path.Replace('.','/')+".cs";
+        var removeFile=sourcePath==generatedPath&&!SyntaxFactory.ParseCompilationUnit(updatedText).DescendantNodes().OfType<MemberDeclarationSyntax>().Any(member=>member is not BaseNamespaceDeclarationSyntax);
+        var files=definition.Source.Files.Where(file=>!removeFile||file.Path!=sourcePath).Select(file=>file.Path==sourcePath?file with{Text=updatedText}:file).ToArray();
+        // 専用の結果型ファイルは、他のソースで参照されていない場合だけ片付ける。
+        if(query.Kind is "View" or "TableFunction"&&query.Result is INamedTypeSymbol row&&row.DeclaringSyntaxReferences is [var reference]&&reference.GetSyntax() is RecordDeclarationSyntax record){
+            var folder=query.Kind=="View"?"Views/":"Functions/";
+            var rowPath=folder+(query.Schema.Length==0?"":query.Schema.Replace('.','/')+"/")+row.Name+".cs";
+            if(record.SyntaxTree.FilePath==rowPath&&record.SyntaxTree.GetRoot().DescendantNodes().OfType<MemberDeclarationSyntax>().All(member=>member is BaseNamespaceDeclarationSyntax||member==record)&&
+                !files.Where(file=>file.Path!=rowPath).Any(file=>SyntaxFactory.ParseCompilationUnit(file.Text).DescendantNodes().OfType<SimpleNameSyntax>().Any(name=>name.Identifier.ValueText==row.Name))){
+                files=files.Where(file=>file.Path!=rowPath).ToArray();
+            }
+        }
+        return definition with{Source=definition.Source with{Files=files,Revision=Guid.NewGuid().ToString("N")}};
+    }
+
     public static Definition ApplyQuery(Definition definition,QueryDesign design){
         ObjectName(design.Name);foreach(var part in design.Schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){ObjectName(part);}
         if(!Enum.IsDefined(design.Kind)||SyntaxFactory.ParseStatement("{\n"+design.Body+"\n}").ContainsDiagnostics){throw new ManagementException("Validation","処理本体のC#構文を確認してください。");}

@@ -98,6 +98,82 @@ public sealed class ResultsGridOperations{
             Assert.Equal("99",edits["value"]);Assert.Equal(2,((IList)Get(grid,"行一覧")!).Count);Assert.DoesNotContain("prefix changed",rendered.ToHtmlString());
         });
     }
+    [Fact]public async Task ReloadMergesOtherCellsAndKeepsTheLatestRowStampForSaving(){
+        var original=Row(1,10);
+        var updated=Row(1,20) with{Stamp=new string('D',64)};
+        var operations=new GridOperations{Read=(_,_)=>Task.FromResult(Page([original]))};
+        using var provider=Services(operations);await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async()=>{
+            var rendered=await renderer.RenderComponentAsync<TestGrid>(Parameters("First"));var grid=operations.Component!;
+            Invoke(grid,"行追加開始");
+            var row=((IList)Get(grid,"行一覧")!)[0]!;
+            Invoke(grid,"行セル変更",row,"id","2");
+            operations.Read=(_,_)=>Task.FromException<TableRows>(new IOException("read failed"));
+            await grid.再読込Async();
+            Assert.Contains("value=\"2\"",rendered.ToHtmlString());
+            Assert.Single((IList)Get(grid,"新規行")!);
+            operations.Read=(_,_)=>Task.FromResult(Page([updated]));
+            await grid.再読込Async();
+            Assert.Contains("value=\"2\"",rendered.ToHtmlString());
+            Assert.Contains("value=\"20\"",rendered.ToHtmlString());
+            Assert.Single((IList)Get(grid,"新規行")!);
+            ((IList)Get(grid,"新規行")!).Clear();
+            await grid.保存実行Async();
+            var saved=Assert.Single(operations.Saved!.Changes);
+            Assert.Equal(updated.Stamp,saved.ExpectedStamp);
+            Assert.Equal(2,saved.Values!.Value.GetProperty("id").GetInt32());
+            Assert.Equal(20,saved.Values!.Value.GetProperty("value").GetInt32());
+        });
+    }
+    [Theory][InlineData(true)][InlineData(false)]
+    public async Task ReloadRequiresExplicitResolutionOfCellAndDeleteConflicts(bool keepMine){
+        var original=Row(1,10);var deleted=Row(2,20);
+        var operations=new GridOperations{Read=(_,_)=>Task.FromResult(Page([original,deleted]))};
+        using var provider=Services(operations);await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async()=>{
+            var rendered=await renderer.RenderComponentAsync<TestGrid>(Parameters("First"));var grid=operations.Component!;
+            var rows=(IList)Get(grid,"行一覧")!;
+            Invoke(grid,"行セル変更",rows[0],"value","11");
+            rows[1]!.GetType().GetProperty("削除予定か")!.SetValue(rows[1],true);
+            var remote=Row(1,12) with{Stamp=new string('D',64)};
+            var remoteDeleted=Row(2,22) with{Stamp=new string('E',64)};
+            operations.Read=(_,_)=>Task.FromResult(Page([remote,remoteDeleted]));
+            await grid.再読込Async();await grid.再読込Async();
+            Assert.Contains("aria-invalid=\"true\"",rendered.ToHtmlString());
+            Assert.Contains("この行を削除する",System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString()));
+            await grid.保存実行Async();Assert.Null(operations.Saved);
+            Invoke(grid,"セル競合を解決",rows[0],"value",keepMine);
+            Invoke(grid,"行競合を解決",rows[1],true);
+            await grid.保存実行Async();
+            var changes=operations.Saved!.Changes;
+            Assert.Equal(remoteDeleted.Stamp,changes.Single(change=>change.Kind==TableRowChangeKind.Delete).ExpectedStamp);
+            if(keepMine){Assert.Equal(11,changes.Single(change=>change.Kind==TableRowChangeKind.Replace).Values!.Value.GetProperty("value").GetInt32());}
+            else{Assert.Single(changes);}
+        });
+    }
+    [Fact]public async Task ReloadLooksUpEditedRowsOutsideTheFirstPageAndDistinguishesDeletion(){
+        var cursor=new TableRowCursor(1,new string('A',64));
+        var operations=new GridOperations{Read=(_,_)=>Task.FromResult(Page([Row(1,10)]))};
+        using var provider=Services(operations);await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async()=>{
+            var rendered=await renderer.RenderComponentAsync<TestGrid>(Parameters("First"));var grid=operations.Component!;
+            var rows=(IList)Get(grid,"行一覧")!;
+            Invoke(grid,"行セル変更",rows[0],"value","15");
+            operations.Read=(request,_)=>Task.FromResult(request.Key is{} key?
+                Page(key.GetProperty("id").GetInt32()==1?[Row(1,10)]:throw new InvalidOperationException()):
+                Page([Row(2,20)]) with{HasMore=true,NextCursor=cursor});
+            await grid.再読込Async();
+            Assert.Equal(2,rows.Count);
+            Assert.Contains("value=\"15\"",rendered.ToHtmlString());
+            operations.Read=(request,_)=>Task.FromResult(request.Key is not null?Page([]):Page([Row(2,20)]) with{HasMore=true,NextCursor=cursor});
+            await grid.再読込Async();
+            Assert.Contains("新規行として残す",System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString()));
+            Invoke(grid,"行競合を解決",rows[1],true);
+            await grid.保存実行Async();
+            var added=Assert.Single(operations.Saved!.Changes);Assert.Equal(TableRowChangeKind.Insert,added.Kind);
+            Assert.Equal(1,added.Values!.Value.GetProperty("id").GetInt32());Assert.Equal(15,added.Values!.Value.GetProperty("value").GetInt32());
+        });
+    }
     public sealed class TestGrid:Grid{
         public void Refresh()=>this.StateHasChanged();
         [Inject]public GridOperations Operations{get;set;}=null!;
@@ -108,7 +184,7 @@ public sealed class ResultsGridOperations{
     private static TableRows Page(TableRowSnapshot[] rows)=>new(1,rows,false,[new("id","System.Int32"),new("value","System.Int32")]){KeyMembers=[new("id","System.Int32")]};
     private static TableRowSnapshot Row(int id,int value)=>new(ManagementJson.Element(new{id}),ManagementJson.Element(new{id,value}),new string('C',64));
     private static object? Get(Grid target,string name)=>typeof(Grid).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(target);
-    private static void Invoke(Grid target,string name)=>typeof(Grid).GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(target,null);
+    private static void Invoke(Grid target,string name,params object?[] args)=>typeof(Grid).GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(target,args);
     public sealed class GridOperations:IManagementOperations{
         internal Grid? Component;
         internal TableRowBatch? Saved;

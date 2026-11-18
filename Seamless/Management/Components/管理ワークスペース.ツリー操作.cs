@@ -121,9 +121,22 @@ public partial class 管理ワークスペース{
         if(結果.案内 is{} 案内){this.案内=案内;this.エラーか=true;}
     }
 
-    private Task<ツリー操作結果> ツリー削除Async(string DBID,CatalogObject 項目){
-        if(項目.Kind=="Set"){return Task.FromResult(new ツリー操作結果(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true));}
-        // 稼働DBのテーブル削除は行データの破棄と移行計画を伴う。設計と確認手順が未確定のため、仮の実装として未対応を明示する。
-        return Task.FromResult(new ツリー操作結果(表示文言.取得("削除は未対応です。稼働DBの行データの扱いと確認手順を設計中です。"),true));
+    private async Task<ツリー操作結果> ツリー削除Async(string DBID,CatalogObject 項目){
+        if(項目.Kind=="Set"){return new(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true);}
+        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return 拒否!;}
+        var 開いた文書=this.対象文書一覧.Values.Where(対象=>対象.DBID==DBID&&対象.対象?.Id==項目.Id&&対象.対象.Kind==項目.Kind&&!対象.登録関数か).ToArray();
+        if(開いた文書.Any(対象=>対象.編集中か||対象.データ編集中か)||this.DBツリー画面.GetValueOrDefault(DBID)?.未保存か is true){
+            return new(表示文言.取得("編集中の入力を確定するか取り消してから削除してください。"));
+        }
+        var 結果=await this.下書きを更新Async(文書,定義=>項目.Kind=="Table"?DatabaseDesigner.Remove(定義,項目.Id):DatabaseDesigner.RemoveQuery(定義,項目.Id));
+        if(結果.案内 is not null){return 結果;}
+        if(!文書.定義.Source.Files.Any(ファイル=>ファイル.Path==文書.選択ファイル)){文書.選択ファイル=文書.定義.Source.Files[0].Path;}
+        var DBを選ぶか=開いた文書.Any(対象=>対象.ID==this.選択作業文書ID);
+        foreach(var 対象 in 開いた文書){
+            this.タブ順序.削除(対象.ID);this.対象文書一覧.Remove(対象.ID);this.対象画面.Remove(対象.ID);
+        }
+        if(DBを選ぶか){this.作業文書を選ぶ(this.対象文書を取得(DBID).ID);}
+        this.案内=表示文言.取得("「{0}」の削除を下書きに追加しました。",項目.Id);this.エラーか=false;
+        return 結果;
     }
 }

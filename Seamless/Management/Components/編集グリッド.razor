@@ -6,13 +6,14 @@
         <tbody>@行</tbody>
     </table>
 </div>
-<p class="グリッド操作案内" id="@案内ID">@(表示文言.取得("全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消"))</p>
+<p class="グリッド操作案内" id="@案内ID">@(表示文言.取得(データ入力か ? "入力で上書き · Enterで下 · Tabで次 · F2で文字編集 · Escでセル取消 · Ctrl+Enterで行追加 · Alt+Deleteで行を削除予定 · Ctrl+Sで保存" : "全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消"))</p>
 @code{
     [Parameter,EditorRequired]public string 名前{get;set;}="";
     [Parameter]public RenderFragment? 見出し{get;set;}
     [Parameter]public RenderFragment? 行{get;set;}
     [Parameter]public string 表クラス{get;set;}="設計表 編集グリッド";
     [Parameter]public string 枠クラス{get;set;}="編集グリッド枠";
+    [Parameter]public bool データ入力か{get;set;}
     private readonly string 案内ID="grid-help-"+Guid.NewGuid().ToString("N");
     private ElementReference 根;
     private IJSObjectReference? モジュール,操作;
@@ -24,7 +25,7 @@
         try{
             if(this.破棄済みか){return;}
             this.モジュール=await this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/interaction.js");
-            this.操作=await this.モジュール.InvokeAsync<IJSObjectReference>("編集グリッドを初期化",this.根);
+            this.操作=await this.モジュール.InvokeAsync<IJSObjectReference>("編集グリッドを初期化",this.根,this.データ入力か);
         }finally{this.初期化.Release();}
     }
     public async ValueTask DisposeAsync(){

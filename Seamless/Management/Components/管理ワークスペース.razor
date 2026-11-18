@@ -148,7 +148,10 @@
                     <section class="適用カード" aria-label="@表示文言.取得("変更の確認")"><div><h2>@(表示文言.取得("変更を確認"))</h2><p>@表示文言.取得("基準の公開版 v{0} → 次の公開版",確認.CurrentVersion)</p></div>
                         @foreach(var 変更 in 確認.Changes){<p class="変更内容">@変更</p>}
                         @foreach(var 診断 in 確認.Diagnostics){<p>@診断.Message</p>}
-                        <div class="適用操作"><button class="控えめボタン" @onclick="()=>適用文書.プレビュー=null"><操作アイコン 種類="閉じる"/>@(表示文言.取得("閉じる"))</button><button class="主要ボタン" disabled="@(!確認.CanApply||操作中か)" @onclick="()=>変更を適用Async(適用文書)"><操作アイコン 種類="この変更を適用"/>@(表示文言.取得("この変更を適用"))</button></div>
+                        @if(確認.CanApply&&確認.RequiresBackup){
+                            <label class="変更内容"><input type="checkbox" @bind="適用文書.データ削除確認済みか" disabled="@操作中か"/> @表示文言.取得("適用前にバックアップを作成し、一覧に示したデータを削除します。")</label>
+                        }
+                        <div class="適用操作"><button class="控えめボタン" @onclick="()=>適用文書.プレビュー=null"><操作アイコン 種類="閉じる"/>@(表示文言.取得("閉じる"))</button><button class="主要ボタン" disabled="@(!確認.CanApply||操作中か||確認.RequiresBackup&&!適用文書.データ削除確認済みか)" @onclick="()=>変更を適用Async(適用文書)"><操作アイコン 種類="この変更を適用"/>@(表示文言.取得("この変更を適用"))</button></div>
                     </section>
                 }
                     </section>

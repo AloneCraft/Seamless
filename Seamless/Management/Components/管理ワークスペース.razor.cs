@@ -247,12 +247,17 @@ public partial class 管理ワークスペース{
         this.ツリーの入力を確認(文書);
         if(文書.未保管か||文書.未確定操作 is not null){throw new InvalidOperationException("最新の変更を確認するか、操作結果を照会してください。");}
         var 確認=文書.プレビュー??throw new InvalidOperationException("変更を確認してください。");
-        var 要求=new ApplyRequest(文書.定義.Id,文書.下書き版,確認.Token,Guid.NewGuid()){BundleHash=確認.BundleHash};
+        if(確認.RequiresBackup&&!文書.データ削除確認済みか){throw new InvalidOperationException(表示文言.取得("データを削除するには確認が必要です。"));}
+        var 要求=new ApplyRequest(文書.定義.Id,文書.下書き版,確認.Token,Guid.NewGuid(),文書.データ削除確認済みか){BundleHash=確認.BundleHash};
         文書.未確定操作=要求;
         var 結果=await this.管理操作.ApplyAsync(要求,this.寿命.Token);
-        if(結果.State!=OperationState.Succeeded){throw new InvalidOperationException(結果.State+" · "+結果.Error);}
+        if(結果.State!=OperationState.Succeeded){
+            if(結果.State is OperationState.Failed or OperationState.Cancelled){文書.未確定操作=null;文書.データ削除確認済みか=false;}
+            throw new InvalidOperationException(結果.State+" · "+結果.Error);
+        }
         文書.公開完了(結果.PublishedVersion!.Value);
         await this.更新Async();this.案内=表示文言.取得("変更を公開しました · v")+文書.基準版;
+        if(結果.BackupPath is{} バックアップ){this.案内+=" · "+表示文言.取得("バックアップ: {0}",バックアップ);}
     });
     private Task 操作結果照会Async(文書状態 文書)=>this.処理Async(async()=>{
         var 要求=文書.未確定操作??throw new InvalidOperationException("照会対象の操作がありません。");

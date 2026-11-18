@@ -14,10 +14,10 @@
         </div>
         <div class="グリッド操作">
             @if(!string.IsNullOrEmpty(テーブル名)){
-                @if(編集可能か){<button class="テキストボタン" disabled="@(読込中か||保存中か)" @onclick="()=>行追加開始()"><操作アイコン 種類="行を追加"/>@(表示文言.取得("行を追加"))</button>}
+                @if(編集可能か){<button class="テキストボタン" data-grid-add disabled="@(読込中か||保存中か||版更新待ちか||!読込完了か)" @onclick="()=>行追加開始()"><操作アイコン 種類="行を追加"/>@(表示文言.取得("行を追加"))</button>}
                 @if(変更件数 > 0){
                     <button class="控えめボタン" disabled="@(読込中か||保存中か)" @onclick="変更取消"><操作アイコン 種類="戻す"/>@表示文言.取得("元に戻す ({0})",変更件数)</button>
-                    <button class="主要ボタン" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="保存実行Async"><操作アイコン 種類="保存"/>@表示文言.取得("変更を保存 ({0})",変更件数)</button>
+                    <button class="主要ボタン" data-grid-save disabled="@(読込中か||保存中か||!編集可能か||版更新待ちか||競合ありか)" @onclick="保存実行Async"><操作アイコン 種類="保存"/>@表示文言.取得("変更を保存 ({0})",変更件数)</button>
                 }
                 <button class="控えめボタン" disabled="@(読込中か||保存中か)" @onclick="再読込Async"><操作アイコン 種類="再読込"/>@(表示文言.取得("再読込"))</button>
                 @if(版更新待ちか&&変更件数>0){<button class="控えめボタン" disabled="@(読込中か||保存中か)" @onclick="破棄再読込Async">@表示文言.取得("未保存の変更を破棄して再読込")</button>}
@@ -27,6 +27,9 @@
 
     @if(!string.IsNullOrEmpty(案内)){
         <div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>
+    }
+    @if(競合ありか){
+        <p class="小案内" role="status">@表示文言.取得("DBと競合する変更があります。表示された競合を解決してから保存してください。")</p>
     }
     @if(値比較だけか){
         <p class="小案内" role="note">@表示文言.取得("取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。")</p>
@@ -39,7 +42,7 @@
     }else if(列一覧.Count==0){
         <div class="空の構造"><span>▦</span><h3>@(表示文言.取得("列が定義されていません"))</h3><p>@(表示文言.取得("テーブルの定義を確認してください。"))</p></div>
     }else{
-        <編集グリッド 名前="@(テーブル名!)" 表クラス="データ表" 枠クラス="グリッド枠">
+        <編集グリッド 名前="@(テーブル名!)" 表クラス="データ表" 枠クラス="グリッド枠" データ入力か="true">
                 <見出し>
                         <th class="操作列 行操作列"></th>
                         @foreach(var 列 in 列一覧){
@@ -53,33 +56,47 @@
                         }
                 </見出し>
                 <行>
-                    @foreach(var 新規 in 新規行){
-                        <tr @key="新規" class="新規行">
-                            <td class="操作列 行操作列"><button class="省略ボタン" title="@表示文言.取得("取消")" aria-label="@表示文言.取得("取消")" disabled="@(読込中か||保存中か)" @onclick="()=>新規行.Remove(新規)"><操作アイコン 種類="取消"/></button></td>
-                            @foreach(var 列 in 列一覧){
-                                <td>
-                                    <input class="セル入力" aria-label="@表示文言.取得("新規行 {0}",列.表示名)" readonly="@(読込中か||保存中か||!編集可能か)" value="@新規.Values.GetValueOrDefault(列.名前, "")" @oninput="引数=>セル変更(新規.Values, 列.名前, 引数.Value?.ToString())"/>
-                                </td>
-                            }
-                        </tr>
-                    }
                     @for(var i=0; i<行一覧.Count; i++){
                         var 行 = 行一覧[i];
                         <tr @key="行" class="@(行.削除予定か ? "削除行" : 行.変更ありか ? "変更行" : "")">
                             <td class="操作列 行操作列">
-                                @if(行.削除予定か){
+                                @if(行.行競合!=行競合なし){
+                                    <div class="セル競合">
+                                        <small>@表示文言.取得(行.行競合==DBで削除 ? "DBで行が削除されました" : "削除予定の行がDBで変更されました")</small>
+                                        <button class="控えめボタン" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="()=>行競合を解決(行,false)">@表示文言.取得("DBの状態を採用")</button>
+                                        <button class="控えめボタン" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="()=>行競合を解決(行,true)">@表示文言.取得(行.行競合==DBで削除 ? "新規行として残す" : "この行を削除する")</button>
+                                    </div>
+                                }else if(行.削除予定か){
                                     <button class="テキストボタン" title="@表示文言.取得("復元")" disabled="@(読込中か||保存中か)" @onclick="()=>行.削除予定か=false"><操作アイコン 種類="戻す"/>@(表示文言.取得("戻す"))</button>
                                 }else{
-                                    <button class="省略ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("削除")" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="()=>行.削除予定か=true"><操作アイコン 種類="削除"/></button>
+                                    <button class="省略ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("削除")" disabled="@(読込中か||保存中か||!編集可能か||行.競合セル.Count>0)" @onclick="()=>行.削除予定か=true"><操作アイコン 種類="削除"/></button>
                                 }
                             </td>
                             @foreach(var 列 in 列一覧){
                                 <td>
-                                    @if(行.削除予定か){
+                                    @if(行.削除予定か||行.行競合==DBで削除){
                                         <span class="削除セル">@行.GetDisplayValue(列.名前)</span>
                                     }else{
-                                        <input class="セル入力 @(行.Values.ContainsKey(列.名前) ? "セル変更" : "")" aria-label="@表示文言.取得("行{0} {1}",i+1,列.表示名)" readonly="@(読込中か||保存中か||!編集可能か)" value="@行.GetDisplayValue(列.名前)" @oninput="引数=>行セル変更(行, 列.名前, 引数.Value?.ToString())"/>
+                                        var 競合か=行.競合セル.ContainsKey(列.名前);
+                                        <input class="セル入力 @(行.Values.ContainsKey(列.名前) ? "セル変更" : "")" aria-invalid="@(競合か ? "true" : null)" aria-label="@表示文言.取得("行{0} {1}",i+1,列.表示名)" readonly="@(読込中か||保存中か||!編集可能か||競合か)" value="@行.GetDisplayValue(列.名前)" @oninput="引数=>行セル変更(行, 列.名前, 引数.Value?.ToString())"/>
+                                        @if(競合か){
+                                            <div class="セル競合">
+                                                <small>@表示文言.取得("DBの値: {0}",行.GetOriginalDisplayValue(列.名前))</small>
+                                                <button class="控えめボタン" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="()=>セル競合を解決(行,列.名前,true)">@表示文言.取得("自分の値")</button>
+                                                <button class="控えめボタン" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="()=>セル競合を解決(行,列.名前,false)">@表示文言.取得("DBの値")</button>
+                                            </div>
+                                        }
                                     }
+                                </td>
+                            }
+                        </tr>
+                    }
+                    @foreach(var 新規 in 新規行){
+                        <tr @key="新規" class="新規行" data-grid-new>
+                            <td class="操作列 行操作列"><button class="省略ボタン" title="@表示文言.取得("取消")" aria-label="@表示文言.取得("取消")" disabled="@(読込中か||保存中か)" @onclick="()=>新規行.Remove(新規)"><操作アイコン 種類="取消"/></button></td>
+                            @foreach(var 列 in 列一覧){
+                                <td>
+                                    <input class="セル入力" aria-label="@表示文言.取得("新規行 {0}",列.表示名)" readonly="@(読込中か||保存中か||!編集可能か)" value="@新規.GetDisplayValue(列.名前)" @oninput="引数=>セル変更(新規.Values, 列.名前, 引数.Value?.ToString())"/>
                                 </td>
                             }
                         </tr>
@@ -126,6 +143,10 @@
     private readonly List<新規行モデル> 新規行 = [];
 
     private int 変更件数 => 新規行.Count + 行一覧.Count(r => r.変更ありか || r.削除予定か);
+    private bool 競合ありか=>this.行一覧.Any(行=>行.行競合!=行競合なし||行.競合セル.Count>0);
+    private enum 行競合種別{なし,DBで削除,DBで変更}
+    private const 行競合種別 行競合なし=行競合種別.なし;
+    private const 行競合種別 DBで削除=行競合種別.DBで削除;
     protected override async Task OnAfterRenderAsync(bool firstRender){
         if(this.版更新待ちか&&this.表示中か&&this.変更件数==0&&!this.読込中か&&!this.保存中か){await this.再読込Async();return;}
         var 変更か=this.変更件数>0;
@@ -145,6 +166,9 @@
                 this.版更新待ちか=true;if(!this.保存中か){this.読込世代++;this.読込取消?.Cancel();this.読込中か=false;}
                 this.案内=表示文言.取得("公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。");return;
             }
+            if(対象変更か||版変更か&&this.変更件数==0){
+                this.行一覧.Clear();this.新規行.Clear();this.列一覧.Clear();this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;
+            }
             this.再開読込か=false;
             this.前DB=this.DB名;this.前テーブル=this.テーブル名;
             await this.再読込Async();
@@ -157,12 +181,8 @@
         var 要求版=this.公開版;this.前公開版=要求版;this.版更新待ちか=false;
         this.読込取消?.Cancel();this.読込取消?.Dispose();this.読込取消=new();var 取消=this.読込取消.Token;
         読込中か = true;
-        this.保存中か=false;this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;this.値比較だけか=false;
         案内 = "";
         エラーか = false;
-        新規行.Clear();
-        行一覧.Clear();
-        列一覧.Clear();
         if(string.IsNullOrEmpty(this.DB名)||string.IsNullOrEmpty(this.テーブル名)){this.読込中か=false;return;}
         StateHasChanged();
 
@@ -170,27 +190,23 @@
             var res=await this.管理操作.ReadRowsAsync(new TableRowsRequest(this.DB名,this.テーブル名,100,ExpectedVersion:要求版),取消);
             if(世代!=this.読込世代){return;}
             if(要求版 is >0&&res.Version!=要求版){throw new ManagementException("Conflict",表示文言.取得("取得したデータの公開版が一致しません。再読込してください。"));}
+            if(this.変更件数>0&&res.Version!=this.版){this.版更新待ちか=true;this.案内=表示文言.取得("公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。");return;}
+            var 更新行=await this.読込結果を統合Async(res,取消);
+            if(世代!=this.読込世代){return;}
             版 = res.Version;
             さらにあるか = res.HasMore;
             this.次カーソル=res.NextCursor;
             this.値比較だけか=res.ValueComparisonOnly;
 
-            // 列の判定
+            列一覧.Clear();
             if(res.Columns is { Length: > 0 } cols){
                 foreach(var c in cols){
                     列一覧.Add(new 列情報(c.Name,c.Type,res.KeyMembers.Any(キー=>キー.Name==c.Name)){表示名=c.DisplayName??c.Name});
                 }
             }
 
-            foreach(var row in res.Rows){
-                var model = new 行モデル(row);
-                行一覧.Add(model);
-
-                // 列がまだなければ最初の行から補完
-                if(列一覧.Count == 0){
-                    補完列(row);
-                }
-            }
+            行一覧.Clear();行一覧.AddRange(更新行);
+            if(列一覧.Count==0&&行一覧.FirstOrDefault() is{} 最初){補完列(最初.Snapshot);}
             読込完了か = true;
         }catch(OperationCanceledException)when(取消.IsCancellationRequested){
         }catch(Exception ex){
@@ -198,6 +214,64 @@
         }finally{
             if(世代==this.読込世代){this.読込中か=false;this.StateHasChanged();}
         }
+    }
+
+    private async Task<List<行モデル>> 読込結果を統合Async(TableRows ページ,CancellationToken 取消){
+        var 更新行=ページ.Rows.Select(行=>new 行モデル(行)).ToList();
+        var 位置=更新行.Select((行,番号)=>(キー:行.Snapshot.Key.GetRawText(),番号)).ToDictionary(項目=>項目.キー,項目=>項目.番号,StringComparer.Ordinal);
+        var 型一覧=列一覧.ToDictionary(列=>列.名前,列=>列.型,StringComparer.Ordinal);
+        foreach(var 元 in this.行一覧.Where(行=>行.変更ありか||行.削除予定か)){
+            var ページにあるか=位置.TryGetValue(元.Snapshot.Key.GetRawText(),out var 番号);
+            TableRowSnapshot? 最新=ページにあるか?更新行[番号].Snapshot:null;
+            if(!ページにあるか&&ページ.HasMore){
+                // ページ外の行が消えたかは主キーで確かめる。
+                var 個別=await this.管理操作.ReadRowsAsync(new(this.DB名,this.テーブル名!,1,ページ.Version,元.Snapshot.Key),取消);
+                取消.ThrowIfCancellationRequested();
+                if(個別.Version!=ページ.Version){throw new ManagementException("Conflict",表示文言.取得("取得したデータの公開版が一致しません。再読込してください。"));}
+                最新=個別.Rows.SingleOrDefault();
+            }
+            if(最新 is null&&元.削除予定か){continue;}
+            var 統合=new 行モデル(最新??元.Snapshot){削除予定か=元.削除予定か};
+            if(最新 is null){統合.行競合=DBで削除;}
+            if(最新 is not null&&元.削除予定か){
+                var 削除基準=元.削除前の版??元.Snapshot.Stamp;
+                if(最新.Stamp!=削除基準){統合.行競合=行競合種別.DBで変更;統合.削除前の版=削除基準;}
+            }
+            foreach(var (列,値) in 元.Values){
+                if(最新 is null||元.削除予定か){統合.Values[列]=値;continue;}
+                var DB値=統合.元の値(列);
+                if(入力が一致するか(値,型一覧.GetValueOrDefault(列,""),DB値)){continue;}
+                統合.Values[列]=値;
+                var 基準=元.競合セル.TryGetValue(列,out var 保存した基準)?保存した基準:元.元の値(列);
+                if(!同じ値か(基準,DB値)){統合.競合セル.Add(列,基準);}
+            }
+            if(ページにあるか){更新行[番号]=統合;}
+            else if(統合.変更ありか||統合.削除予定か){更新行.Add(統合);}
+        }
+        return 更新行;
+    }
+
+    private static bool 同じ値か(JsonElement 左,JsonElement 右)=>
+        左.ValueKind==JsonValueKind.Undefined||右.ValueKind==JsonValueKind.Undefined?左.ValueKind==右.ValueKind:JsonElement.DeepEquals(左,右);
+
+    private static bool 入力が一致するか(string 入力,string 型,JsonElement DB値){
+        try{return 同じ値か(セル値(入力,型,DB値.ValueKind),DB値);}
+        catch(JsonException){return false;}
+    }
+
+    private void セル競合を解決(行モデル 行,string 列,bool 自分の値か){
+        if(!this.編集可能か||this.読込中か||this.保存中か||!行.競合セル.Remove(列)){return;}
+        if(!自分の値か){行.Values.Remove(列);}
+    }
+
+    private void 行競合を解決(行モデル 行,bool 自分の変更か){
+        if(!this.編集可能か||this.読込中か||this.保存中か||行.行競合==行競合なし){return;}
+        if(行.行競合==DBで削除){
+            if(自分の変更か){this.新規行.Add(new(行));}
+            this.行一覧.Remove(行);return;
+        }
+        行.行競合=行競合なし;行.削除前の版=null;
+        if(!自分の変更か){行.削除予定か=false;行.Values.Clear();}
     }
 
     private void 補完列(TableRowSnapshot row){
@@ -219,7 +293,7 @@
 
     public async Task 次ページ読込Async(){
         if(this.版更新待ちか){return;}
-        if(this.読込中か||this.保存中か||!this.さらにあるか||this.行一覧.Count==0){return;}
+        if(this.読込中か||this.保存中か||!this.さらにあるか){return;}
         if(this.次カーソル is null){this.エラーか=true;this.案内=表示文言.取得("接続先が続き取得に対応していません。サーバーを更新してください。");return;}
         var 世代=this.読込世代;var 取消=this.読込取消!.Token;
         読込中か = true;
@@ -229,8 +303,9 @@
             if(世代!=this.読込世代){return;}
             さらにあるか = res.HasMore;
             this.次カーソル=res.NextCursor;this.エラーか=false;this.案内="";
+            var 既存キー=this.行一覧.Select(行=>行.Snapshot.Key.GetRawText()).ToHashSet(StringComparer.Ordinal);
             foreach(var row in res.Rows){
-                行一覧.Add(new 行モデル(row));
+                if(既存キー.Add(row.Key.GetRawText())){行一覧.Add(new 行モデル(row));}
             }
         }catch(OperationCanceledException)when(取消.IsCancellationRequested){
         }catch(Exception ex){
@@ -241,20 +316,23 @@
     }
 
     private void 行追加開始(){
-        if(!this.編集可能か){return;}
+        if(!this.編集可能か||this.読込中か||this.保存中か||this.版更新待ちか||!this.読込完了か){return;}
         新規行.Add(new 新規行モデル());
     }
 
     private async Task 変更取消(){
         新規行.Clear();
+        行一覧.RemoveAll(行=>行.行競合==DBで削除);
         foreach(var row in 行一覧){
             row.Values.Clear();
             row.削除予定か = false;
+            row.行競合=行競合なし;row.競合セル.Clear();
+            row.削除前の版=null;
         }
         案内 = "";
         if(this.版更新待ちか){await this.再読込Async();}
     }
-    private Task 破棄再読込Async(){this.新規行.Clear();foreach(var 行 in this.行一覧){行.Values.Clear();行.削除予定か=false;}return this.再読込Async();}
+    private Task 破棄再読込Async(){this.新規行.Clear();this.行一覧.Clear();return this.再読込Async();}
 
     private void セル変更(Dictionary<string, string> dict, string key, string? val){
         if(!this.編集可能か){return;}
@@ -270,6 +348,7 @@
     public async Task 保存実行Async(){
         if(!this.編集可能か){this.案内=表示文言.取得("行を変更する権限がありません。");return;}
         if(string.IsNullOrEmpty(this.テーブル名)||this.変更件数==0||this.保存中か||this.読込中か){return;}
+        if(this.競合ありか){return;}
         if(this.版更新待ちか){this.案内=表示文言.取得("公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。");return;}
         var 世代=this.読込世代;
         保存中か = true;
@@ -282,7 +361,7 @@
             var 型一覧=列一覧.ToDictionary(列=>列.名前,列=>列.型,StringComparer.Ordinal);
             // 新規追加
             foreach(var n in 新規行){
-                var vals=JsonSerializer.SerializeToElement(n.Values.ToDictionary(値=>値.Key,値=>セル値(値.Value,型一覧.GetValueOrDefault(値.Key,"")),StringComparer.Ordinal));
+                var vals=n.元の行 is{} 元の行?元の行.CreateMergedValues(型一覧,n.Values):JsonSerializer.SerializeToElement(n.Values.ToDictionary(値=>値.Key,値=>セル値(値.Value,型一覧.GetValueOrDefault(値.Key,"")),StringComparer.Ordinal));
                 changes.Add(new TableRowChange(テーブル名, TableRowChangeKind.Insert, Values: vals));
             }
             // 更新・削除
@@ -300,6 +379,7 @@
             var commit = await 管理操作.CommitRowsAsync(batch);
             if(世代!=this.読込世代){return;}
             this.版更新待ちか=false;
+            this.新規行.Clear();this.行一覧.Clear();this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;
             var 再読込世代=世代+1;
             await 再読込Async();
             if(再読込世代==this.読込世代){
@@ -327,14 +407,19 @@
         catch(JsonException)when(元種類 is not JsonValueKind.Object and not JsonValueKind.Array){return JsonSerializer.SerializeToElement(値);}
     }
 
-    private sealed class 新規行モデル {
+    private sealed class 新規行モデル(行モデル? 元=null) {
         public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
+        public 行モデル? 元の行{get;}=元;
+        public string GetDisplayValue(string name)=>this.Values.GetValueOrDefault(name)??this.元の行?.GetDisplayValue(name)??"";
     }
 
     private sealed class 行モデル(TableRowSnapshot snapshot){
         public TableRowSnapshot Snapshot { get; } = snapshot;
         public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
         public bool 削除予定か { get; set; }
+        public 行競合種別 行競合{get;set;}
+        public string? 削除前の版{get;set;}
+        public Dictionary<string,JsonElement> 競合セル{get;}=new(StringComparer.Ordinal);
         public bool 変更ありか => Values.Count > 0;
 
         public string GetDisplayValue(string name){
@@ -344,17 +429,18 @@
             return this.GetOriginalDisplayValue(name);
         }
 
-        public string GetOriginalDisplayValue(string name){
+        public string GetOriginalDisplayValue(string name)=>this.元の値(name).ToString();
+        public JsonElement 元の値(string name){
             if(Snapshot.Key.ValueKind == JsonValueKind.Object && Snapshot.Key.TryGetProperty(name, out var kProp)){
-                return kProp.ToString();
+                return kProp;
             }
             if(Snapshot.Values.ValueKind == JsonValueKind.Object && Snapshot.Values.TryGetProperty(name, out var vProp)){
-                return vProp.ToString();
+                return vProp;
             }
-            return "";
+            return default;
         }
 
-        public JsonElement CreateMergedValues(IReadOnlyDictionary<string,string>? 型一覧=null){
+        public JsonElement CreateMergedValues(IReadOnlyDictionary<string,string> 型一覧,IReadOnlyDictionary<string,string>? 追加編集=null){
             var dict = new Dictionary<string,JsonElement>(StringComparer.Ordinal);
             if(Snapshot.Values.ValueKind == JsonValueKind.Object){
                 foreach(var prop in Snapshot.Values.EnumerateObject()){
@@ -362,8 +448,10 @@
                 }
             }
             foreach(var kv in Values){
-                var 種類=JsonValueKind.Undefined;if(dict.TryGetValue(kv.Key,out var 元値)){種類=元値.ValueKind;}
-                dict[kv.Key]=セル値(kv.Value,型一覧?.GetValueOrDefault(kv.Key,"")??"",種類);
+                dict[kv.Key]=セル値(kv.Value,型一覧.GetValueOrDefault(kv.Key,""),this.元の値(kv.Key).ValueKind);
+            }
+            if(追加編集 is not null){
+                foreach(var kv in 追加編集){dict[kv.Key]=セル値(kv.Value,型一覧.GetValueOrDefault(kv.Key,""),this.元の値(kv.Key).ValueKind);}
             }
             return JsonSerializer.SerializeToElement(dict);
         }

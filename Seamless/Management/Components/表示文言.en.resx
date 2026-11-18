@@ -2576,4 +2576,18 @@
   <data name="復元の手順を取得できませんでした。" xml:space="preserve"><value>Could not get the recovery guide. </value></data>
   <data name="クリップボードへ写しました。" xml:space="preserve"><value>Copied to the clipboard.</value></data>
   <data name="クリップボードへ写せませんでした。文を選んで写してください。" xml:space="preserve"><value>Could not copy to the clipboard. Select the text and copy it.</value></data>
+  <data name="入力で上書き · Enterで下 · Tabで次 · F2で文字編集 · Escでセル取消 · Ctrl+Enterで行追加 · Alt+Deleteで行を削除予定 · Ctrl+Sで保存" xml:space="preserve"><value>Type to replace · Enter moves down · Tab moves right · F2 edits text · Esc reverts the cell · Ctrl+Enter adds a row · Alt+Delete marks a row for deletion · Ctrl+S saves</value></data>
+  <data name="DBと競合する変更があります。表示された競合を解決してから保存してください。" xml:space="preserve"><value>Some edits conflict with the database. Resolve the conflicts before saving.</value></data>
+  <data name="DBの値: {0}" xml:space="preserve"><value>Database value: {0}</value></data>
+  <data name="自分の値" xml:space="preserve"><value>Keep my value</value></data>
+  <data name="DBの値" xml:space="preserve"><value>Use database value</value></data>
+  <data name="DBで行が削除されました" xml:space="preserve"><value>The row was deleted in the database</value></data>
+  <data name="削除予定の行がDBで変更されました" xml:space="preserve"><value>The row marked for deletion was changed in the database</value></data>
+  <data name="DBの状態を採用" xml:space="preserve"><value>Keep the database state</value></data>
+  <data name="新規行として残す" xml:space="preserve"><value>Keep as a new row</value></data>
+  <data name="この行を削除する" xml:space="preserve"><value>Delete this row</value></data>
+  <data name="適用前にバックアップを作成し、一覧に示したデータを削除します。" xml:space="preserve"><value>Create a backup before applying, then delete the listed data.</value></data>
+  <data name="データを削除するには確認が必要です。" xml:space="preserve"><value>Confirm the deletion before applying.</value></data>
+  <data name="編集中の入力を確定するか取り消してから削除してください。" xml:space="preserve"><value>Finish or cancel the edit before deleting.</value></data>
+  <data name="「{0}」の削除を下書きに追加しました。" xml:space="preserve"><value>Marked “{0}” for deletion in the draft.</value></data>
 </root>

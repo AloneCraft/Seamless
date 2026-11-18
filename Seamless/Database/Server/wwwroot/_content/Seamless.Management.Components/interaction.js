@@ -113,8 +113,11 @@ export function 型候補を表示(一覧) {
     一覧.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
 }
 
-export function 編集グリッドを初期化(根) {
+export function 編集グリッドを初期化(根, データ入力か = false) {
     let 選択セル = null, 編集セル = null, 開始値 = [], 行位置 = 0, 列位置 = 0;
+    const 領域 = データ入力か ? 根.closest('.結果グリッド領域') : null;
+    let 追加前の最終行;
+    const 行追加 = () => { 追加前の最終行 = 根.querySelector('[data-grid-new]:last-child'); };
     const 移動選択入力 = new WeakSet(), 変換中入力 = new WeakSet();
     const 行一覧 = () => [...根.tBodies].flatMap(本体 => [...本体.rows]);
     const セル一覧 = 行 => [...行.cells].filter(セル => !セル.classList.contains('行操作列'));
@@ -183,12 +186,18 @@ export function 編集グリッドを初期化(根) {
         if (!セル) return;
         選択(セル);
         if (引数.target.matches('input,select,textarea')) 編集開始(セル, false);
-        else if (引数.target === セル) 編集終了();
+        else if (引数.target === セル) {
+            編集終了();
+            if (データ入力か && セル.querySelector('input:not([readonly])')) 編集開始(セル, true);
+        }
     };
     const ポインター = 引数 => {
         if (文字入力か(引数.target)) 移動選択入力.delete(引数.target);
         const セル = 対象セル(引数.target);
-        if (セル && !引数.target.closest('input,select,textarea,button,label')) 移動(セル);
+        if (!セル) return;
+        if (データ入力か && 引数.button === 0 && セル !== 選択セル && 引数.target.matches('input:not([readonly])')) {
+            引数.preventDefault(); 移動(セル);
+        } else if (!引数.target.closest('input,select,textarea,button,label')) 移動(セル);
     };
     const 離脱 = 引数 => {
         移動選択入力.delete(引数.target);
@@ -201,6 +210,23 @@ export function 編集グリッドを初期化(根) {
         if (引数.isComposing || 変換中入力.has(引数.target) || 引数.keyCode === 229 || 引数.defaultPrevented
             || 引数.target.closest('[role="listbox"],[role="menu"]') || (!型移動か && 引数.target.matches('[role="combobox"][aria-expanded="true"]'))) return;
         const セル = 対象セル(引数.target);
+        if (データ入力か && !引数.target.closest('button')) {
+            let 操作ボタン = null;
+            if ((引数.ctrlKey || 引数.metaKey) && !引数.altKey && 引数.key.toLowerCase() === 's') {
+                引数.preventDefault();
+                操作ボタン = 領域?.querySelector('[data-grid-save]:enabled');
+            } else if (!引数.altKey && 引数.key === 'Enter' && (引数.ctrlKey || 引数.metaKey || 引数.target === 根 && !行一覧().length)) {
+                操作ボタン = 領域?.querySelector('[data-grid-add]:enabled');
+            } else if (引数.altKey && !引数.ctrlKey && 引数.key === 'Delete') {
+                操作ボタン = セル?.parentElement.querySelector('.行操作列 button:enabled:not(.セル競合 button)');
+            }
+            if (操作ボタン) {
+                引数.preventDefault(); 引数.stopPropagation();
+                操作ボタン.click(); return;
+            }
+            if (引数.ctrlKey || 引数.metaKey || 引数.altKey) return;
+        }
+        if (データ入力か && 引数.target.closest('button')) return;
         if (!セル) return;
         if ((引数.key === 'F10' && 引数.shiftKey) || 引数.key === 'ContextMenu') {
             const ハンドル = セル.parentElement.querySelector('[data-メニュー起点]');
@@ -220,11 +246,19 @@ export function 編集グリッドを初期化(根) {
         }
         if (引数.key === 'Enter' || 引数.key === 'F2') {
             引数.preventDefault(); 引数.stopPropagation();
-            if (編集セル && 引数.key === 'Enter') 移動(セル);
+            if (データ入力か && 引数.key === 'Enter') {
+                const 行 = 行一覧();
+                const 次行 = 行[行.indexOf(セル.parentElement) + (引数.shiftKey ? -1 : 1)];
+                移動(次行 && セル一覧(次行)[セル一覧(セル.parentElement).indexOf(セル)] || セル);
+            } else if (編集セル && 引数.key === 'Enter') 移動(セル);
             else 編集開始(セル, true, false);
             return;
         }
         if (引数.key === 'Tab') {
+            const 競合ボタン = データ入力か && !引数.shiftKey && (セル.querySelector('.セル競合 button:enabled') || セル.parentElement.querySelector('.行操作列 .セル競合 button:enabled'));
+            if (競合ボタン) {
+                引数.preventDefault(); 競合ボタン.focus(); return;
+            }
             const 全セル = 行一覧().flatMap(セル一覧);
             let 差 = 1; if (引数.shiftKey) 差 = -1;
             const 次 = 全セル[全セル.indexOf(セル) + 差];
@@ -266,7 +300,9 @@ export function 編集グリッドを初期化(根) {
             for (const セル of 対象行.cells) {
                 let 役割 = 'gridcell'; if (セル.classList.contains('行操作列')) 役割 = 'rowheader';
                 セル.setAttribute('role', 役割); セル.tabIndex = -1;
-                for (const 入力 of セル.querySelectorAll('input,select,textarea,button,[tabindex]')) 入力.tabIndex = -1;
+                for (const 入力 of セル.querySelectorAll('input,select,textarea,button,[tabindex]')) {
+                    if (!データ入力か || !入力.closest('.セル競合')) 入力.tabIndex = -1;
+                }
             }
         }
         根.setAttribute('aria-rowcount', String(行.length + 根.tHead.rows.length));
@@ -281,6 +317,13 @@ export function 編集グリッドを初期化(根) {
             if (次) { 選択(次); if (前の選択か && document.activeElement === document.body) 移動(次); }
         }
         根.tabIndex = -1; if (!行.length) 根.tabIndex = 0;
+        if (追加前の最終行 !== undefined) {
+            const 末尾 = 行.at(-1);
+            if (末尾?.hasAttribute('data-grid-new') && 末尾 !== 追加前の最終行) {
+                追加前の最終行 = undefined;
+                if (領域?.contains(document.activeElement) || document.activeElement === document.body) 移動(セル一覧(末尾)[0]);
+            }
+        }
     };
     const 監視 = new MutationObserver(変更 => {
         if (変更.some(項目 => 項目.target.matches('tbody,tr,td'))) 更新();
@@ -292,8 +335,10 @@ export function 編集グリッドを初期化(根) {
     根.addEventListener('focusin', フォーカス); 根.addEventListener('focusout', 離脱); 根.addEventListener('pointerdown', ポインター); 根.addEventListener('keydown', キー);
     根.addEventListener('keydown', 型セル移動, true);
     根.addEventListener('input', 入力変更); 根.addEventListener('compositionstart', 変換開始); 根.addEventListener('compositionend', 変換終了);
+    const 追加クリック = 引数 => { if (引数.target.closest('[data-grid-add]:enabled')) 行追加(); };
+    領域?.addEventListener('click', 追加クリック);
     更新();
-    return { dispose() { 監視.disconnect(); 根.removeEventListener('focusin', フォーカス); 根.removeEventListener('focusout', 離脱); 根.removeEventListener('pointerdown', ポインター); 根.removeEventListener('keydown', キー); 根.removeEventListener('keydown', 型セル移動, true); 根.removeEventListener('input', 入力変更); 根.removeEventListener('compositionstart', 変換開始); 根.removeEventListener('compositionend', 変換終了); } };
+    return { dispose() { 監視.disconnect(); 領域?.removeEventListener('click', 追加クリック); 根.removeEventListener('focusin', フォーカス); 根.removeEventListener('focusout', 離脱); 根.removeEventListener('pointerdown', ポインター); 根.removeEventListener('keydown', キー); 根.removeEventListener('keydown', 型セル移動, true); 根.removeEventListener('input', 入力変更); 根.removeEventListener('compositionstart', 変換開始); 根.removeEventListener('compositionend', 変換終了); } };
 }
 
 export function ツリーを初期化(根, IME) {

@@ -157,6 +157,9 @@ body:has(.管理ワークスペース){margin:0}
 .セル入力:hover{border-color:#d4e0cb;background:#fafcf8}
 .セル入力:focus{border-color:#5c7849;background:white;outline:none}
 .セル入力.セル変更{background:#fff9e6;border-color:#ecd992}
+.セル入力[aria-invalid="true"]{border-color:#a32424;background:#fff0eb}
+.セル競合{display:flex;flex-wrap:wrap;gap:4px;padding:4px;min-width:10rem}
+.セル競合 small{flex-basis:100%;color:#a32424}
 .新規行{background:#f3f9ed}
 .変更行{background:#fffcf0}
 .削除行{background:#fdf2f2;opacity:0.7}

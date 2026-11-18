@@ -60,14 +60,12 @@ public sealed class TreeInlineOperations{
             Assert.Contains("Products",names);Assert.DoesNotContain("Items",names);
         }
         {
-            //ビュー・関数の名前変更と削除は未対応を赤い太字で示し、下書きを変えない
+            // ビュー・関数の名前変更は、ソースの参照先も直す必要がある。
             Assert.Null((await operations.作成("","View","Recent")).案内);
             var view=Designer.Objects(Draft(workspace)).Single(item=>item.Name=="Recent");
             var before=Draft(workspace);
             var rename=await operations.名前変更(view,"Latest");
             Assert.True(rename.未対応か);Assert.NotNull(rename.案内);
-            var delete=await operations.削除(view);
-            Assert.True(delete.未対応か);Assert.NotNull(delete.案内);
             Assert.Same(before,Draft(workspace));
         }
         {
@@ -76,6 +74,21 @@ public sealed class TreeInlineOperations{
             Assert.Null((await operations.コピー(view)).案内);
             Assert.Contains(Designer.Objects(Draft(workspace)),item=>item.Name=="RecentCopy"&&item.Kind=="View");
         }
+    }
+    [Fact]public async Task RemovesTablesViewsAndFunctionsFromTheDraftOnly(){
+        await using var workspace=await Workspace(ManagementPermission.All);
+        var operations=Operations(workspace);
+        Assert.Null((await operations.作成("","Table","DraftOnly")).案内);
+        Assert.Null((await operations.作成("dbo0","View","Recent")).案内);
+        Assert.Null((await operations.作成("dbo0","Function","Total")).案内);
+        foreach(var name in new[]{"Items","DraftOnly","Recent","Total"}){
+            var item=Designer.Objects(Draft(workspace)).Single(item=>item.Name==name);
+            Assert.Null((await operations.削除(item)).案内);
+            Assert.DoesNotContain(Designer.Objects(Draft(workspace)),candidate=>candidate.Id==item.Id);
+        }
+        Assert.Equal("Items",Assert.Single(Draft(workspace).Migration!.DroppedTables));
+        Assert.Null((await operations.作成("dbo0","View","Recent")).案内);
+        Assert.Null((await operations.作成("dbo0","Function","Total")).案内);
     }
     [Fact]public async Task ViewUsersCannotChangeTheDraftFromTheTree(){
         await using var workspace=await Workspace(ManagementPermission.View);

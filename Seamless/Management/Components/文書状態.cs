@@ -18,7 +18,12 @@ internal sealed class 文書状態{
     public long 下書き版{get;private set;}
     public long 基準版{get;private set;}
     public string 選択ファイル{get;set;}
-    public ChangePreview? プレビュー{get;set;}
+    private ChangePreview? 確認内容;
+    public ChangePreview? プレビュー{
+        get=>this.確認内容;
+        set{this.確認内容=value;this.データ削除確認済みか=false;}
+    }
+    public bool データ削除確認済みか{get;set;}
     public ApplyRequest? 未確定操作{get;set;}
     private ImportedSourceBuild? 取込済み成果物;
     public SourceProjectBuild? 選択成果物{

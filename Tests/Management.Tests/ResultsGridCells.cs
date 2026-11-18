@@ -35,6 +35,6 @@ public sealed class ResultsGridCells{
         var row=Activator.CreateInstance(type,[new TableRowSnapshot(ManagementJson.Element(new{Id=1}),values,"stamp")])!;
         var changes=(Dictionary<string,string>)type.GetProperty("Values")!.GetValue(row)!;
         foreach(var pair in edits){changes.Add(pair.Key,pair.Value);}
-        return(JsonElement)type.GetMethod("CreateMergedValues")!.Invoke(row,[null])!;
+        return(JsonElement)type.GetMethod("CreateMergedValues")!.Invoke(row,[new Dictionary<string,string>(),null])!;
     }
 }
