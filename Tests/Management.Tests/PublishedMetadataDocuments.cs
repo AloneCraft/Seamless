@@ -57,7 +57,7 @@ public sealed class PublishedMetadataDocuments{
                 case nameof(IManagementOperations.DatabasesAsync):return Task.FromResult(new CatalogPage<CatalogDatabase>([new("db:db","Native","db",1,Hash,false)],0,false,"v1"));
                 case nameof(IManagementOperations.SchemasAsync):return Task.FromResult(new CatalogPage<CatalogSchema>([new(""),new("dbo0")],0,false,"v1"));
                 case nameof(IManagementOperations.ObjectsAsync):return Task.FromResult(new CatalogPage<CatalogObject>([Table,View],0,false,"v1"));
-                case nameof(IManagementOperations.FunctionsAsync):return Task.FromResult(new CatalogPage<FunctionSummary>([],0,false,"v1"));
+                case nameof(IManagementOperations.QueriesAsync):return Task.FromResult(new CatalogPage<DefinitionSummary>([],0,false,"v1"));
                 case nameof(IManagementOperations.GetObjectDetailsAsync):var target=Table;if(((CatalogRequest)args![0]!).ObjectId==View.Id){target=View;}return Task.FromResult(new CatalogObjectDetails(target,[new("Value","int")],[new("Id","int")],[],null,new("db",1,Hash,null,0,0,false)));
                 case nameof(IManagementOperations.ReadRowsAsync):this.Reads++;return Task.FromResult(new TableRows(1,[new(ManagementJson.Element(new{Id=1}),ManagementJson.Element(new{Value=7}),Hash)],false,[new("Value","int")]){KeyMembers=[new("Id","int")]});
                 case nameof(IManagementOperations.GetDefinitionAsync):case nameof(IManagementOperations.FindDraftAsync):case nameof(IManagementOperations.QueryPlansAsync):this.SourceCalls++;throw new InvalidOperationException("Source APIs must never be called for published metadata.");

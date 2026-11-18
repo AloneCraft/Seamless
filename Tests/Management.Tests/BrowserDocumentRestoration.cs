@@ -121,7 +121,7 @@ public sealed class BrowserDocumentRestoration{
             nameof(IManagementOperations.FindDraftAsync)=>Task.FromResult<Draft?>(null),
             nameof(IManagementOperations.SchemasAsync)=>this.DelayedSchemas!.Task,
             nameof(IManagementOperations.ObjectsAsync)=>Task.FromResult(new CatalogPage<CatalogObject>(Designer.Objects(Definition("a")),0,false,"v")),
-            nameof(IManagementOperations.FunctionsAsync)=>Task.FromResult(new CatalogPage<FunctionSummary>([],0,false,"v")),
+            nameof(IManagementOperations.QueriesAsync)=>Task.FromResult(new CatalogPage<DefinitionSummary>([],0,false,"v")),
             _=>throw new InvalidOperationException("Unexpected operation "+method.Name)
         };
     }

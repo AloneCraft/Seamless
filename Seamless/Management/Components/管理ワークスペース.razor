@@ -117,8 +117,8 @@
                     </div>
                 </div>
                 <section class="DB情報" aria-label="@表示文言.取得("DB情報")">
-                    <dl class="対象情報"><dt>@表示文言.取得("データベース")</dt><dd>@文書.DB.Name</dd>
-                    @if(現在対象文書?.スキーマ is{} 所属){<dt>@表示文言.取得("スキーマ")</dt><dd>@所属</dd>}
+                    <dl class="対象情報">
+                    @if(現在対象文書?.スキーマ is{} 所属){<dt>@表示文言.取得("データベース")</dt><dd>@文書.DB.Name</dd><dt>@表示文言.取得("スキーマ")</dt><dd>@所属</dd>}
                     <dt>@表示文言.取得("公開版")</dt><dd>v@(文書.基準版)</dd><dt>@表示文言.取得("下書き")</dt><dd>@表示文言.取得(対象の保存状態(文書))</dd>
                     <dt>@表示文言.取得("ソースプロジェクト")</dt><dd>@文書.定義.Source.TargetFramework · @文書.定義.Source.Files.Length @表示文言.取得("ファイル")</dd></dl>
                     <div class="適用操作"><button class="控えめボタン" disabled="@(操作中か||!権限があるか(文書.DB.Name,ManagementPermission.Edit))" @onclick="()=>下書きを保管Async(文書)"><操作アイコン 種類="保存"/>@表示文言.取得("下書きを保管")</button>

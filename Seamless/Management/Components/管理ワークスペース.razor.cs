@@ -179,7 +179,7 @@ public partial class 管理ワークスペース{
         if(DB.IsSystem){this.案内=表示文言.取得("system · システム定義は参照専用です。");return;}
         await this.DB文書を読み込むAsync(DB);
         var 対象文書=this.対象文書を取得(ID);this.タブ順序.追加(対象文書.ID);
-        if(this.選択DBID==ID&&世代==this.対象選択世代){var 版=DB.Version;if(!this.公開情報表示か(ID)){版=this.文書一覧[ID].基準版;}this.選択作業文書ID=対象文書.ID;this.案内=表示文言.取得("{0} · 公開版 v{1}",DB.Name,版);}
+        if(this.選択DBID==ID&&世代==this.対象選択世代){this.選択作業文書ID=対象文書.ID;this.案内="";}
     }
     private async Task DB文書を読み込むAsync(CatalogDatabase DB){
         var ID=DB.Id;

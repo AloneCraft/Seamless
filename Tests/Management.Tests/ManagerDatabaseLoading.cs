@@ -68,7 +68,7 @@ public sealed class ManagerDatabaseLoading{
         protected override object? Invoke(MethodInfo? method,object?[]? args)=>method!.Name switch{
             nameof(IManagementOperations.GetDefinitionAsync)=>this.Read((string)args![0]!, (CancellationToken)args[1]!),
             nameof(IManagementOperations.FindDraftAsync)=>Task.FromResult<Draft?>(null),
-            nameof(IManagementOperations.FunctionsAsync)=>Task.FromResult(new CatalogPage<FunctionSummary>([],0,false,"")),
+            nameof(IManagementOperations.QueriesAsync)=>Task.FromResult(new CatalogPage<DefinitionSummary>([],0,false,"")),
             _=>throw new InvalidOperationException(method.Name)
         };
     }

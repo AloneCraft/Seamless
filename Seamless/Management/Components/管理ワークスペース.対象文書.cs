@@ -77,8 +77,10 @@ public partial class 管理ワークスペース{
         try{
             var 一覧=new List<FunctionSummary>();long 次=0;var 版="";
             do{
-                var 頁=await this.管理操作.FunctionsAsync(new(DB.Id,版,次),this.寿命.Token);
-                一覧.AddRange(頁.Items.Where(関数=>関数.Target.Origin==FunctionOrigin.RegisteredEntry));
+                // DB内の関数は定義または公開カタログから取得済み。別定義の登録関数だけを管理情報から読む。
+                var 頁=await this.管理操作.QueriesAsync(new(DB.Id,版,次),this.寿命.Token);
+                一覧.AddRange(頁.Items.Select(項目=>new FunctionSummary(new(FunctionOrigin.RegisteredEntry,DB.Id,項目.Definition.Id,項目.Definition.Id),
+                    項目.Definition.Id,"",項目.Version,項目.ArtifactHash,項目.Definition.WritesData){DeclaringType=項目.Definition.EntryType,EntryMember=項目.Definition.EntryMember}));
                 if(!頁.HasMore){break;}次=頁.NextCursor;版=頁.VersionToken;
             }while(true);
             this.登録関数一覧[DB.Id]=一覧.ToArray();

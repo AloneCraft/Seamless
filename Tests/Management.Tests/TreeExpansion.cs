@@ -16,6 +16,18 @@ public sealed class TreeExpansion{
         await(Task)Invoke(workspace,"DBを開くAsync","first")!;var state=(ツリー展開状態)Invoke(workspace,"DBツリー状態","first")!;Assert.False(state.展開中か);Assert.Equal("first",Get<string>(workspace,"選択DBID"));
         await(Task)Invoke(workspace,"DBツリーを開閉Async","first",true)!;await(Task)Invoke(workspace,"DBを開くAsync","first")!;Assert.True(state.展開中か);
     }
+    [Fact]public async Task OpeningADatabaseTreeUsesRegisteredQueryMetadataWhenThePublishedDllCannotBeLoaded(){
+        var operations=DispatchProxy.Create<IManagementOperations,TreeOperations>();var fake=(TreeOperations)(object)operations;
+        fake.Read=id=>Task.FromResult(Version(id));fake.RejectPublishedFunctions=true;
+        fake.Queries=[new(new("report","second",DefinitionKind.Query,"Reports","Run",false),2,"owner",DateTimeOffset.UtcNow,"artifact")];
+        await using var workspace=Workspace(operations);
+        await(Task)Invoke(workspace,"DBツリー開閉時Async","second",true)!;
+        Assert.True(((ツリー展開状態)Invoke(workspace,"DBツリー状態","second")!).展開中か);
+        Assert.False(Get<bool>(workspace,"エラーか"));
+        var function=Assert.Single(Get<Dictionary<string,FunctionSummary[]>>(workspace,"登録関数一覧")["second"]);
+        Assert.Equal(new FunctionTarget(FunctionOrigin.RegisteredEntry,"second","report","report"),function.Target);
+        Assert.Equal("Run",function.EntryMember);
+    }
     [Fact]public async Task LeafSelectionUsesTheCatalogIdentityAndDoesNotAlsoSelectItsSchema(){
         var objects=new CatalogObject[]{new("Items","Items","","Table","Item"),new("dbo0.Items","Items","dbo0","Table","Item"),new("dbo1.Items","Items","dbo1","Table","Item"),new("dbo0.ItemList","ItemList","dbo0","View","Item")};
         var parameters=new Dictionary<string,object?>{{"スキーマ",new[]{"dbo0","dbo1"}},{"オブジェクト",objects},{"選択スキーマ","dbo0"},{"選択オブジェクト",objects[1]}};
@@ -170,10 +182,14 @@ public sealed class TreeExpansion{
     private static void Parameter(object target,string name,object? value)=>target.GetType().GetProperty(name,BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)!.SetValue(target,value);
     public class TreeOperations:DispatchProxy{
         public Func<string,Task<DefinitionVersion>> Read=null!;
+        public bool RejectPublishedFunctions;
+        public DefinitionSummary[] Queries=[];
         protected override object? Invoke(MethodInfo? method,object?[]? args)=>method!.Name switch{
             nameof(IManagementOperations.GetDefinitionAsync)=>this.Read((string)args![0]!),
             nameof(IManagementOperations.FindDraftAsync)=>Task.FromResult<Draft?>(null),
+            nameof(IManagementOperations.FunctionsAsync) when this.RejectPublishedFunctions=>Task.FromException<CatalogPage<FunctionSummary>>(new ManagementException("BuildMismatch","保管済み成果物が変更されています: dependency-004.dll")),
             nameof(IManagementOperations.FunctionsAsync)=>Task.FromResult(new CatalogPage<FunctionSummary>([],0,false,"")),
+            nameof(IManagementOperations.QueriesAsync)=>Task.FromResult(new CatalogPage<DefinitionSummary>(this.Queries,0,false,"")),
             _=>throw new InvalidOperationException(method.Name)
         };
     }
