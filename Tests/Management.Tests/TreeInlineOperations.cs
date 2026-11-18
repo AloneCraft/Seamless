@@ -129,6 +129,45 @@ public sealed class TreeInlineOperations{
         Assert.Equal(updated.Parameters,scalar.Parameters);
         Assert.Contains("return default;",scalar.Body);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PendingFunctionColumnsAndParametersCanBeConfirmedInEitherOrder(bool columnsFirst){
+        await using var workspace=await Workspace(ManagementPermission.All);
+        Assert.Null((await Operations(workspace).作成("dbo0","Function","Total")).案内);
+        var definition=Draft(workspace);
+        var function=Designer.Objects(definition).Single(item=>item.Kind=="ScalarFunction");
+        var baseline=Designer.ReadObjectDefinition(definition,function);
+        var parameters=new ツリー列編集要求(baseline,baseline.Columns){引数一覧=[new("minimum","long")]};
+        var columns=new ツリー列編集要求(baseline,[new("Amount","int",false)]);
+
+        Assert.True((await Confirm(columnsFirst?columns:parameters)).Succeeded);
+        Assert.True((await Confirm(columnsFirst?parameters:columns)).Succeeded);
+        var merged=Designer.ReadQuery(Draft(workspace),"dbo0.Total");
+        Assert.Equal(DatabaseQueryKind.TableFunction,merged.Kind);
+        Assert.Equal("Amount",Assert.Single(merged.Columns).Name);
+        Assert.Equal(new ParameterDesign("minimum","long"),Assert.Single(merged.Parameters));
+
+        var beforeConflict=Draft(workspace);
+        var argumentConflict=await Assert.ThrowsAsync<ManagementException>(()=>Confirm(parameters with{引数一覧=[new("other","int")]}));
+        Assert.Equal("Conflict",argumentConflict.Code);
+        var columnConflict=await Assert.ThrowsAsync<ManagementException>(()=>Confirm(columns with{列一覧=[new("Other","int",false)]}));
+        Assert.Equal("Conflict",columnConflict.Code);
+        Assert.Same(beforeConflict,Draft(workspace));
+
+        var tableFunction=Designer.Objects(beforeConflict).Single(item=>item.Kind=="TableFunction");
+        var tableBaseline=Designer.ReadObjectDefinition(beforeConflict,tableFunction);
+        var newParameter=new ParameterDesign("limit","int");
+        var nextParameters=new ツリー列編集要求(tableBaseline,tableBaseline.Columns){引数一覧=[..tableBaseline.Parameters,newParameter]};
+        var removeLastColumn=new ツリー列編集要求(tableBaseline,[]);
+        Assert.True((await Confirm(columnsFirst?removeLastColumn:nextParameters)).Succeeded);
+        Assert.True((await Confirm(columnsFirst?nextParameters:removeLastColumn)).Succeeded);
+        var scalar=Designer.ReadQuery(Draft(workspace),"dbo0.Total");
+        Assert.Equal(DatabaseQueryKind.ScalarFunction,scalar.Kind);
+        Assert.Equal(new[]{new ParameterDesign("minimum","long"),newParameter},scalar.Parameters);
+
+        Task<ObjectDefinitionEdit> Confirm(ツリー列編集要求 edit)=>(Task<ObjectDefinitionEdit>)Invoke(workspace,"ツリー列確定時Async","db",edit)!;
+    }
     [Fact]public async Task CategoryListShowsAddRowsAndRowButtonsButNoCategoryMenu(){
         var calls=new List<string>();
         var operations=new ツリー対象操作{

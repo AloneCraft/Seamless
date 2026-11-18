@@ -17,17 +17,26 @@ public partial class 管理ワークスペース{
         if(!this.文書一覧.TryGetValue(DBID,out var 文書)){throw new ManagementException("NotFound",表示文言.取得("データベースがありません。"));}
         if(!this.権限があるか(文書.DB.Name,ManagementPermission.Edit)){throw new ManagementException("Permission",表示文言.取得("権限がありません。"));}
         if(this.操作中か||文書.未確定操作 is not null){throw new ManagementException("Busy",表示文言.取得("処理が完了してから再度操作してください。"));}
-        var 種類=要求.基準.Object.Kind;
-        if(要求.基準.DefinitionId!=文書.定義.Id||種類 is not ("Table" or "View" or "ScalarFunction" or "TableFunction")){throw new ManagementException("Conflict",表示文言.取得("編集対象が一致しません。"));}
+        var 基準=要求.基準;
+        if(基準.DefinitionId!=文書.定義.Id||基準.Object.Kind is not ("Table" or "View" or "ScalarFunction" or "TableFunction")){throw new ManagementException("Conflict",表示文言.取得("編集対象が一致しません。"));}
         foreach(var 対象 in this.対象文書一覧.Values.Where(対象=>対象.DBID==DBID&&対象.対象?.Id==要求.基準.Object.Id&&対象.編集中か)){
             if(!this.対象画面.TryGetValue(対象.ID,out var 画面)||!await 画面.同期Async()){throw new ManagementException("Validation",表示文言.取得("C#の入力を確認してください。"));}
         }
+        var 列一覧=要求.列一覧;
+        if(基準.Object.Kind is "ScalarFunction" or "TableFunction"){
+            var 最新=文書.オブジェクト.SingleOrDefault(項目=>項目.Id==基準.Object.Id&&項目.Kind is "ScalarFunction" or "TableFunction")
+                ??throw new ManagementException("Conflict",表示文言.取得("編集対象が一致しません。"));
+            var 結果列の編集か=要求.引数一覧 is null&&要求.戻り型 is null;
+            基準=DatabaseDesigner.RebaseFunctionStructure(文書.定義,最新,基準,要求.引数一覧 is not null,結果列の編集か||要求.戻り型 is not null);
+            if(!結果列の編集か){列一覧=基準.Columns;}
+        }
+        var 種類=基準.Object.Kind;
         if(種類=="ScalarFunction"&&要求.戻り型 is{} 型&&DatabaseDesigner.FunctionElementType(型) is not null){
             throw new ManagementException("Validation",表示文言.取得("レコードの集合を返すには、関数に結果列を追加してください。"));
         }
-        var 形を変更するか=種類=="ScalarFunction"&&要求.列一覧.Length>0||種類=="TableFunction"&&要求.列一覧.Length==0&&要求.基準.Columns.Length>0;
-        var 結果=形を変更するか?DatabaseDesigner.ChangeFunctionResultShape(文書.定義,要求.基準,要求.列一覧):
-            DatabaseDesigner.ApplyObjectStructure(文書.定義,要求.基準,要求.列一覧,要求.引数一覧??要求.基準.Parameters,要求.戻り型??要求.基準.ReturnType);
+        var 形を変更するか=種類=="ScalarFunction"&&列一覧.Length>0||種類=="TableFunction"&&列一覧.Length==0&&基準.Columns.Length>0;
+        var 結果=形を変更するか?DatabaseDesigner.ChangeFunctionResultShape(文書.定義,基準,列一覧):
+            DatabaseDesigner.ApplyObjectStructure(文書.定義,基準,列一覧,要求.引数一覧??基準.Parameters,要求.戻り型??基準.ReturnType);
         if(結果.Succeeded){
             文書.定義=結果.Definition!;文書.プレビュー=null;
             if(形を変更するか){

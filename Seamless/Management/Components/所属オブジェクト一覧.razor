@@ -11,7 +11,7 @@
                     @if(名前変更中ID==項目.Id){
                         <span class="ツリー名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="名前の変更" 初期値="@項目.Name" クラス="ツリー名前入力" 無効か="@(編集操作停止中か||処理中か)" 確定時="名前=>名前変更確定Async(項目,名前)" 取消時="名前変更を閉じる"/></span>
                     }else{<span class="対象名" @ondblclick="()=>名前変更を開始(項目)">@項目.Name</span>}
-                    @if(項目.Kind=="ScalarFunction"){
+                    @if(項目.Kind=="ScalarFunction"||戻り型の基準?.Object.Id==項目.Id){
                         <span class="ツリー関数戻り型" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                             @if(戻り型の基準?.Object.Id==項目.Id){
                                 <型入力 ラベル="戻り型" 値="@戻り型の入力" 候補="型候補" 値変更時="型=>戻り型の入力=型"/>

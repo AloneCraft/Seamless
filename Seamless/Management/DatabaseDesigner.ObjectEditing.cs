@@ -75,7 +75,8 @@ public static partial class DatabaseDesigner{
         foreach(var parameter in parameters){Identifier(parameter.Name);ValidateObjectType(parameter.Type);}
         var compilation=Compilation(latest);var selected=ResolveEditableObject(latest,baseline.Object,compilation);
         var edits=new List<(string Path,int Start,int Length,string Text)>();
-        if(selected.Row is{} row){EditType(row,columns,baseline.Object.Kind=="Table"&&selected.Key is null);}
+        var function=baseline.Object.Kind is "ScalarFunction" or "TableFunction";
+        if(selected.Row is{} row&&(!function||!current.Columns.SequenceEqual(columns))){EditType(row,columns,baseline.Object.Kind=="Table"&&selected.Key is null);}
         if(selected.Key is{} key){
             var keyColumns=columns.Where(column=>column.PrimaryKey).ToArray();
             if(keyColumns.Length==0){throw new ManagementException("Validation","主キーを指定してください。");}
@@ -83,20 +84,22 @@ public static partial class DatabaseDesigner{
         }
         if(selected.Member is IMethodSymbol method){
             var syntax=method.DeclaringSyntaxReferences.SingleOrDefault()?.GetSyntax() as MethodDeclarationSyntax??throw new ManagementException("Unsupported","このメソッドはC#で編集してください。");
-            var old=syntax.ParameterList.Parameters;
-            var changed=parameters.Select(parameter=>{
-                var existing=old.SingleOrDefault(item=>item.Identifier.ValueText==parameter.Name);
-                if(existing is not null){return existing.WithType(SyntaxFactory.ParseTypeName(parameter.Type).WithTriviaFrom(existing.Type!));}
-                return SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameter.Name)).WithType(SyntaxFactory.ParseTypeName(parameter.Type+" "));
-            }).ToArray();
-            var queue=new Queue<ParameterSyntax>(changed);var combined=new List<ParameterSyntax>();
-            foreach(var parameter in method.Parameters){
-                if(InjectedObjectParameter(parameter)){combined.Add(old.Single(item=>item.Identifier.ValueText==parameter.Name));}
-                else if(queue.TryDequeue(out var next)){combined.Add(next);}
+            if(!function||!current.Parameters.SequenceEqual(parameters)){
+                var old=syntax.ParameterList.Parameters;
+                var changed=parameters.Select(parameter=>{
+                    var existing=old.SingleOrDefault(item=>item.Identifier.ValueText==parameter.Name);
+                    if(existing is not null){return existing.WithType(SyntaxFactory.ParseTypeName(parameter.Type).WithTriviaFrom(existing.Type!));}
+                    return SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameter.Name)).WithType(SyntaxFactory.ParseTypeName(parameter.Type+" "));
+                }).ToArray();
+                var queue=new Queue<ParameterSyntax>(changed);var combined=new List<ParameterSyntax>();
+                foreach(var parameter in method.Parameters){
+                    if(InjectedObjectParameter(parameter)){combined.Add(old.Single(item=>item.Identifier.ValueText==parameter.Name));}
+                    else if(queue.TryDequeue(out var next)){combined.Add(next);}
+                }
+                while(queue.TryDequeue(out var next)){combined.Add(next);}
+                var parameterList=syntax.ParameterList.WithParameters(ObjectParameterList(old,combined));
+                edits.Add((syntax.SyntaxTree.FilePath,syntax.ParameterList.SpanStart,syntax.ParameterList.Span.Length,parameterList.ToString()));
             }
-            while(queue.TryDequeue(out var next)){combined.Add(next);}
-            var parameterList=syntax.ParameterList.WithParameters(ObjectParameterList(old,combined));
-            edits.Add((syntax.SyntaxTree.FilePath,syntax.ParameterList.SpanStart,syntax.ParameterList.Span.Length,parameterList.ToString()));
             if(returnType!=current.ReturnType){
                 ValidateObjectType(returnType);
                 edits.Add((syntax.SyntaxTree.FilePath,syntax.ReturnType.SpanStart,syntax.ReturnType.Span.Length,returnType));
@@ -195,6 +198,24 @@ public static partial class DatabaseDesigner{
         var current=ReadObjectDefinition(latest,baseline.Object);
         if(current.Fingerprint!=baseline.Fingerprint){throw new ManagementException("Conflict","同じ対象が別の操作で変更されています。入力を保持して差分を確認してください。");}
         return current;
+    }
+    internal static ObjectDefinitionDesign RebaseFunctionStructure(Definition latest,CatalogObject target,ObjectDefinitionDesign baseline,bool editsParameters,bool editsResult){
+        var current=ReadObjectDefinition(latest,target);
+        if(editsParameters&&!baseline.Parameters.SequenceEqual(current.Parameters)
+            ||editsResult&&(baseline.Object.Kind!=current.Object.Kind||baseline.ReturnType!=current.ReturnType||!baseline.Columns.SequenceEqual(current.Columns))){throw Conflict();}
+        if(current.Fingerprint==baseline.Fingerprint){return current;}
+        var previousMethod=Method(baseline);
+        var currentMethod=Method(current);
+        if(previousMethod is null||currentMethod is null
+            ||editsParameters&&!SyntaxFactory.AreEquivalent(previousMethod.ParameterList,currentMethod.ParameterList)
+            ||editsResult&&(!SyntaxFactory.AreEquivalent(previousMethod.ReturnType,currentMethod.ReturnType)||!ResultDeclarations(baseline).SequenceEqual(ResultDeclarations(current)))){
+            throw Conflict();
+        }
+        return current;
+
+        static ManagementException Conflict()=>new("Conflict","同じ対象が別の操作で変更されています。入力を保持して差分を確認してください。");
+        static MethodDeclarationSyntax? Method(ObjectDefinitionDesign design)=>design.Parts.SingleOrDefault(part=>part.Role=="Member") is{} part?SyntaxFactory.ParseMemberDeclaration(part.Text) as MethodDeclarationSyntax:null;
+        static IEnumerable<(string Id,string Text)> ResultDeclarations(ObjectDefinitionDesign design)=>design.Parts.Where(part=>part.Role=="Record").Select(part=>(part.Id,part.Text));
     }
     private static DiagnosticInfo[] ObjectSyntaxDiagnostics(Definition definition)=>Compilation(definition).SyntaxTrees.SelectMany(tree=>tree.GetDiagnostics()).Where(diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error).Select(SourceEditor.ToDiagnostic).ToArray();
     private static bool InjectedObjectParameter(IParameterSymbol parameter)=>parameter.Type.ToDisplayString()=="Seamless.Management.Server.ManagementExecutionContext";
