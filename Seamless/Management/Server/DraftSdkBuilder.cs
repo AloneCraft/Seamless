@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -10,7 +11,7 @@ namespace Seamless.Management.Server;
 /// <summary>
 /// DB 定義の下書きを dotnet SDK でビルドし、ソースプロジェクトの成果物と同じ検査・保管を通して読み込む。
 /// 11/12 の決定：利用者の DB 定義には内蔵のコンパイル(RuntimeCompiler)を使わず、VS・VS Code と同じ SDK のビルドで作る。
-/// 同じ定義(ハッシュ)のビルドは作業用のフォルダーに残し、2回目からはビルドせずに検査だけを行う。
+/// ソース、参照DLLと生成器が同じビルドを作業用のフォルダーに残し、再利用時も成果物を検査する。
 /// 設計：Document/refactoring-designs/20261115-Managerの設計と実装の照合.md の段階7。
 /// </summary>
 internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactStore artifacts){
@@ -23,7 +24,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
         if(definition.Kind!=DefinitionKind.Database){throw new InvalidOperationException("SDK のビルドは DB 定義だけに使います。");}
         SourceEditor.Validate(definition.Source);
         lock(this.gate){
-            var draft=this.Prepare(definition.Source);
+            var draft=this.Prepare(definition.Source,cancellationToken);
             if(!File.Exists(draft.Assembly)){
                 var failure=Run(draft.Project,cancellationToken);
                 if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,draft.Directory,definition.Source),[]));}
@@ -44,7 +45,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
         SourceEditor.Validate(definition.Source);
         lock(this.gate){
             var query=new QueryBinding(database,DatabaseName(database),definition.EntryType,definition.EntryMember);
-            var draft=this.Prepare(definition.Source,query);
+            var draft=this.Prepare(definition.Source,cancellationToken,query);
             if(!File.Exists(draft.Assembly)){
                 var failure=Run(draft.Project,cancellationToken);
                 if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,draft.Directory,definition.Source),[]));}
@@ -65,7 +66,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     internal GeneratedSourceFile[] GenerateSources(SourceSnapshot source,CancellationToken cancellationToken=default){
         SourceEditor.Validate(source);
         lock(this.gate){
-            var draft=this.Prepare(source);
+            var draft=this.Prepare(source,cancellationToken);
             var generated=Path.Combine(draft.Directory,"generated");
             if(!File.Exists(draft.Assembly)||!Directory.Exists(generated)){_=Run(draft.Project,cancellationToken);}
             var files=source.Files.Select(static file=>new GeneratedSourceFile("User",file.Path,file.Text)).ToList();
@@ -114,12 +115,19 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     private sealed record QueryBinding(byte[] Database,string DatabaseName,string EntryType,string EntryMember){
         internal string Key=>Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(this.Database))+"\n"+this.EntryType+"\n"+this.EntryMember;
     }
-    // 作業用のフォルダー(ソースのハッシュごと。登録クエリは参照する DB と入口も含める)へソースとプロジェクトを書く。同じなら同じフォルダー・同じビルドを使い回す。
-    private DraftDirectory Prepare(SourceSnapshot source,QueryBinding? query=null){
-        var key=source.Hash()[..32];
-        if(query is not null){key="q"+Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(source.Hash()+"\n"+query.Key)))[..31];}
+    private DraftDirectory Prepare(SourceSnapshot source,CancellationToken cancellationToken,QueryBinding? query=null){
+        var references=new ItemsFor().Closure(ReferenceRoots);
+        var analyzers=AnalyzerAssemblies.Select(item=>global::Seamless.Execution.CompilationReferences.PathFor(Assembly.Load(item))).ToArray();
+        var sourceHash=source.Hash();
+        var inputs=new StringBuilder(sourceHash).Append('\n').Append(query?.Key).Append('\n');
+        foreach(var path in references.Concat(analyzers)){
+            cancellationToken.ThrowIfCancellationRequested();
+            using var file=File.OpenRead(path);
+            inputs.Append(path).Append('\n').Append(Convert.ToHexString(SHA256.HashData(file))).Append('\n');
+        }
+        var key="v2-"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(inputs.ToString())))[..32];
         var directory=Path.Combine(root,key);
-        var name="Seamless.Managed_"+source.Hash()[..24];
+        var name="Seamless.Managed_"+sourceHash[..24];
         var project=Path.Combine(directory,name+".csproj");
         Directory.CreateDirectory(directory);SourceWorkspace.CheckLinks(directory);
         var files=new List<SourceProjectFile>();
@@ -136,15 +144,13 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
             Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
             if(!File.Exists(databasePath)||!File.ReadAllBytes(databasePath).AsSpan().SequenceEqual(query.Database)){File.WriteAllBytes(databasePath,query.Database);}
         }
-        WriteIfChanged(project,Project(source,name,query,databasePath));
+        WriteIfChanged(project,Project(source,name,references,analyzers,query,databasePath));
         return new(directory,project,Path.Combine(directory,"bin",name+".dll"),files.ToArray());
     }
 
     // 内蔵のコンパイルと同じ参照(Seamless.Database と Seamless.Linq と、それらが参照する部品)をサーバーの部品から直接参照し、出力へ写す(共有の部品のバイトがサーバーと一致する)。
-    private static string Project(SourceSnapshot source,string name,QueryBinding? query=null,string? databasePath=null){
+    private static string Project(SourceSnapshot source,string name,string[] references,string[] analyzers,QueryBinding? query,string? databasePath){
         // 登録クエリの実行の文脈(ManagementExecutionContext)も Seamless.Database にあるので、参照は DB の部品だけで済む(サーバーの部品を成果物に入れない)。
-        var references=new ItemsFor().Closure(ReferenceRoots);
-        var analyzers=AnalyzerAssemblies.Select(item=>global::Seamless.Execution.CompilationReferences.PathFor(Assembly.Load(item))).ToArray();
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",
                 new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),

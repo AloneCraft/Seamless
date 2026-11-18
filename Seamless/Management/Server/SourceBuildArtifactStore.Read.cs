@@ -18,12 +18,14 @@ internal sealed partial class SourceBuildArtifactStore{
             if(build.BundleHash!=BundleHash(build)){throw new ManagementException("BuildMismatch","保管済み成果物の識別情報が一致しません。");}
             var manifest=capture.Read(Path.Combine(path,manifestName));
             if(!manifest.AsSpan().SequenceEqual(ManifestBytes(build))){throw new ManagementException("BuildMismatch","保管済み成果物のマニフェストが異なります。");}
-            var files=Files(build);
+            var files=Files(build);var hostShared=ManifestFormat(build)==2;
             foreach(var file in files){
-                var filePath=FilePath(build,file,path);string hash;
-                if(ManifestFormat(build)==2&&file.Shared){hash=capture.HashFile(filePath);}
-                else{hash=Convert.ToHexString(SHA256.HashData(capture.Read(filePath)));}
-                if(hash!=file.Sha256){throw new ManagementException("BuildMismatch","保管済み成果物が変更されています: "+file.File);}
+                var filePath=FilePath(build,file,path);
+                if(hostShared&&file.Shared){
+                    if(capture.HashFile(filePath)!=file.Sha256){throw new ManagementException("BuildMismatch","現在のホストの共有依存DLLが成果物のビルド時と一致しません: "+file.Name);}
+                }else{
+                    if(Convert.ToHexString(SHA256.HashData(capture.Read(filePath)))!=file.Sha256){throw new ManagementException("BuildMismatch","保管済み成果物が変更されています: "+file.File);}
+                }
             }
             var module=Path.Combine(path,"module.dll");
             using(var pe=new PEReader(new MemoryStream(capture.Read(module),false))){

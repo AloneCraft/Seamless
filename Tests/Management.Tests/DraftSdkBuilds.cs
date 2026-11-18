@@ -17,7 +17,14 @@ public sealed class DraftSdkBuilds{
         var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
         var definition=Seamless.Management.DatabaseDesigner.Empty("sdkdraft","SdkDraft");
         definition=Seamless.Management.DatabaseDesigner.Apply(definition,new("Rows","",[new("Id","int",true),new("Value","int",false)],[]));
+        // 旧版はソースだけで決めた場所にある DLL を、ホストが更新されても再利用する。
+        var sourceHash=definition.Source.Hash();
+        var previousBin=Path.Combine(root,"sdk-drafts",sourceHash[..32],"bin");
+        Directory.CreateDirectory(previousBin);
+        var previousModule=Path.Combine(previousBin,"Seamless.Managed_"+sourceHash[..24]+".dll");
+        File.WriteAllBytes(previousModule,[1,2,3]);
         NativeWorkflow.Publish(service,user,definition);
+        Assert.Equal(new byte[]{1,2,3},File.ReadAllBytes(previousModule));
         // 公開した成果物は SDK のビルドを検査・保管したもの(保管の場所に同じハッシュの包みがある)。
         var published=service.GetDefinition(user,definition.Id);
         Assert.Equal(64,published.ArtifactHash.Length);
