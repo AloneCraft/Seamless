@@ -1,7 +1,7 @@
 @implements IDisposable
 @inject IManagementOperations 管理
 <section class="文書領域 対象文書 公開対象文書" aria-label="@見出し" data-文書対象="@見出し">
-    <div class="文書見出し"><div><div class="種類ラベル">@表示文言.取得(状態.アイコン)</div><h1>@見出し</h1><p>@if(!状態.DBか){<text>@DB.Name · </text>}@表示文言.取得("公開メタデータ・読取専用")</p></div><span class="版ラベル">v@(DB.Version)</span></div>
+    <div class="文書見出し"><div>@if(!状態.DBか){<div class="種類ラベル">@表示文言.取得(状態.アイコン)</div>}<h1>@見出し</h1><p>@表示文言.取得("公開メタデータ・読取専用")</p></div><span class="版ラベル">v@(DB.Version)</span></div>
     @if(状態.対象 is null){<section aria-label="@表示文言.取得("DB情報")"><dl><dt>@表示文言.取得("公開版")</dt><dd>v@(DB.Version)</dd><dt>@表示文言.取得("成果物")</dt><dd>@DB.ArtifactHash</dd></dl></section>}
     else{
         <nav class="表示切替" aria-label="@表示文言.取得("文書の表示")"><button role="tab" aria-selected="true">@表示文言.取得("データ")</button></nav>
@@ -31,7 +31,7 @@
     private bool 読込中か,破棄済みか;
     private CancellationTokenSource? 取消;
     private long 世代;
-    private string 見出し{get{if(this.状態.DBか){return this.DB.Name;}return this.状態.名前;}}
+    private string 見出し{get{if(this.状態.DBか){return 表示文言.取得("データベース");}return this.状態.名前;}}
     private long 対象版=>this.状態.関数?.Version??this.DB.Version;
     private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction"){return new(FunctionOrigin.DatabaseMember,this.DB.Id,this.DB.DefinitionId,this.状態.対象.Id);}return null;}}
     protected override async Task OnParametersSetAsync(){

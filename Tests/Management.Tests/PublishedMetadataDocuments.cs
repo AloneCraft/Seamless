@@ -29,8 +29,10 @@ public sealed class PublishedMetadataDocuments{
         await renderer.Dispatcher.InvokeAsync(async()=>{
             WorkspaceStartup.TestWorkspace? workspace=null;
             var rendered=await renderer.RenderComponentAsync<WorkspaceStartup.TestWorkspace>(ParameterView.FromDictionary(new Dictionary<string,object?>{{"Capture",(Action<WorkspaceStartup.TestWorkspace>)(value=>workspace=value)},{"利用者",new UserInfo("viewer",[new("Native",ManagementPermission.View)],false)}}));
+            var overview=WebUtility.HtmlDecode(rendered.ToHtmlString());Assert.DoesNotContain("<h1>Native</h1>",overview);Assert.Contains("<h1>データベース</h1>",overview);
             typeof(管理ワークスペース).GetMethod("公開対象を開く",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(workspace,["db:db",MetadataOperations.Table]);workspace!.Refresh();
             var html=WebUtility.HtmlDecode(rendered.ToHtmlString());Assert.Contains("公開メタデータ・読取専用",html);Assert.Contains("ReadRows",html);Assert.DoesNotContain("対象のC#",html);Assert.DoesNotContain("role=\"tab\" aria-selected=\"false\"",html);Assert.Equal(0,calls.Reads);Assert.Equal(0,calls.SourceCalls);
+            Assert.DoesNotContain("Native · ",html);
             var commands=typeof(管理ワークスペース).GetField("コマンド",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(workspace)!;
             var target=typeof(管理ワークスペース).GetNestedType("管理対象",BindingFlags.NonPublic)!.GetConstructors().Single(constructor=>constructor.GetParameters().Length==5).Invoke(["表","db:db","Rows","",null]);
             var matches=(System.Collections.IEnumerable)commands.GetType().GetMethod("検索")!.Invoke(commands,[target,""])!;var ids=matches.Cast<object>().Select(command=>(string)command.GetType().GetProperty("ID")!.GetValue(command)!).ToArray();Assert.Empty(ids);Assert.DoesNotContain("表ソース",ids);Assert.DoesNotContain("表を編集",ids);

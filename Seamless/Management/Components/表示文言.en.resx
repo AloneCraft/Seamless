@@ -1263,8 +1263,8 @@
   <data name="設定を保存しました。" xml:space="preserve">
     <value>Settings saved.</value>
   </data>
-  <data name="DB名を変更しました · " xml:space="preserve">
-    <value>Renamed database · </value>
+  <data name="DB名を変更しました。" xml:space="preserve">
+    <value>Database renamed.</value>
   </data>
   <data name="下書きを保管しました · r" xml:space="preserve">
     <value>Draft saved · r</value>

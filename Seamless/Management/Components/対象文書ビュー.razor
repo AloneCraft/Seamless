@@ -1,5 +1,5 @@
 ﻿<section class="文書領域 対象文書" aria-label="@状態.名前" data-文書対象="@状態.名前">
-    <div class="文書見出し"><div><div class="種類ラベル">@表示文言.取得(状態.アイコン)</div><h1>@状態.名前</h1><p class="文書説明">@DB名@if(状態.対象?.Schema.Length>0){<span> ／ @状態.対象.Schema</span>}</p></div><div class="文書操作"><span class="版ラベル">@表示文言.取得("公開版 v{0}",公開版)</span><span class="下書き状態">@表示文言.取得(保存状態)</span></div></div>
+    <div class="文書見出し"><div><div class="種類ラベル">@表示文言.取得(状態.アイコン)</div><h1>@状態.名前</h1>@if(状態.対象 is{Schema.Length:>0} 対象){<p class="文書説明">@対象.Schema</p>}</div><div class="文書操作"><span class="版ラベル">@表示文言.取得("公開版 v{0}",公開版)</span><span class="下書き状態">@表示文言.取得(保存状態)</span></div></div>
     <nav class="表示切替" aria-label="@表示文言.取得("文書の表示")">
         @foreach(var 項目 in 表示項目){<button role="tab" aria-selected="@((状態.表示==項目).ToString().ToLowerInvariant())" data-選択中="@((状態.表示==項目).ToString().ToLowerInvariant())" @onclick="()=>表示変更時Async(項目)"><操作アイコン 種類="@表示アイコン(項目)"/>@表示文言.取得(項目)</button>}
     </nav>

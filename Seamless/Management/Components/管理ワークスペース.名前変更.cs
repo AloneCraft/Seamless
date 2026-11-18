@@ -36,7 +36,7 @@ public partial class 管理ワークスペース{
                 if(this.文書一覧.TryGetValue(結果.Id,out var 文書)){文書.DB情報を更新(結果);}
                 foreach(var 関数 in this.関数定義文書.Values.Where(候補=>候補.DB.Id==結果.Id)){関数.DB情報を更新(結果);}
                 if(this.利用者 is{} 利用者){this.利用者=利用者 with{Grants=利用者.Grants.Select(許可=>{if(許可.Database==DB.Name){return 許可 with{Database=結果.Name};}return 許可;}).ToArray()};}
-                await this.更新Async();this.案内=表示文言.取得("DB名を変更しました · ")+結果.Name;
+                await this.更新Async();this.案内=表示文言.取得("DB名を変更しました。");
             });
         }finally{this.DB名前変更中か=false;}
     }
