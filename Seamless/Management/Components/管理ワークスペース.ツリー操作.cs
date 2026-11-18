@@ -52,7 +52,7 @@ public partial class 管理ワークスペース{
         if(分類=="Table"){
             結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.Apply(定義,new TableDesign(名前,所属,[new ColumnDesign("Id","int",true)],[])));
         }else if(分類=="View"){
-            結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.View,[new("Id","int",false)],[],"",新規ビュー本体(名前))));
+            結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.View,[new("Id","int",false)],[],"",新規ビュー本体(名前)),formatBody:true));
         }else{
             結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.ScalarFunction,[new("Id","int",false)],[],"int","return default;")));
         }

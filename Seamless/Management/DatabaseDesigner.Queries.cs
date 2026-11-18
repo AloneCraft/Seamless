@@ -116,7 +116,8 @@ public static partial class DatabaseDesigner{
         return definition with{Source=definition.Source with{Files=files,Revision=Guid.NewGuid().ToString("N")}};
     }
 
-    public static Definition ApplyQuery(Definition definition,QueryDesign design){
+    public static Definition ApplyQuery(Definition definition,QueryDesign design)=>ApplyQuery(definition,design,formatBody:false);
+    internal static Definition ApplyQuery(Definition definition,QueryDesign design,bool formatBody){
         ObjectName(design.Name);foreach(var part in design.Schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){ObjectName(part);}
         if(!Enum.IsDefined(design.Kind)||SyntaxFactory.ParseStatement("{\n"+design.Body+"\n}").ContainsDiagnostics){throw new ManagementException("Validation","処理本体のC#構文を確認してください。");}
         // [本体] FLinq は本体が式1つ(return 文1つ)のビュー・関数だけを呼び出し側へ展開し、展開できなければコンパイルエラー(FLINQ007)にする。
@@ -164,14 +165,16 @@ public static partial class DatabaseDesigner{
         // 本体: 生成される入口(IReader・I<スキーマ>Reader)への拡張メンバー。<コンテナ名>Queries という静的クラスへ、ビュー・関数ごとのファイルで足す。
         var receiver="global::"+container.ToDisplayString()+"."+ReaderInterfaceName(design.Schema);
         var newLine=SourceNewLine.Default;
+        const string bodyMarker="__SeamlessQueryBody__();";
+        var body=formatBody?design.Body:bodyMarker;
         string member;
-        if(design.Kind==DatabaseQueryKind.View){member="public "+resultType+" @"+design.Name+"{get{"+newLine+design.Body+newLine+"}}";}
-        else{member="public "+resultType+" @"+design.Name+"("+string.Join(",",design.Parameters.Select(parameter=>parameter.Type+" @"+parameter.Name))+"){"+newLine+design.Body+newLine+"}";}
+        if(design.Kind==DatabaseQueryKind.View){member="public "+resultType+" @"+design.Name+"{get{"+newLine+body+newLine+"}}";}
+        else{member="public "+resultType+" @"+design.Name+"("+string.Join(",",design.Parameters.Select(parameter=>parameter.Type+" @"+parameter.Name))+"){"+newLine+body+newLine+"}";}
         // スキーマごとに静的クラスを分ける(同じクラスに同名の関数が並ぶと、生成コードの名前を区別できない)。
         var queriesClass=container.Name+(design.Schema.Length==0?"":"_"+design.Schema.Replace('.','_'))+"Queries";
         var queries="public static partial class @"+queriesClass+"{"+newLine+"extension("+receiver+" "+QueryReceiver+"){"+newLine+member+newLine+"}"+newLine+"}";
         var queryFolder="Queries/";if(design.Schema.Length>0){queryFolder+=design.Schema+"/";}
-        return WriteNewFile(definition,queryFolder+design.Name+".cs",usings,ns,queries,format:design.Kind==DatabaseQueryKind.View);
+        return WriteNewFile(definition,queryFolder+design.Name+".cs",usings,ns,queries,formatBody?null:(bodyMarker,design.Body));
     }
     private static Definition UpdateExistingQuery(Definition definition,QueryDesign previous,QueryDesign design){
         var target=Objects(definition).Single(item=>item.Id==previous.Path);var baseline=ReadObjectDefinition(definition,target);
@@ -197,7 +200,7 @@ public static partial class DatabaseDesigner{
         return updated with{Source=source};
     }
     // 新しいファイルはLFで作る。AppendLineはWindowsでCRLFとなり、同じ定義でもOSごとにソースと成果物のハッシュが変わる。
-    private static Definition WriteNewFile(Definition definition,string path,string[] usings,string ns,string text,bool format=false){
+    private static Definition WriteNewFile(Definition definition,string path,string[] usings,string ns,string text,(string Marker,string Body)? body=null){
         if(definition.Source.Files.Any(file=>file.Path==path)){throw new ManagementException("Conflict","ソースファイルが既にあります: "+path);}
         var newLine=SourceNewLine.Default;
         var builder=new System.Text.StringBuilder();
@@ -205,7 +208,8 @@ public static partial class DatabaseDesigner{
         var parts=ns.Split('.',StringSplitOptions.RemoveEmptyEntries);
         foreach(var part in parts){builder.Append("namespace @").Append(part).Append('{').Append(newLine);}
         builder.Append(text).Append(newLine);foreach(var _ in parts){builder.Append('}').Append(newLine);}
-        var source=builder.ToString();
-        return definition with{Source=definition.Source with{Files=[..definition.Source.Files,new(path,format?Format(source):source)]}};
+        var source=FormatCompactSource(builder.ToString());
+        if(body is{} replacement){source=source.Replace(replacement.Marker,replacement.Body,StringComparison.Ordinal);}
+        return definition with{Source=definition.Source with{Files=[..definition.Source.Files,new(path,source)]}};
     }
 }

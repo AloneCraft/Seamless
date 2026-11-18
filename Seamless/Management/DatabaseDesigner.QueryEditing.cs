@@ -29,7 +29,7 @@ public static partial class DatabaseDesigner{
             var rowName=prefix;
             for(var suffix=2;definition.Source.Files.Any(file=>file.Path.Equals(folder+rowName+".cs",StringComparison.OrdinalIgnoreCase))||compilation.GetTypeByMetadataName(ns+"."+rowName) is not null;suffix++){rowName=prefix+suffix;}
             var row="public readonly record struct @"+rowName+"("+string.Join(", ",columns.Select(column=>column.Type+" @"+column.Name))+");";
-            definition=WriteNewFile(definition,folder+rowName+".cs",[],ns,row,format:true);
+            definition=WriteNewFile(definition,folder+rowName+".cs",[],ns,row);
             var fullName="global::"+ns+".@"+rowName;
             returnType=SetTypePrefix+fullName+">";
             if(expression?.IsKind(SyntaxKind.DefaultLiteralExpression)==true){replacement=SyntaxFactory.ParseExpression(EmptyResult(fullName));}

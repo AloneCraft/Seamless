@@ -30,6 +30,8 @@ public sealed class DatabaseDraftPublication{
             var draft=service.GetDraft(user,definition.Id);
             var preview=service.Preview(user,new(definition.Id,draft.Revision));
             Assert.True(preview.CanApply);
+            Assert.Equal(definition.Source.Files.Select(file=>new SourceFileChange(file.Path,null,file.Text)),preview.SourceChanges);
+            Assert.DoesNotContain(preview.Changes,change=>change.Contains(definition.Source.Files[0].Text,StringComparison.Ordinal));
             var request=Request(preview);
             var applied=service.Apply(user,request);
             Assert.Equal(OperationState.Succeeded,applied.State);
@@ -53,6 +55,9 @@ public sealed class DatabaseDraftPublication{
         var draft=service.SaveDraft(user,new(definition with{Source=source},1,1,1){DatabaseChange=new("Native","Renamed")});
         var preview=service.Preview(user,new(definition.Id,draft.Revision));Assert.True(preview.CanApply);
         Assert.Contains(preview.Changes,change=>change.Contains("Native → Renamed",StringComparison.Ordinal));
+        var changedSource=Assert.Single(preview.SourceChanges);
+        Assert.Equal(definition.Source.Files.Single(file=>file.Path==changedSource.Path).Text,changedSource.Before);
+        Assert.Equal(source.Files.Single(file=>file.Path==changedSource.Path).Text,changedSource.After);
         Assert.Equal("Native",Assert.Single(service.Databases(user).Items,item=>!item.IsSystem).Name);
         service.RenameCheckpoint=()=>throw new IOException("publication interrupted");
         var failed=service.Apply(user,Request(preview));

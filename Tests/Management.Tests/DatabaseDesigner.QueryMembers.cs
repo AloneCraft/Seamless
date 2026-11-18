@@ -24,11 +24,17 @@ public sealed class DatabaseDesignerQueryMembers{
         var reader=schema.Length==0?"IReader":"I"+schema+"Reader";
         var view=definition.Source.Files.Single(file=>file.Path==(schema.Length==0?"Queries/Active.cs":"Queries/"+schema+"/Active.cs")).Text;
         Assert.Contains("extension(global::UserCode.ManagedDb."+reader+" q)",view);
-        Assert.Contains("ISet<global::UserCode.Views"+(schema.Length==0?"":"."+schema)+".@Active> @Active\n",view);
-        Assert.Contains("\n                get\n                {\n                    return ",view);
+        Assert.Contains("ISet<global::UserCode.Views"+(schema.Length==0?"":"."+schema)+".@Active> @Active{\n",view);
+        Assert.Contains("\n                get{\n                    return ",view);
+        Assert.DoesNotContain("\n\n",view);
         // 結果の行型は Views・Functions に、キーを持たない行として置く。
         Assert.Contains(definition.Source.Files,file=>file.Path==(schema.Length==0?"Views/Active.cs":"Views/"+schema+"/Active.cs")&&file.Text.Contains("record struct @Active(int @Id)"));
-        Assert.Contains(definition.Source.Files,file=>file.Path==(schema.Length==0?"Functions/FindRow.cs":"Functions/"+schema+"/FindRow.cs"));
+        var row=definition.Source.Files.Single(file=>file.Path==(schema.Length==0?"Functions/FindRow.cs":"Functions/"+schema+"/FindRow.cs"));
+        Assert.Contains("    namespace @Functions{\n",row.Text);
+        Assert.DoesNotContain("\n\n",row.Text);
+        var function=definition.Source.Files.Single(file=>file.Path==(schema.Length==0?"Queries/Find.cs":"Queries/"+schema+"/Find.cs"));
+        Assert.Contains(" @Find(decimal @minimum){\n",function.Text);
+        Assert.Contains("\n                return q.Items",function.Text);
         var prefix=schema.Length==0?"":schema+".";
         var objects=Designer.Objects(definition);
         Assert.Equal("View",Assert.Single(objects,item=>item.Id==prefix+"Active").Kind);
@@ -55,7 +61,7 @@ public sealed class DatabaseDesignerQueryMembers{
     public void TheStarterViewShowsBothWaysToReadATableInASchema(){
         var definition=WithItems("dbo0");
         var starter=Seamless.Management.Components.管理ワークスペース.新規ビュー本体("Example");
-        definition=Designer.ApplyQuery(definition,new("Example","",DatabaseQueryKind.View,[new("Id","int",false)],[],"",starter));
+        definition=Designer.ApplyQuery(definition,new("Example","",DatabaseQueryKind.View,[new("Id","int",false)],[],"",starter),formatBody:true);
         var generated=definition.Source.Files.Single(file=>file.Path=="Queries/Example.cs").Text;
         Assert.Contains("\n                    // return q.スキーマ名.テーブル名.Select",generated);
         Assert.Contains("\n                    // return from a in q.スキーマ名.テーブル名",generated);

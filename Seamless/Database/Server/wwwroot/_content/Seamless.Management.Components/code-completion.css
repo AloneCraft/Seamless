@@ -1,5 +1,5 @@
-.色付きコード .コード補完{grid-column:1/-1;min-width:0;white-space:normal;padding:4px 8px}
-.コード補完候補{max-height:240px;overflow:auto;border:1px solid #cdd8ca;border-radius:5px;background:#fff}
+.コード補完候補{position:fixed;z-index:110;width:min(440px,calc(100vw - 16px));max-height:min(240px,calc(100vh - 16px));overflow:auto;border:1px solid #cdd8ca;border-radius:5px;background:#fff;box-shadow:0 6px 18px #293c2026;box-sizing:border-box}
+.コード補完候補:not([data-caret-positioned]){visibility:hidden}
 .コード補完候補 button{display:flex;gap:10px;align-items:baseline;width:100%;padding:5px 9px;text-align:left;min-width:0;border:0;background:transparent;color:inherit}
 .コード補完候補 button[aria-selected=true]{background:#e7eee8;outline:1px solid #719879;outline-offset:-1px}
 .コード補完候補 small{color:#6d776a;font-size:11px}

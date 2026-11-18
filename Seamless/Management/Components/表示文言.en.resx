@@ -2024,6 +2024,13 @@
   <data name="対象の履歴には管理権限が必要です。" xml:space="preserve"><value>Viewing this target&apos;s history requires management permission.</value></data>
   <data name="反復" xml:space="preserve"><value>Round</value></data>
   <data name="変更" xml:space="preserve"><value>Changed</value></data>
+  <data name="追加" xml:space="preserve"><value>Added</value></data>
+  <data name="変更ファイル" xml:space="preserve"><value>Changed file</value></data>
+  <data name="表示する版" xml:space="preserve"><value>Version to show</value></data>
+  <data name="変更前" xml:space="preserve"><value>Before</value></data>
+  <data name="変更後" xml:space="preserve"><value>After</value></data>
+  <data name="変更前のC#" xml:space="preserve"><value>C# before the change</value></data>
+  <data name="変更後のC#" xml:space="preserve"><value>C# after the change</value></data>
   <data name="保存・読込・比較と最適化追跡" xml:space="preserve"><value>Save, open, compare, and trace optimization</value></data>
   <data name="保存と表示の操作は問い合わせを実行しません。" xml:space="preserve"><value>Saving and viewing do not execute the query.</value></data>
   <data name="保存済み" xml:space="preserve"><value>Saved</value></data>

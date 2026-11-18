@@ -56,9 +56,11 @@ public sealed record AnalysisResult(string SourceHash,EditorNode[] Nodes,Diagnos
 public sealed record EditorNode(string Id,string Kind,string Label,string Path,int Start,int Length,string? ParentId,bool Editable);
 public sealed record SourceEdit(string SourceHash,string Path,int Start,int Length,string Replacement);
 public sealed record BuildResult(string SourceHash,string ArtifactHash,DiagnosticInfo[] Diagnostics,ExecutionPlanDocument[] Plans);
+public sealed record SourceFileChange(string Path,string? Before,string? After);
 public sealed record ChangePreview(string Token,string Id,long DraftRevision,long CurrentVersion,string[] Changes,string[] Dependencies,bool CanApply,DiagnosticInfo[] Diagnostics,ValidationResult? Validation=null,bool RequiresBackup=false){
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? BundleHash{get;init;}
+    public SourceFileChange[] SourceChanges{get;init;}=[];
 }
 public sealed record ApplyRequest(string Id,long DraftRevision,string PreviewToken,Guid OperationId,[property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]bool ConfirmDataLoss=false){
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]

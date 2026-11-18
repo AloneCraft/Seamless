@@ -155,7 +155,17 @@ public sealed partial class ManagementService:IDisposable{
         if(table is not null){intent+="\nTablePublicationV1\n"+table+"\n"+candidate.Hash();}
         if(actualBundle is not null){intent+="\nSourceBuildV1\n"+actualBundle;}
         var token=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(intent)));
-        return new(token,draft.Definition.Id,draft.Revision,version,changes,dependencies,diagnostics.All(item=>item.Severity!="Error"),diagnostics.ToArray(),validation,candidate.Migration?.HasDataLoss==true){BundleHash=bundleHash};
+        return new(token,draft.Definition.Id,draft.Revision,version,changes,dependencies,diagnostics.All(item=>item.Severity!="Error"),diagnostics.ToArray(),validation,candidate.Migration?.HasDataLoss==true){BundleHash=bundleHash,SourceChanges=DescribeSourceChanges(active?.Definition.Source,candidate.Source)};
+    }
+    private static SourceFileChange[] DescribeSourceChanges(SourceSnapshot? before,SourceSnapshot after){
+        var previous=(before?.Files??[]).ToDictionary(file=>file.Path,file=>file.Text,StringComparer.Ordinal);
+        var changes=new List<SourceFileChange>();
+        foreach(var file in after.Files){
+            previous.Remove(file.Path,out var oldText);
+            if(oldText!=file.Text){changes.Add(new(file.Path,oldText,file.Text));}
+        }
+        changes.AddRange(previous.Select(file=>new SourceFileChange(file.Key,file.Value,null)));
+        return changes.ToArray();
     }
     public OperationInfo Apply(UserAccount user,ApplyRequest request)=>this.ApplyPublication(user,request,null);
     public OperationInfo ApplyTable(UserAccount user,ApplyTableRequest request){

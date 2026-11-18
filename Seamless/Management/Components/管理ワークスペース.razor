@@ -153,6 +153,7 @@
                     <section class="適用カード" aria-label="@表示文言.取得("変更の確認")"><div><h2>@(表示文言.取得("変更を確認"))</h2><p>@表示文言.取得("基準の公開版 v{0} → 次の公開版",確認.CurrentVersion)</p></div>
                         @foreach(var 変更 in 確認.Changes){<p class="変更内容">@変更</p>}
                         @foreach(var 診断 in 確認.Diagnostics){<p>@診断.Message</p>}
+                        <変更ソース表示 @key="確認" ファイル="確認.SourceChanges"/>
                         @if(確認.CanApply&&確認.RequiresBackup){
                             <label class="変更内容"><input type="checkbox" @bind="適用文書.データ削除確認済みか" disabled="@操作中か"/> @表示文言.取得("適用前にバックアップを作成し、一覧に示したデータを削除します。")</label>
                         }

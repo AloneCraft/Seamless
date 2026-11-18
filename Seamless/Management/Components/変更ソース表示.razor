@@ -1,0 +1,29 @@
+@if(ファイル.Length>0){
+    var 選択=ファイル[選択番号];
+    var 変更前を表示=選択.After is null||変更前か&&選択.Before is not null;
+    var 本文=DatabaseDesigner.FormatCompactSource((変更前を表示?選択.Before:選択.After)??"");
+    <section class="変更ソース表示">
+        <div class="コード見出し">
+            <select aria-label="@表示文言.取得("変更ファイル")" @bind="選択番号" @bind:after="ファイル選択後">
+                @for(var 番号=0;番号<ファイル.Length;番号++){
+                    var 項目=ファイル[番号];
+                    <option value="@番号">@区分(項目) · @項目.Path</option>
+                }
+            </select>
+            @if(選択 is {Before:not null,After:not null}){
+                <select aria-label="@表示文言.取得("表示する版")" @bind="変更前か">
+                    <option value="false">@表示文言.取得("変更後")</option>
+                    <option value="true">@表示文言.取得("変更前")</option>
+                </select>
+            }
+        </div>
+        <コードエディター @key="(選択番号,変更前を表示)" 値="@本文" 読み取り専用か="true" ラベル="@(変更前を表示?"変更前のC#":"変更後のC#")" 行数="@Math.Clamp(本文.Count(文字=>文字=='\n')+1,4,22)"/>
+    </section>
+}
+@code{
+    [Parameter,EditorRequired]public SourceFileChange[] ファイル{get;set;}=[];
+    private int 選択番号;
+    private bool 変更前か;
+    private void ファイル選択後()=>this.変更前か=false;
+    private static string 区分(SourceFileChange ファイル)=>表示文言.取得(ファイル.Before is null?"追加":ファイル.After is null?"削除":"変更");
+}

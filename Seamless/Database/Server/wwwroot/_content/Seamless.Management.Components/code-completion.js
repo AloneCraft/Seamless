@@ -1,4 +1,26 @@
 let nextOptionId = 0;
+function caretBounds(input) {
+    const style = getComputedStyle(input);
+    const mirror = document.createElement('div');
+    Object.assign(mirror.style, {
+        position: 'fixed', top: '0', left: '0', visibility: 'hidden', pointerEvents: 'none',
+        whiteSpace: 'pre', fontFamily: style.fontFamily, fontSize: style.fontSize, fontWeight: style.fontWeight,
+        fontStyle: style.fontStyle, lineHeight: style.lineHeight, fontVariantLigatures: style.fontVariantLigatures,
+        tabSize: style.tabSize, letterSpacing: style.letterSpacing, wordSpacing: style.wordSpacing
+    });
+    const marker = document.createElement('span');
+    marker.textContent = '\u200b';
+    mirror.append(input.value.slice(0, input.selectionEnd), marker);
+    document.body.append(mirror);
+    const point = marker.getBoundingClientRect();
+    mirror.remove();
+    const bounds = input.getBoundingClientRect();
+    return {
+        x: bounds.left + input.clientLeft + parseFloat(style.paddingLeft) + point.left - input.scrollLeft,
+        y: bounds.top + input.clientTop + parseFloat(style.paddingTop) + point.top - input.scrollTop,
+        height: parseFloat(style.lineHeight), bounds
+    };
+}
 export function 初期化(root, input, receiver, failureMessage) {
     let disposed = false;
     let composing = false;
@@ -11,6 +33,30 @@ export function 初期化(root, input, receiver, failureMessage) {
     const list = () => root.querySelector('[role="listbox"]');
     const options = () => Array.from(root.querySelectorAll('[data-code-completion-index]'));
     const ownsFocus = () => root.contains(document.activeElement);
+    const place = () => {
+        const popup = list();
+        if (!popup || popup.hidden || document.activeElement !== input) return;
+        const { x, y, height, bounds } = caretBounds(input);
+        const margin = 8;
+        const viewportWidth = document.documentElement.clientWidth;
+        const viewportHeight = document.documentElement.clientHeight;
+        if (x < Math.max(0, bounds.left) || x > Math.min(viewportWidth, bounds.right)
+            || y + height < Math.max(0, bounds.top) || y > Math.min(viewportHeight, bounds.bottom)) {
+            delete popup.dataset.caretPositioned;
+            return;
+        }
+        const size = popup.getBoundingClientRect();
+        let left = x + margin;
+        let top = y;
+        if (left + size.width > viewportWidth - margin) {
+            left = x - margin - size.width;
+            if (left < margin) { left = Math.max(margin, viewportWidth - size.width - margin); top = y + height; }
+        }
+        top = Math.max(margin, Math.min(top, viewportHeight - size.height - margin));
+        popup.style.left = `${left}px`;
+        popup.style.top = `${top}px`;
+        popup.dataset.caretPositioned = 'true';
+    };
     const report = error => {
         if (disposed) return;
         root.dataset.completionError = 'true';
@@ -38,6 +84,7 @@ export function 初期化(root, input, receiver, failureMessage) {
         });
         if (entries.length && !list()?.hidden) input.setAttribute('aria-activedescendant', entries[selected].id);
         else input.removeAttribute('aria-activedescendant');
+        place();
     };
     const matches = request => !disposed && !composing && !input.readOnly && document.activeElement === input
         && generation === request.generation && input.value === request.text
@@ -118,6 +165,8 @@ export function 初期化(root, input, receiver, failureMessage) {
     input.addEventListener('compositionend', compositionEnd);
     root.addEventListener('pointerdown', pointerdown);
     root.addEventListener('focusout', focusout);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
     return {
         update,
         dispose() {
@@ -128,6 +177,8 @@ export function 初期化(root, input, receiver, failureMessage) {
             input.removeEventListener('compositionend', compositionEnd);
             root.removeEventListener('pointerdown', pointerdown);
             root.removeEventListener('focusout', focusout);
+            window.removeEventListener('scroll', place, true);
+            window.removeEventListener('resize', place);
             input.removeAttribute('aria-activedescendant');
         }
     };

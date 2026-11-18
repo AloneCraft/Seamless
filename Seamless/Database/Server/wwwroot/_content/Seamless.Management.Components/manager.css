@@ -89,6 +89,7 @@ body:has(.管理ワークスペース){margin:0}
 .未適用印{display:inline-block;padding:1px 5px;border-radius:3px;background:#f5ecd6;color:#8b692b;font-size:10px;font-weight:400;white-space:nowrap}
 .未適用テーブル{margin-top:22px;padding:18px;border:1px solid #e4dbc5;border-radius:5px;background:#fffdf7}.未適用テーブル p{font-size:12px;line-height:1.8}.未適用テーブル button+button{margin-left:8px}
 .色付きコード{display:grid;grid-template-columns:auto minmax(0,1fr);min-width:0;border:1px solid var(--線);border-radius:0 0 6px 6px;background:#fdfefb;overflow:hidden}
+.色付きコード>.コード補完,.色付きコード>[data-completion-error]{grid-column:1/-1;min-width:0;white-space:normal;padding:4px 8px}
 .コード行番号{position:relative;width:max(48px,calc(var(--コード番号桁,2)*1ch + 20px));min-height:0;overflow:hidden;background:#fafbf7;color:#a9b59d;text-align:right;user-select:none;font:12px/22px Consolas,"Cascadia Code",monospace}
 .コード行番号 pre,.コード色表示,.コード編集枠 textarea{margin:0;border:0;font:12px/22px Consolas,"Cascadia Code",monospace;font-variant-ligatures:none;tab-size:4;box-sizing:border-box;white-space:pre}
 .コード行番号 pre{position:absolute;top:0;right:0;min-width:100%;padding:16px 10px}.コード編集枠{position:relative;min-width:0;min-height:0;overflow:hidden}

@@ -119,6 +119,36 @@ public sealed class ObjectDefinitionEditing{
         Assert.True(edit.Succeeded,string.Join(Environment.NewLine,edit.Diagnostics.Select(item=>item.Message)));
         Assert.Equal("long",Designer.ReadObjectDefinition(edit.Definition!,target).ReturnType);
     }
+    [Fact]public async Task SourceTabAlignsLegacyFunctionWithItsFullFileAndKeepsItsEditRange(){
+        var definition=Designer.Empty("db","DB");
+        definition=Designer.ApplyQuery(definition,new("F","",DatabaseQueryKind.ScalarFunction,[],[new("n","int")],"int","return n;"));
+        const string path="Queries/F.cs";
+        var original=definition.Source.Files.Single(file=>file.Path==path).Text;
+        var legacy=original.Replace("            public", "public",StringComparison.Ordinal)
+            .Replace("                return", "return",StringComparison.Ordinal).Replace("            }", "}",StringComparison.Ordinal);
+        Assert.NotEqual(original,legacy);
+        definition=definition with{Source=definition.Source with{Files=definition.Source.Files.Select(file=>file.Path==path?file with{Text=legacy}:file).ToArray()}};
+        var target=Designer.Objects(definition).Single(item=>item.Name=="F");
+        var updates=new List<Definition>();
+        using var provider=new ServiceCollection().AddLogging().AddSingleton<IJSRuntime,StaticRenderScripts>().BuildServiceProvider();
+        await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async()=>{
+            TestEditor? editor=null;
+            await renderer.RenderComponentAsync<TestEditor>(ParameterView.FromDictionary(new Dictionary<string,object?>{
+                {"定義",definition},{"対象",target},{"表示モード","Source"},{"Capture",(Action<TestEditor>)(value=>editor=value)},
+                {"定義変更時",EventCallback.Factory.Create<Definition>(updates,(Definition value)=>updates.Add(value))}
+            }));
+            var originalPart=Designer.ReadObjectDefinition(definition,target).Parts.Single(part=>part.Role=="Member");
+            Assert.StartsWith("            public int @F(int @n){\n                return n;\n            }",editor!.Code);
+            Assert.Empty(updates);
+            Assert.Equal(legacy,definition.Source.Files.Single(file=>file.Path==path).Text);
+            var replacement=editor.Code.Replace("return n;","return n+1;",StringComparison.Ordinal);
+            await editor.Change(replacement);
+            Assert.True(await editor.同期Async());
+            var edited=Assert.Single(updates).Source.Files.Single(file=>file.Path==path).Text;
+            Assert.Equal(legacy.Remove(originalPart.Start,originalPart.Length).Insert(originalPart.Start,replacement),edited);
+        });
+    }
     public sealed class TestEditor:対象定義エディター{
         [Parameter]public Action<TestEditor> Capture{get;set;}=null!;
         protected override void OnInitialized()=>this.Capture(this);

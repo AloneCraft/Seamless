@@ -78,7 +78,7 @@
             var 初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Member");if(this.対象.Kind=="Table"){初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Record");}
             this.選択部分ID=(初期??次.Parts[0]).Id;
         }
-        this.入力コード=次.Parts.Single(部分=>部分.Id==this.選択部分ID).Text;
+        this.入力コード=this.表示コード(定義,次.Parts.Single(部分=>部分.Id==this.選択部分ID));
         this.列一覧.Clear();this.列一覧.AddRange(次.Columns.Select(列=>new 列入力{名前=列.Name,型=列.Type,主キーか=列.PrimaryKey,元名=列.OriginalName,式=列.Expression}));
         this.引数一覧.Clear();this.引数一覧.AddRange(次.Parameters.Select(引数=>new 引数入力{名前=引数.Name,型=引数.Type}));
         this.戻り型=次.ReturnType;this.案内=null;this.診断一覧=[];
@@ -113,8 +113,10 @@
         var ID=引数.Value?.ToString();
         if(ID is null||!await this.同期Async()||this.基準 is null){return;}
         var 部分=this.基準.Parts.SingleOrDefault(部分=>部分.Id==ID);if(部分 is null){return;}
-        this.選択部分ID=ID;this.入力コード=部分.Text;
+        this.選択部分ID=ID;this.入力コード=this.表示コード(this.定義,部分);
     }
+    private string 表示コード(Definition 定義,ObjectDefinitionPart 部分)=>this.対象.Kind is "View" or "ScalarFunction" or "TableFunction"
+        ?DatabaseDesigner.FormatObjectPart(定義.Source,部分):部分.Text;
     private Task 変更通知Async(){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.変更ありか=true;this.案内=null;this.診断一覧=[];return this.未保存変更時.InvokeAsync(true);}
     private Task コード変更時Async(string 値){this.入力コード=値;return this.変更通知Async();}
     private Task 列名変更時Async(列入力 列,ChangeEventArgs 値){列.名前=値.Value?.ToString()??"";return this.変更通知Async();}
