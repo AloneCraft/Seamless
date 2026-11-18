@@ -6,7 +6,7 @@
             }else{
                 <div class="ツリー列外枠" data-列名="@列.Name" data-移動先="@(移動先==列.Name?"true":"false")" @ondragover="()=>移動先=列.Name" @ondragover:preventDefault="true" @ondrop="()=>列を移動(列.Name)" @ondrop:preventDefault="true">
                     <span class="ツリー列ドラッグ" draggable="@((編集基準 is null&&!保存中か).ToString().ToLowerInvariant())" title="@表示文言.取得("ドラッグして表示順を変更")" aria-label="@表示文言.取得("ドラッグして表示順を変更")" @ondragstart="()=>移動元=列.Name" @ondragend="移動取消"><操作アイコン 種類="ドラッグ"/></span>
-                    <button type="button" class="ツリー列行" title="@表示文言.取得("列を編集")" disabled="@(!編集可能か||保存中か||編集基準 is not null)" @onclick="()=>編集開始(列)"><span>@列.Name</span><small>@列.Type</small>@if(列.PrimaryKey){<span title="@表示文言.取得("主キー")">◆</span>}</button>
+                    <button type="button" class="ツリー列行" title="@表示文言.取得("列を編集")" disabled="@(!編集可能か||編集操作停止中か||保存中か||編集基準 is not null)" @onclick="()=>編集開始(列)"><span>@列.Name</span><small>@列.Type</small>@if(列.PrimaryKey){<span title="@表示文言.取得("主キー")">◆</span>}</button>
                 </div>
             }
         }
@@ -14,7 +14,7 @@
     @if(編集基準 is not null&&元の列 is null){@列入力()}
     else if(基準?.StructureAvailable==true&&編集可能か){
         @* 既存の列を編集している間もボタンを残し(押せない状態)、下の行の位置を動かさない。 *@
-        <button type="button" class="テキストボタン ツリー列追加" disabled="@(編集基準 is not null||保存中か)" @onclick="追加開始Async"><操作アイコン 種類="列を追加"/>@表示文言.取得("列を追加")</button>
+        <button type="button" class="テキストボタン ツリー列追加" disabled="@(編集操作停止中か||編集基準 is not null||保存中か)" @onclick="追加開始Async"><操作アイコン 種類="列を追加"/>@表示文言.取得("列を追加")</button>
     }
     @if(案内 is not null){<p class="ツリー列診断" role="status">@案内</p>}
 </section>
@@ -24,15 +24,15 @@
         <div class="ツリー列外枠 ツリー列編集中" data-column-editor role="group" aria-label="@表示文言.取得("列を編集")">
             <span class="ツリー列ドラッグ" aria-hidden="true"><操作アイコン 種類="ドラッグ"/></span>
             <div class="ツリー列行 ツリー列編集行">
-                <input data-column-name-input aria-label="@表示文言.取得("列名")" disabled="@(!編集可能か||保存中か)" @bind="列名" @bind:event="oninput" @onkeydown="名前キー時Async"/>
+                <input data-column-name-input aria-label="@表示文言.取得("列名")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @bind="列名" @bind:event="oninput" @onkeydown="名前キー時Async"/>
                 <型入力 ラベル="列の型" 値="@列型" 候補="型候補" 値変更時="型=>列型=型"/>
-                <input type="checkbox" aria-label="@表示文言.取得("主キー")" title="@表示文言.取得("主キー")" disabled="@(!編集可能か||保存中か)" @bind="主キーか"/>
+                <input type="checkbox" aria-label="@表示文言.取得("主キー")" title="@表示文言.取得("主キー")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @bind="主キーか"/>
                 <button type="button" class="行右ボタン" aria-expanded="@式表示中か.ToString().ToLowerInvariant()" title="@表示文言.取得("初期値・変換式")" aria-label="@表示文言.取得("初期値・変換式")" @onclick="()=>式表示中か=!式表示中か"><操作アイコン 種類="編集"/></button>
-                <button type="button" class="行右ボタン" title="@表示文言.取得("下書きに反映 · Enter")" aria-label="@表示文言.取得("下書きに反映")" disabled="@(!編集可能か||保存中か)" @onclick="確定Async"><操作アイコン 種類="確認"/></button>
+                <button type="button" class="行右ボタン" title="@表示文言.取得("下書きに反映 · Enter")" aria-label="@表示文言.取得("下書きに反映")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @onclick="確定Async"><操作アイコン 種類="確認"/></button>
             </div>
             @if(式表示中か){
                 <div class="ツリー列式ポップ" role="dialog" aria-label="@表示文言.取得("初期値・変換式")">
-                    <label class="ツリー列式">@表示文言.取得("初期値・変換式")<input aria-label="@表示文言.取得("初期値・変換式")" title="@表示文言.取得("既存行へ設定するC#式。nullも明示できます。")" disabled="@(!編集可能か||保存中か)" @bind="列式" @bind:event="oninput"/></label>
+                    <label class="ツリー列式">@表示文言.取得("初期値・変換式")<input aria-label="@表示文言.取得("初期値・変換式")" title="@表示文言.取得("既存行へ設定するC#式。nullも明示できます。")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @bind="列式" @bind:event="oninput"/></label>
                     <p class="ツリー列未対応" role="status">@表示文言.取得("新規行の既定値は未対応です。初期式は既存行の移行時に使用します。")</p>
                 </div>
             }
@@ -42,6 +42,7 @@
     [Parameter,EditorRequired]public CatalogObject 対象{get;set;}=default!;
     [Parameter]public bool 表示中か{get;set;}
     [Parameter]public bool 編集可能か{get;set;}
+    [Parameter]public bool 編集操作停止中か{get;set;}
     [Parameter]public IEnumerable<string> 型候補{get;set;}=[];
     [Parameter]public Func<ツリー列編集要求,Task<ObjectDefinitionEdit>>? 確定時{get;set;}
     [Parameter]public EventCallback 未保存変更時{get;set;}
@@ -70,13 +71,13 @@
         catch(ManagementException 例外){this.基準=null;this.案内=例外.Message;return false;}
     }
     public async Task 追加開始Async(){
-        if(!this.編集可能か||this.保存中か||this.編集基準 is not null){return;}
+        if(!this.編集可能か||this.編集操作停止中か||this.保存中か||this.編集基準 is not null){return;}
         if(!this.読み込む()||this.基準 is null){await this.InvokeAsync(this.StateHasChanged);return;}
         this.編集基準=this.基準;this.元の列=null;this.列名="Column";var 番号=1;while(this.基準.Columns.Any(列=>列.Name==this.列名)){this.列名="Column"+番号++;}this.列型="int";this.列式="";this.主キーか=false;this.案内=null;await this.未保存変更時.InvokeAsync();await this.InvokeAsync(this.StateHasChanged);
     }
-    private async Task 編集開始(ColumnDesign 列){if(!this.編集可能か||this.保存中か||this.編集基準 is not null){return;}this.編集基準=this.基準;this.元の列=列;this.列名=列.Name;this.列型=列.Type;this.列式=列.Expression??"";this.主キーか=列.PrimaryKey;this.案内=null;await this.未保存変更時.InvokeAsync();}
+    private async Task 編集開始(ColumnDesign 列){if(!this.編集可能か||this.編集操作停止中か||this.保存中か||this.編集基準 is not null){return;}this.編集基準=this.基準;this.元の列=列;this.列名=列.Name;this.列型=列.Type;this.列式=列.Expression??"";this.主キーか=列.PrimaryKey;this.案内=null;await this.未保存変更時.InvokeAsync();}
     private async Task 確定Async(){
-        if(this.編集基準 is not{} 基準||!this.編集可能か||this.保存中か){return;}
+        if(this.編集基準 is not{} 基準||!this.編集可能か||this.編集操作停止中か||this.保存中か){return;}
         if(string.IsNullOrWhiteSpace(this.列名)){await this.取消Async();return;}
         this.保存中か=true;
         try{

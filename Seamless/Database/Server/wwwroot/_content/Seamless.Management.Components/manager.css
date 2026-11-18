@@ -306,6 +306,11 @@ button.テキストボタン.ツリー列追加:hover{color:#405b49}
 .ツリー追加行 .ツリー追加入力,.ツリー名前入力{height:24px;min-width:0;flex:1;box-sizing:border-box;border:1px solid #b2c9b9;border-radius:4px;padding:2px 6px;font:inherit;font-size:12px;outline-color:#559c83;background:#fff}
 .ツリー名前変更{display:flex;flex:1;min-width:0}
 .ツリー追加行{justify-content:flex-start}
+.DB名作成行{height:auto;min-height:35px;flex-wrap:wrap}
+.DB名作成行 .ツリー追加入力{min-width:90px}
+.名前作成操作{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.名前作成操作 button{min-height:24px;padding:2px 7px;white-space:nowrap;font-size:12px}
+.名前作成操作 [role=status]{font-size:12px;white-space:nowrap}
 button.テキストボタン.ツリー追加行{color:#80857e}
 button.テキストボタン.ツリー追加行:hover{color:#405b49}
 /* 名前・コピー・削除は、行にマウスを乗せたとき・フォーカス時・選択中に表示し、通常は名前を読めるようにする。行の高さと位置は変えない。 */

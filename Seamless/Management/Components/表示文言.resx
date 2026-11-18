@@ -651,6 +651,9 @@
   <data name="作成" xml:space="preserve">
     <value>作成</value>
   </data>
+  <data name="作成中…" xml:space="preserve">
+    <value>作成中…</value>
+  </data>
   <data name="作成または選択すると、ここで権限を編集できます。" xml:space="preserve">
     <value>作成または選択すると、ここで権限を編集できます。</value>
   </data>

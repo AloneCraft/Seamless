@@ -267,6 +267,7 @@ public partial class 管理ワークスペース{
         if(!this.DB名編集中か||this.DB作成中か||this.新DB未確定操作 is not null){return;}
         if(string.IsNullOrWhiteSpace(名前)){this.DB名編集中か=false;return;}
         this.新DB名=名前;
+        var 作成開始時の選択世代=this.対象選択世代;
         this.DB作成中か=true;
         await this.処理Async(async()=>{
             var ID=Guid.NewGuid();var 定義=DatabaseDesigner.Empty("db-"+ID.ToString("N"),this.新DB名);
@@ -279,9 +280,17 @@ public partial class 管理ワークスペース{
                 var 結果=await this.管理操作.ApplyAsync(this.新DB未確定操作,this.寿命.Token);
                 if(結果.State!=OperationState.Succeeded){if(結果.State is OperationState.Failed or OperationState.Cancelled){this.新DB未確定操作=null;}throw new InvalidOperationException(結果.Error);}
                 this.新DB未確定操作=null;
-                this.DB名編集中か=false;await this.更新Async();await this.DBを開くAsync(this.DB一覧.Single(DB=>DB.DefinitionId==定義.Id).Id);
+                this.DB名編集中か=false;
+                await this.更新Async();
+                if(this.対象選択世代==作成開始時の選択世代){
+                    var DB=this.DB一覧.Single(項目=>項目.DefinitionId==定義.Id);
+                    await this.DBを開くAsync(DB.Id);
+                    if(this.対象選択世代==作成開始時の選択世代+1&&this.ソース操作できるか){
+                        this.DB保存先指定中か=true;this.保存先フォーカス待ちか=true;this.新プロジェクト保存先="";
+                        this.作成完了定義=定義;this.作成完了DB名=定義.Database;
+                    }
+                }
                 this.案内=表示文言.取得("データベース「{0}」を作成しました。",定義.Database);
-                if(this.ソース操作できるか){this.DB保存先指定中か=true;this.保存先フォーカス待ちか=true;this.新プロジェクト保存先="";this.作成完了定義=定義;this.作成完了DB名=定義.Database;}
             }finally{await this.管理操作.DropValidationAsync(検証.Id);}
         });
         this.DB作成中か=false;

@@ -1,12 +1,20 @@
 @implements IAsyncDisposable
 @inject IJSRuntime スクリプト
-<input @ref="入力" class="@クラス" aria-label="@表示文言.取得(名前)" placeholder="@表示文言.取得(プレースホルダー)" value="@編集値" @oninput="入力時" @onkeydown="キー時Async" @onblur="確定Async" disabled="@(無効か||確定中か)" autocomplete="off"/>
+<input @ref="入力" class="@クラス" aria-label="@表示文言.取得(名前)" placeholder="@表示文言.取得(プレースホルダー)" value="@編集値" @oninput="入力時" @onkeydown="キー時Async" @onblur="フォーカス離脱時Async" disabled="@(無効か||確定中か)" autocomplete="off"/>
+@if(明示作成か){
+    <span class="名前作成操作">
+        <button type="button" class="主要ボタン" @onclick="確定Async" @onkeydown="ボタンキー時Async" disabled="@(無効か||確定中か||string.IsNullOrWhiteSpace(編集値))">@表示文言.取得("作成")</button>
+        <button type="button" class="控えめボタン" @onclick="取消Async" @onkeydown="ボタンキー時Async" disabled="@(無効か||確定中か)">@表示文言.取得("取消")</button>
+        <span role="status">@(確定中か?表示文言.取得("作成中…"):"")</span>
+    </span>
+}
 @code{
     [Parameter]public string 名前{get;set;}="名前";
     [Parameter]public string プレースホルダー{get;set;}="名前";
     [Parameter]public string 初期値{get;set;}="";
     [Parameter]public string? クラス{get;set;}
     [Parameter]public bool 無効か{get;set;}
+    [Parameter]public bool 明示作成か{get;set;}
     [Parameter]public EventCallback<string> 確定時{get;set;}
     [Parameter]public EventCallback 取消時{get;set;}
     private ElementReference 入力;
@@ -27,6 +35,8 @@
         finally{this.表示更新.Release();}
     }
     private void 入力時(ChangeEventArgs 引数)=>this.編集値=引数.Value?.ToString()??"";
+    private Task フォーカス離脱時Async()=>this.明示作成か?Task.CompletedTask:this.確定Async();
+    private Task ボタンキー時Async(KeyboardEventArgs 引数)=>引数.Key=="Escape"?this.取消Async():Task.CompletedTask;
     private Task キー時Async(KeyboardEventArgs 引数){
         if(引数.Key=="Escape"){return this.取消Async();}
         if(引数.Key=="Enter"){return this.確定Async();}
@@ -39,7 +49,7 @@
     private async Task 確定Async(){
         if(this.無効か||this.確定中か||this.取消済みか){return;}
         var 名前=this.編集値.Trim();
-        if(名前.Length==0){await this.取消Async();return;}
+        if(名前.Length==0){if(!this.明示作成か){await this.取消Async();}return;}
         this.確定中か=true;
         try{await this.確定時.InvokeAsync(名前);}
         finally{this.確定中か=false;}

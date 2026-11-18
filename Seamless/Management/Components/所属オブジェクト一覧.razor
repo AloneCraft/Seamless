@@ -9,20 +9,20 @@
                 <対象操作ホスト 追加ボタンを表示するか="false" ID="@項目ID(項目)" 名前="@(項目.Schema+" "+項目.Name)" オブジェクト表示順グループ="@並びグループ(組.Key)" オブジェクト表示順可能か="表示順可能か" 展開中か="@表展開状態(項目)" 展開変更時="展開=>展開状態.テーブルを開閉(項目.Id,展開)" 選択中か="@(選択オブジェクト is{} 選択&&選択.Id==項目.Id&&選択.Kind==項目.Kind&&選択.Schema==項目.Schema)" 選択時="()=>選択時.InvokeAsync(項目)" メニュー要求時="メニュー要求時" 名前変更時="()=>名前変更を開始(項目)" 行操作="@行操作(項目)">
                     <span class="DBアイコン"><操作アイコン 種類="@アイコン(項目.Kind)"/></span>
                     @if(名前変更中ID==項目.Id){
-                        <span class="ツリー名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="名前の変更" 初期値="@項目.Name" クラス="ツリー名前入力" 無効か="処理中か" 確定時="名前=>名前変更確定Async(項目,名前)" 取消時="名前変更を閉じる"/></span>
+                        <span class="ツリー名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="名前の変更" 初期値="@項目.Name" クラス="ツリー名前入力" 無効か="@(編集操作停止中か||処理中か)" 確定時="名前=>名前変更確定Async(項目,名前)" 取消時="名前変更を閉じる"/></span>
                     }else{<span class="対象名">@項目.Name</span>}
                     @if(公開済みか is not null&&!公開済みか(項目)){<span class="未適用印" title="@表示文言.取得("下書きの定義 · 稼働DBへ未適用")">@(表示文言.取得("未適用"))</span>}
                 </対象操作ホスト>
                 @if(項目.Kind=="Table"){
-                    <div data-tree-children hidden="@(!展開状態.テーブル展開中か(項目.Id))"><ツリー列一覧 @key="項目.Id" @ref="列画面[項目.Id]" 定義="定義" 対象="項目" 表示中か="展開状態.テーブル展開中か(項目.Id)" 編集可能か="編集可能か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/></div>
+                    <div data-tree-children hidden="@(!展開状態.テーブル展開中か(項目.Id))"><ツリー列一覧 @key="項目.Id" @ref="列画面[項目.Id]" 定義="定義" 対象="項目" 表示中か="展開状態.テーブル展開中か(項目.Id)" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/></div>
                 }
                 </div>
             }
             @if(追加できる分類か(組.Key)){
                 @if(作成中分類==組.Key){
-                    <div class="ツリー追加行" role="group" aria-label="@表示文言.取得(追加文言(組.Key))"><操作アイコン 種類="@アイコン(組.Key)"/><インライン名前入力 名前="@新しい名前の説明(組.Key)" プレースホルダー="@新しい名前の説明(組.Key)" クラス="ツリー追加入力" 無効か="処理中か" 確定時="名前=>作成確定Async(組.Key,名前)" 取消時="作成を閉じる"/></div>
+                    <div class="ツリー追加行" role="group" aria-label="@表示文言.取得(追加文言(組.Key))"><操作アイコン 種類="@アイコン(組.Key)"/><インライン名前入力 名前="@新しい名前の説明(組.Key)" プレースホルダー="@新しい名前の説明(組.Key)" クラス="ツリー追加入力" 無効か="@(編集操作停止中か||処理中か)" 確定時="名前=>作成確定Async(組.Key,名前)" 取消時="作成を閉じる"/></div>
                 }else{
-                    <button type="button" class="テキストボタン ツリー追加行" disabled="@処理中か" @onclick="()=>作成を開始(組.Key)"><操作アイコン 種類="追加"/>@表示文言.取得(追加文言(組.Key))</button>
+                    <button type="button" class="テキストボタン ツリー追加行" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>作成を開始(組.Key)"><操作アイコン 種類="追加"/>@表示文言.取得(追加文言(組.Key))</button>
                 }
             }
         </div>
@@ -36,6 +36,7 @@
     [Parameter]public CatalogObject? 選択オブジェクト{get;set;}
     [Parameter]public Func<CatalogObject,bool>? 公開済みか{get;set;}
     [Parameter]public bool 編集可能か{get;set;}
+    [Parameter]public bool 編集操作停止中か{get;set;}
     [Parameter]public EventCallback<CatalogObject> 選択時{get;set;}
     [Parameter]public EventCallback<対象操作要求> 作成要求時{get;set;}
     [Parameter]public EventCallback<対象操作要求> メニュー要求時{get;set;}
@@ -81,14 +82,14 @@
         // 取引を通さない表(Set<T>)は設計器が宣言を読まないので、名前の変更・コピー・削除は C# で行う。
         if(!this.編集可能か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return null;}
         return @<text>
-            <button type="button" class="行右ボタン" title="@表示文言.取得("名前の変更")" aria-label="@表示文言.取得("{0}の名前を変更",項目.Name)" disabled="@処理中か" @onclick="()=>名前変更を開始(項目)"><操作アイコン 種類="名前の変更"/></button>
-            <button type="button" class="行右ボタン" title="@表示文言.取得("コピー")" aria-label="@表示文言.取得("{0}をコピー",項目.Name)" disabled="@処理中か" @onclick="()=>操作Async(()=>this.対象操作!.コピー(項目))"><操作アイコン 種類="コピー"/></button>
-            <button type="button" class="行右ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("{0}を削除",項目.Name)" disabled="@処理中か" @onclick="()=>操作Async(()=>this.対象操作!.削除(項目))"><操作アイコン 種類="削除"/></button>
+            <button type="button" class="行右ボタン" title="@表示文言.取得("名前の変更")" aria-label="@表示文言.取得("{0}の名前を変更",項目.Name)" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>名前変更を開始(項目)"><操作アイコン 種類="名前の変更"/></button>
+            <button type="button" class="行右ボタン" title="@表示文言.取得("コピー")" aria-label="@表示文言.取得("{0}をコピー",項目.Name)" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>操作Async(()=>this.対象操作!.コピー(項目))"><操作アイコン 種類="コピー"/></button>
+            <button type="button" class="行右ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("{0}を削除",項目.Name)" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>操作Async(()=>this.対象操作!.削除(項目))"><操作アイコン 種類="削除"/></button>
         </text>;
     }
     private void 作成を開始(string 分類){this.名前変更中ID=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類,true);this.作成中分類=分類;}
     private void 作成を閉じる(){this.作成中分類=null;}
-    public void 名前変更を開始(CatalogObject 項目){if(!this.編集可能か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return;}this.作成中分類=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類(項目.Kind),true);this.名前変更中ID=項目.Id;this.StateHasChanged();}
+    public void 名前変更を開始(CatalogObject 項目){if(!this.編集可能か||this.編集操作停止中か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return;}this.作成中分類=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類(項目.Kind),true);this.名前変更中ID=項目.Id;this.StateHasChanged();}
     private void 名前変更を閉じる(){this.名前変更中ID=null;}
     private async Task 作成確定Async(string 分類,string 名前){
         await this.操作Async(()=>this.対象操作!.作成(this.所属,分類,名前));
@@ -100,7 +101,7 @@
         if(this.案内 is null){this.名前変更中ID=null;}
     }
     private async Task 操作Async(Func<Task<ツリー操作結果>> 操作){
-        if(this.処理中か){return;}
+        if(this.編集操作停止中か||this.処理中か){return;}
         this.処理中か=true;this.案内=null;this.未対応案内か=false;
         try{var 結果=await 操作();this.案内=結果.案内;this.未対応案内か=結果.未対応か;await this.未保存変更時.InvokeAsync();}
         catch(ManagementException 例外){this.案内=例外.Message;}
