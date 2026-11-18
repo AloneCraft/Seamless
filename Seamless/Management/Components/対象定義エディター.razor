@@ -75,7 +75,7 @@
         var 次=DatabaseDesigner.ReadObjectDefinition(定義,this.対象);
         this.基準=次;this.読取定義=定義;
         if(!次.Parts.Any(部分=>部分.Id==this.選択部分ID)){
-            var 初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Member");if(this.対象.Kind is "Table" or "View"){初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Record");}
+            var 初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Member");if(this.対象.Kind=="Table"){初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Record");}
             this.選択部分ID=(初期??次.Parts[0]).Id;
         }
         this.入力コード=次.Parts.Single(部分=>部分.Id==this.選択部分ID).Text;

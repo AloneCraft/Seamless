@@ -870,6 +870,18 @@
   <data name="復元" xml:space="preserve">
     <value>復元</value>
   </data>
+  <data name="未適用の変更" xml:space="preserve">
+    <value>未適用の変更</value>
+  </data>
+  <data name="DBを開く" xml:space="preserve">
+    <value>DBを開く</value>
+  </data>
+  <data name="テーブル「{0}」の定義が編集中に変わったため、列「{1}」の型「{2}」を反映できませんでした。入力は保持しています。最新の定義でやり直すには、列名欄で Esc を押し、列を開き直してください。" xml:space="preserve">
+    <value>テーブル「{0}」の定義が編集中に変わったため、列「{1}」の型「{2}」を反映できませんでした。入力は保持しています。最新の定義でやり直すには、列名欄で Esc を押し、列を開き直してください。</value>
+  </data>
+  <data name="左のツリーに確定していない入力があります。入力を確定するか、Esc で取り消してから、もう一度操作してください。" xml:space="preserve">
+    <value>左のツリーに確定していない入力があります。入力を確定するか、Esc で取り消してから、もう一度操作してください。</value>
+  </data>
   <data name="文書タブはハンドルから移動" xml:space="preserve">
     <value>文書タブはハンドルから移動</value>
   </data>

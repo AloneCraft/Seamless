@@ -1,7 +1,7 @@
 <section class="表入力カード" aria-label="@表示文言.取得("問い合わせの下書き")">
     <h3>@表示文言.取得("{0}の下書き",表示文言.取得(種類名))</h3>
     <div class="名前入力列">
-        <label>@(表示文言.取得("名前"))<input aria-label="@表示文言.取得("問い合わせ名")" @bind="名前" @bind:event="oninput" @bind:after="入力を通知Async" readonly="@(定義.OriginalPath is not null)"/></label>
+        <label>@(表示文言.取得("名前"))<input aria-label="@表示文言.取得("問い合わせ名")" @bind:get="名前" @bind:set="名前変更時Async" @bind:event="oninput" readonly="@(定義.OriginalPath is not null)"/></label>
         @if(定義.Kind!=DatabaseQueryKind.View){<label>@(表示文言.取得("戻り型"))<型入力 ラベル="戻り型" 値="@戻り型" 候補="型候補" 値変更時="async 型=>{戻り型=型;await 入力を通知Async();}"/></label>}
     </div>
     @if(定義.Kind!=DatabaseQueryKind.View){
@@ -49,6 +49,10 @@
         return this.定義 with{Kind=種類,Name=this.名前,ReturnType=this.戻り型,Body=this.本体,Parameters=this.引数一覧.Select(引数=>new ParameterDesign(引数.名前,引数.型)).ToArray(),Columns=this.列一覧.Select(列=>new ColumnDesign(列.名前,列.型,false)).ToArray()};
     }
     private Task 反映時Async()=>this.確定時.InvokeAsync(this.入力内容());
+    private Task 名前変更時Async(string 名前){
+        if(this.定義.Kind==DatabaseQueryKind.View&&this.定義.OriginalPath is null&&this.本体==管理ワークスペース.新規ビュー本体(this.名前)){this.本体=管理ワークスペース.新規ビュー本体(名前);}
+        this.名前=名前;return this.入力を通知Async();
+    }
     private Task 入力を通知Async(){
         if(!this.入力変更時.HasDelegate){return Task.CompletedTask;}
         var 入力=this.入力内容();this.読み込んだ定義=入力;return this.入力変更時.InvokeAsync(入力);

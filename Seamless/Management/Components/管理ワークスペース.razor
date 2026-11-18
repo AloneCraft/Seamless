@@ -29,6 +29,7 @@
                     @if(DB名前変更ID==DB.Id){
                         <span class="DB名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="データベース名を変更" 初期値="@(DB名前変更要求?.Name??DB.Name)" クラス="DB名前入力" 無効か="DB名前変更中か" 確定時="DB名前変更確定時Async" 取消時="DB名前変更取消時"/></span>
                     }else{<span class="対象名">@DB.Name</span>}
+                    @if(DBに変更があるか(DB.Id)){<span class="変更印" role="img" title="@表示文言.取得("未適用の変更")" aria-label="@表示文言.取得("未適用の変更")">*</span>}
                 </対象操作ホスト>
                 @if(公開情報表示か(DB.Id)){
                     var 公開=公開DB一覧[DB.Id];
@@ -88,18 +89,19 @@
     <div class="サイドバー幅調整" data-sidebar-resize role="separator" tabindex="0" aria-orientation="vertical" aria-controls="@サイドバーID" aria-label="@表示文言.取得("サイドバーの幅")" aria-valuemin="200" aria-valuemax="600" aria-valuenow="254" title="@表示文言.取得("ドラッグまたは左右矢印で幅を変更 · Home・Endで最小・最大 · Escで取消")"></div>
     <main class="作業領域">
         <header class="上部バー"><div class="ページ位置"><button type="button" class="サイドバー開閉" data-sidebar-toggle aria-controls="@サイドバーID" aria-expanded="true" aria-label="@表示文言.取得("サイドバーを開閉")" title="@表示文言.取得("サイドバーを開閉")"><操作アイコン 種類="右"/></button><span class="パンくず">@(表示文言.取得("ワークスペース"))<span>／</span> @表示文言.取得(作業場所)</span></div><span class="環境ラベル">@接続方式</span></header>
-        <div class="文書タブ帯" role="tablist" aria-label="@表示文言.取得("開いている文書")">
-            @foreach(var ID in タブ順序.順序){
-                @if(対象文書一覧.TryGetValue(ID,out var 開いた文書)&&(文書一覧.ContainsKey(開いた文書.DBID)||公開情報表示か(開いた文書.DBID))){
-                    var 名前=開いた文書.名前;if(開いた文書.DBか){名前=文書DB名(開いた文書);}
+        @{var 表示タブ=表示文書タブ().ToArray();}
+        @if(表示タブ.Length>0){
+            <div class="文書タブ帯" role="tablist" aria-label="@表示文言.取得("開いている文書")">
+                @foreach(var ID in 表示タブ){
+                    var 開いた文書=対象文書一覧[ID];var 名前=開いた文書.名前;
                     <div @key="ID" class="文書タブ" data-文書-id="@("tab:"+ID)">
                         <対象操作ホスト ID="@("tab:"+ID)" 名前="@名前" ドラッグ可能か="true" 選択中か="@(選択作業文書ID==ID)" メニュー表示中か="@(メニューID=="tab:"+ID)" 選択時="()=>作業文書を選ぶ(ID)" メニュー要求時="メニュー要求時Async">
                             <span class="DBアイコン"><操作アイコン 種類="@開いた文書.アイコン"/></span><span>@名前</span>@if(開いた文書.編集中か||開いた文書.データ編集中か||文書は未適用か(開いた文書)){<span class="変更印">*</span>}
                         </対象操作ホスト>
                     </div>
                 }
-            }
-        </div>
+            </div>
+        }
         @if(!ロール表示か&&!設定表示か&&!監査表示か&&!利用者管理表示か){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
         @if(ロールを利用できるか){<ロール管理ビュー @ref="ロール画面" 表示中か="ロール表示か" 未保存変更時="値=>ロール未保存か=値"/>}
         @if(設定を利用できるか){<サーバー設定ビュー 表示中か="設定表示か" 未保存変更時="値=>設定未保存か=値"/>}
@@ -169,11 +171,11 @@
             var 所有=対象の定義文書(開いた文書);
             var 表示中=選択作業文書ID==開いた文書.ID&&!ロール表示か&&!設定表示か&&!利用者管理表示か&&!監査表示か&&!プロジェクト表示か;
             <div @key="開いた文書.ID" hidden="@(!表示中)">
-                <対象文書ビュー データ編集可能か="行変更権限があるか(所有.DB.Name)" 表示変更通知="()=>InvokeAsync(StateHasChanged)" @ref="対象画面[開いた文書.ID]" 状態="開いた文書" 定義="所有.定義" DB名="@所有.DB.Name" 公開版="所有.基準版" 下書き版="適用前の版(所有)" 成果物ハッシュ="@所有.選択成果物?.BundleHash" 保存状態="@対象の保存状態(所有)" 公開済みか="対象公開済みか(開いた文書)" 未保管か="所有.未保管か" 表示中か="表示中" 編集可能か="@(権限があるか(所有.DB.Name,ManagementPermission.Edit)&&所有.未確定操作 is null)" 実行可能か="権限があるか(所有.DB.Name,ManagementPermission.Execute)" 資源計測可能か="@(資源計測対応か&&権限があるか(所有.DB.Name,ManagementPermission.Manage))" 型候補="型候補" 定義変更時="値=>対象定義変更時Async(開いた文書,値)" 変更確認時="()=>対象の変更確認時Async(開いた文書)" 未保存変更時="()=>InvokeAsync(StateHasChanged)"/>
+                <対象文書ビュー データ編集可能か="行変更権限があるか(所有.DB.Name)" 表示変更通知="()=>InvokeAsync(StateHasChanged)" @ref="対象画面[開いた文書.ID]" 状態="開いた文書" 定義="所有.定義" DB名="@所有.DB.Name" 公開版="所有.基準版" 下書き版="適用前の版(所有)" 成果物ハッシュ="@所有.選択成果物?.BundleHash" 保存状態="@対象の保存状態(所有)" 公開済みか="対象公開済みか(開いた文書)" 未保管か="所有.未保管か" 表示中か="表示中" 編集可能か="@(権限があるか(所有.DB.Name,ManagementPermission.Edit)&&所有.未確定操作 is null)" 実行可能か="権限があるか(所有.DB.Name,ManagementPermission.Execute)" 資源計測可能か="@(資源計測対応か&&権限があるか(所有.DB.Name,ManagementPermission.Manage))" 型候補="型候補" 定義変更時="値=>対象定義変更時Async(開いた文書,値)" DBを開く時="()=>DBを開く時Async(開いた文書.DBID)" 表の列を開く時="()=>表の列を開く(開いた文書.DBID,開いた文書.対象!)" 未保存変更時="()=>InvokeAsync(StateHasChanged)"/>
             </div>
             }
         }
-        <footer class="作業フッター"><span>@(表示文言.取得("ホバー・右クリックで対象の操作"))</span><span>@(表示文言.取得("Ctrl K コマンド検索"))</span><span>@(表示文言.取得("文書タブはハンドルから移動"))</span></footer>
+        <footer class="作業フッター"><span>@(表示文言.取得("ホバー・右クリックで対象の操作"))</span><span>@(表示文言.取得("Ctrl K コマンド検索"))</span>@if(表示タブ.Length>0){<span>@(表示文言.取得("文書タブはハンドルから移動"))</span>}</footer>
     </main>
     @if(外部取り込み表示か&&管理操作 is IManagementTransferOperations 外部操作){<外部DB取り込み 操作="外部操作" 履歴キー="@外部接続履歴キー" 閉じる時="()=>外部取り込み表示か=false" 完了時="外部取り込み完了時Async"/>}
     @if(生成コード is{} 生成表示){<生成コード表示 題名="@生成表示.題名" ファイル="生成表示.ファイル" 読込中か="生成表示.読込中か" 案内="@生成表示.案内" 未対応か="生成表示.未対応か" 閉じる時="生成コードを閉じる時"/>}

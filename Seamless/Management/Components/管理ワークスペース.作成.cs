@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Components;
 namespace Seamless.Management.Components;
 
 public partial class 管理ワークスペース{
+    internal static string 新規ビュー本体(string 名前)=>
+        "// 例: Items と Id を実際のテーブル名・列名に置き換え、この return を使います。\n"+
+        "// return q.Items.Where(row => row.Id > 0).Select(row => new @"+名前+"(row.Id));\n"+
+        "return global::Seamless.Linq.Set.Empty<@"+名前+">();";
     private string 選択スキーマ名="";
     private string? スキーマ作成DBID;
     private bool スキーマ入力中か;
@@ -59,7 +63,9 @@ public partial class 管理ワークスペース{
         this.作成入力を閉じる();if(!this.作成場所を開く(対象.ID,対象.スキーマ,種類.ToString())){return;}this.表示=表示種別.構造;this.選択スキーマ名=対象.スキーマ;
         var 名前="NewFunction";if(種類==DatabaseQueryKind.View){名前="NewView";}
         // ビュー・テーブル関数は ISet<行> を返す。本体は利用者が書くまで、呼ぶと分かる例外にしておく。
-        var 本体="throw new global::System.NotImplementedException();";if(種類==DatabaseQueryKind.ScalarFunction){本体="return default;";}
+        var 本体="throw new global::System.NotImplementedException();";
+        if(種類==DatabaseQueryKind.View){本体=新規ビュー本体(名前);}
+        else if(種類==DatabaseQueryKind.ScalarFunction){本体="return default;";}
         var 戻り型="int";if(種類==DatabaseQueryKind.TableFunction){戻り型="global::Seamless.Collections.ISet<"+名前+"Row>";}
         this.問い合わせ入力=new(名前,対象.スキーマ,種類,[new("Id","int",false)],[],戻り型,本体);
     }

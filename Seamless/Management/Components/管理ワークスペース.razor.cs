@@ -123,8 +123,8 @@ public partial class 管理ワークスペース{
             new("計画","実行計画を表示",対象=>対象.種類=="問い合わせ",対象=>this.対象文書(対象) is not null,対象=>{this.問い合わせ表示時(this.対象文書(対象)!,対象.表!);this.クエリ計画表示時();return Task.CompletedTask;},["plan","flinq","最適化"],グループ:"表示",アイコン:"計画"),
             new("保管","下書きを保管",対象=>対象.種類 is not ("作成" or "表追加")&&this.対象文書(対象) is not null,対象=>this.対象文書(対象) is{} 文書&&this.権限があるか(文書.DB.Name,ManagementPermission.Edit),対象=>this.下書きを保管Async(this.対象文書(対象)!),["保存","save","draft"],ショートカット:"",アイコン:"保存"),
             new("確認","変更を確認",対象=>対象.種類 is not ("作成" or "表追加")&&this.対象文書(対象) is not null,対象=>this.対象文書(対象) is{} 文書&&this.権限があるか(文書.DB.Name,ManagementPermission.Apply),対象=>this.メニューから変更を確認Async(this.対象文書(対象)!),["検証","プレビュー","適用","validate"],アイコン:"確認"),
-            new("左へ","タブを左へ移動",対象=>対象.種類=="文書",対象=>this.タブ順序.順序.IndexOf(対象.文書ID??対象.ID)>0,対象=>{this.タブを移動(対象.文書ID??対象.ID,-1);return Task.CompletedTask;},["並べ替え","移動"],グループ:"タブ",アイコン:"左"),
-            new("右へ","タブを右へ移動",対象=>対象.種類=="文書",対象=>this.タブ順序.順序.IndexOf(対象.文書ID??対象.ID)<this.タブ順序.順序.Count-1,対象=>{this.タブを移動(対象.文書ID??対象.ID,1);return Task.CompletedTask;},["並べ替え","移動"],グループ:"タブ",アイコン:"右"),
+            new("左へ","タブを左へ移動",対象=>対象.種類=="文書",対象=>this.タブ移動先(対象.文書ID??対象.ID,-1) is not null,対象=>{this.タブを移動(対象.文書ID??対象.ID,-1);return Task.CompletedTask;},["並べ替え","移動"],グループ:"タブ",アイコン:"左"),
+            new("右へ","タブを右へ移動",対象=>対象.種類=="文書",対象=>this.タブ移動先(対象.文書ID??対象.ID,1) is not null,対象=>{this.タブを移動(対象.文書ID??対象.ID,1);return Task.CompletedTask;},["並べ替え","移動"],グループ:"タブ",アイコン:"右"),
             new("閉じる","このタブを閉じる",対象=>対象.種類=="文書",_=>true,対象=>{this.作業文書を閉じる(対象.文書ID??対象.ID);return Task.CompletedTask;},["close","文書"],グループ:"タブ",アイコン:"閉じる"),
             new("対象名前変更","名前の変更",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー名前変更をメニューから開始Async(対象),["名前","rename"],ショートカット:"F2",アイコン:"名前の変更"),
             new("対象コピー","コピー",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー操作をメニューから実行Async(対象,(操作,項目)=>操作.コピー(項目)),["copy","複製"],アイコン:"コピー"),
@@ -214,6 +214,7 @@ public partial class 管理ワークスペース{
         try{var build=await this.管理操作.BuildAsync(new(文書.定義.Id,結果.Revision),this.寿命.Token);this.保持計画=build.Plans;}catch{}
     });
     private async Task<Draft> 下書き保管本体Async(文書状態 文書){
+        this.ツリーの入力を確認(文書);
         await this.定義編集を同期Async(文書);
         var 保存定義=文書.定義;
         var 結果=await this.管理操作.SaveDraftAsync(new(保存定義,文書.下書き版,文書.基準版,文書.基準版),this.寿命.Token);
@@ -225,6 +226,7 @@ public partial class 管理ワークスペース{
         if(!this.エラーか&&文書.プレビュー is not null&&選択時==this.選択作業文書ID){this.文書を選ぶ(文書.DB.Id);}
     }
     private Task 変更を確認Async(文書状態 文書)=>this.処理Async(async()=>{
+        this.ツリーの入力を確認(文書);
         await this.定義編集を同期Async(文書);
         if(文書.未保管か||文書.下書き版==0){await this.下書きを保管Async(文書);if(this.エラーか){return;}}
         if(文書.未保管か){this.案内=表示文言.取得("保管中に追加の編集がありました。変更をもう一度確認してください。");return;}
@@ -239,6 +241,7 @@ public partial class 管理ワークスペース{
         finally{if(検証 is not null){await this.管理操作.DropValidationAsync(検証.Id);}}
     });
     private Task 変更を適用Async(文書状態 文書)=>this.処理Async(async()=>{
+        this.ツリーの入力を確認(文書);
         if(文書.未保管か||文書.未確定操作 is not null){throw new InvalidOperationException("最新の変更を確認するか、操作結果を照会してください。");}
         var 確認=文書.プレビュー??throw new InvalidOperationException("変更を確認してください。");
         var 要求=new ApplyRequest(文書.定義.Id,文書.下書き版,確認.Token,Guid.NewGuid()){BundleHash=確認.BundleHash};
@@ -343,7 +346,7 @@ public partial class 管理ワークスペース{
             this.作成入力を閉じる();this.編集前の表=設計;this.表名=設計.Name;this.スキーマ名=設計.Schema;this.選択スキーマ名=設計.Schema;this.入力列.Clear();
             this.入力列.AddRange(設計.Columns.Select(列=>new 列入力{名前=列.Name,型=列.Type,主キーか=列.PrimaryKey,元の名前=列.OriginalName,式=列.Expression}));
             this.ソース表示か=false;this.表入力中か=true;
-            if(文書.オブジェクト.FirstOrDefault(項目=>項目.Id==表&&項目.Kind=="Table") is{} 項目){this.対象を文書で開く(項目,"構造");this.現在対象文書!.表示="構造";this.表入力中か=false;}
+            if(文書.オブジェクト.FirstOrDefault(項目=>項目.Id==表&&項目.Kind=="Table") is{} 項目){this.対象を文書で開く(項目,"構造");this.表入力中か=false;}
         }catch(ManagementException 例外){this.エラーか=true;this.案内=例外.Message;}
     }
     private void 表を下書きに追加時(文書状態 文書){
@@ -373,7 +376,12 @@ public partial class 管理ワークスペース{
     [JSInvokable]public Task ドラッグ開始Async(string ID){this.メニューを閉じる時();this.タブ順序.ドラッグ開始(ID[4..]);return Task.CompletedTask;}
     [JSInvokable]public Task ドロップAsync(string ID,bool 前か){this.タブ順序.移動先を設定(ID[4..],前か);this.タブ順序.ドロップ();return this.InvokeAsync(this.StateHasChanged);}
     [JSInvokable]public Task ドラッグ取消Async(){this.タブ順序.取消();return Task.CompletedTask;}
-    private void タブを移動(string ID,int 差){var 位置=this.タブ順序.順序.IndexOf(ID);var 次=位置+差;if(位置<0||次<0||次>=this.タブ順序.順序.Count){return;}this.タブ順序.ドラッグ開始(ID);this.タブ順序.移動先を設定(this.タブ順序.順序[次],差<0);this.タブ順序.ドロップ();}
+    private string? タブ移動先(string ID,int 差){
+        var 表示タブ=this.表示文書タブ().ToArray();var 位置=Array.IndexOf(表示タブ,ID);var 次=位置+差;
+        if(位置<0||次<0||次>=表示タブ.Length){return null;}
+        return 表示タブ[次];
+    }
+    private void タブを移動(string ID,int 差){if(this.タブ移動先(ID,差) is not{} 次){return;}this.タブ順序.ドラッグ開始(ID);this.タブ順序.移動先を設定(次,差<0);this.タブ順序.ドロップ();}
     public async ValueTask DisposeAsync(){
         if(this.破棄済みか){return;}
         this.破棄済みか=true;

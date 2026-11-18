@@ -7,7 +7,6 @@ public partial class 管理ワークスペース{
         if(既存 is not null&&this.対象画面.TryGetValue(既存.ID,out var 画面)&&!await 画面.同期Async()){this.作業文書を選ぶ(既存.ID);return;}
         if(this.表入力中か&&this.編集前の表?.Path!=対象.表||this.スキーマ入力中か||this.問い合わせ入力 is not null){throw new ManagementException("Busy",表示文言.取得("入力中の定義を下書きへ反映してから、別の追加操作を開始してください。"));}
         if(!this.表入力中か){this.表編集開始時(this.対象文書(対象)!,対象.表!);}
-        if(列追加か&&this.現在対象文書 is{} 文書){文書.追加列数++;}
     }
     private ロール管理ビュー? ロール画面;
     private 利用者管理ビュー? 利用者画面;

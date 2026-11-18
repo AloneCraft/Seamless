@@ -2,6 +2,16 @@ namespace Seamless.Management.Components;
 
 public partial class 管理ワークスペース{
     private readonly Dictionary<string,DBオブジェクトツリー> DBツリー画面=new(StringComparer.Ordinal);
+    private void 表の列を開く(string DBID,CatalogObject 表){
+        var 状態=this.DBツリー状態(DBID);状態.展開中か=true;
+        if(表.Schema.Length>0){状態.スキーマを開閉(表.Schema,true);}
+        状態.分類を開閉(表.Schema,"Table",true);状態.テーブルを開閉(表.Id,true);
+    }
+    private void ツリーの入力を確認(文書状態 文書){
+        if(文書.定義.Kind==DefinitionKind.Database&&this.DBツリー画面.GetValueOrDefault(文書.DB.Id)?.未保存か is true){
+            throw new ManagementException("Validation",表示文言.取得("左のツリーに確定していない入力があります。入力を確定するか、Esc で取り消してから、もう一度操作してください。"));
+        }
+    }
     private async Task<ObjectDefinitionEdit> ツリー列確定時Async(string DBID,ツリー列編集要求 要求){
         if(!this.文書一覧.TryGetValue(DBID,out var 文書)){throw new ManagementException("NotFound",表示文言.取得("データベースがありません。"));}
         if(!this.権限があるか(文書.DB.Name,ManagementPermission.Edit)){throw new ManagementException("Permission",表示文言.取得("権限がありません。"));}

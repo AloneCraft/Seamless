@@ -9,11 +9,18 @@ public partial class 管理ワークスペース{
     private bool 資源計測対応か;
     private long 対象選択世代;
     private IEnumerable<文書状態> 全定義文書=>this.文書一覧.Values.Concat(this.関数定義文書.Values);
+    private IEnumerable<string> 表示文書タブ()=>this.タブ順序.順序.Where(ID=>this.対象文書一覧.TryGetValue(ID,out var 文書)&&!文書.DBか&&(this.文書一覧.ContainsKey(文書.DBID)||this.公開情報表示か(文書.DBID)));
+    private bool DBに変更があるか(string ID){
+        if(this.DBツリー画面.GetValueOrDefault(ID)?.未保存か is true||this.対象文書一覧.Values.Any(文書=>文書.DBID==ID&&(文書.編集中か||文書.データ編集中か))){return true;}
+        if(this.公開情報表示か(ID)){return false;}
+        return this.文書一覧.GetValueOrDefault(ID)?.未適用か is true||this.関数定義文書.Values.Any(文書=>文書.DB.Id==ID&&文書.未適用か);
+    }
     private static long? 適用前の版(文書状態 文書){if(文書.未適用か&&文書.下書き版>0){return 文書.下書き版;}return null;}
     private string 対象の保存状態(文書状態 文書){if(this.対象文書一覧.Values.Any(対象=>対象.定義ID==文書.定義.Id&&対象.編集中か)){return "未保管の変更";}return 文書.状態;}
     private async Task 対象表示を開くAsync(string 名前,string 表示){
         if(this.現在文書?.オブジェクト.FirstOrDefault(項目=>項目.Id==名前) is not{} 項目){return;}
         this.対象を文書で開く(項目,表示);
+        if(項目.Kind=="Table"&&表示=="構造"){return;}
         if(this.現在対象文書 is{} 文書){
             if(this.対象画面.TryGetValue(文書.ID,out var 画面)){await 画面.表示変更時Async(表示);}else{文書.表示=表示;}
         }
@@ -40,7 +47,9 @@ public partial class 管理ワークスペース{
     private void 対象を文書で開く(CatalogObject 項目,string 表示="データ"){
         if(this.選択DBID is not{} ID||!this.文書一覧.ContainsKey(ID)&&!this.公開情報表示か(ID)){return;}
         var 対象=this.対象文書を取得(ID,項目);var 初回=!this.タブ順序.順序.Contains(対象.ID);
-        this.作業文書を選ぶ(対象.ID);if(初回){対象.表示=表示;}
+        this.作業文書を選ぶ(対象.ID);
+        if(項目.Kind=="Table"&&表示=="構造"){this.表の列を開く(ID,項目);}
+        else if(初回){対象.表示=表示;}
     }
     private async Task 登録関数を開くAsync(string DBID,CatalogObject 項目){
         var 世代=++this.対象選択世代;
@@ -78,11 +87,6 @@ public partial class 管理ワークスペース{
     private CatalogObject[] ツリーオブジェクト(文書状態 文書)=>[..文書.オブジェクト,..this.登録関数一覧.GetValueOrDefault(文書.DB.Id,[]).Select(関数=>new CatalogObject("registered:"+関数.Target.DefinitionId,関数.Name,"","RegisteredFunction",""))];
     private bool 対象公開済みか(対象文書状態 対象){if(対象.登録関数か){return true;}return this.文書一覧[対象.DBID].公開済みか(対象.対象!.Kind,対象.対象.Id);}
     private Task 対象定義変更時Async(対象文書状態 対象,Definition 定義){var 文書=this.対象の定義文書(対象);文書.定義=定義;文書.プレビュー=null;return Task.CompletedTask;}
-    private async Task 対象の変更確認時Async(対象文書状態 対象){
-        if(this.対象画面.TryGetValue(対象.ID,out var 画面)&&!await 画面.同期Async()){return;}
-        await this.変更を確認Async(this.対象の定義文書(対象));
-        this.文書を選ぶ(対象.DBID);
-    }
     private async Task 定義編集を同期Async(文書状態 文書){
         foreach(var 対象 in this.対象文書一覧.Values.Where(対象=>対象.定義ID==文書.定義.Id&&対象.編集中か)){
             if(this.対象画面.TryGetValue(対象.ID,out var 画面)&&!await 画面.同期Async()){

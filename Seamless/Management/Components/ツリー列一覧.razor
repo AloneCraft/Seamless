@@ -87,6 +87,8 @@
             var 結果=await this.確定時(new(基準,列.ToArray()));
             if(!結果.Succeeded){this.案内=string.Join("\n",結果.Diagnostics.Select(診断=>診断.Message));return;}
             this.編集基準=null;this.元の列=null;this.式表示中か=false;this.基準=DatabaseDesigner.ReadObjectDefinition(結果.Definition!,this.対象);this.読取定義=結果.Definition;this.案内=null;await this.未保存変更時.InvokeAsync();
+        }catch(ManagementException 例外)when(例外.Code=="Conflict"){
+            this.案内=表示文言.取得("テーブル「{0}」の定義が編集中に変わったため、列「{1}」の型「{2}」を反映できませんでした。入力は保持しています。最新の定義でやり直すには、列名欄で Esc を押し、列を開き直してください。",this.対象.Id,this.列名,this.列型);
         }catch(ManagementException 例外){this.案内=例外.Message;}
         finally{this.保存中か=false;}
     }

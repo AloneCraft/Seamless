@@ -55,7 +55,7 @@ public partial class 管理ワークスペース{
             return 結果;
         }
         if(分類=="View"){
-            return this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.View,[new("Id","int",false)],[],"","throw new global::System.NotImplementedException();")));
+            return this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.View,[new("Id","int",false)],[],"",新規ビュー本体(名前))));
         }
         return this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.ScalarFunction,[new("Id","int",false)],[],"int","return default;")));
     }

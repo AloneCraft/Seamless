@@ -47,7 +47,8 @@ public sealed class TreeColumnEditing{
     [Fact]public async Task ConcurrentEditsToTheSameObjectKeepPendingInputAndRejectTheStaleBaseline(){
         await using var fixture=await Fixture.Create();await fixture.Open();fixture.Set("列名","Pending");
         var baseline=Designer.ReadObjectDefinition(fixture.Latest,Target());fixture.Latest=Designer.ApplyObjectStructure(fixture.Latest,baseline,baseline.Columns.Select(column=>column with{Type="long"}).ToArray(),baseline.Parameters,baseline.ReturnType).Definition!;
-        await fixture.Invoke("確定Async");Assert.True(fixture.Editor.未保存か);Assert.Equal("Pending",fixture.Get<string>("列名"));Assert.DoesNotContain(Designer.ReadObjectDefinition(fixture.Latest,Target()).Columns,column=>column.Name=="Pending");Assert.NotNull(fixture.Get<string?>("案内"));
+        await fixture.Invoke("確定Async");Assert.True(fixture.Editor.未保存か);Assert.Equal("Pending",fixture.Get<string>("列名"));Assert.DoesNotContain(Designer.ReadObjectDefinition(fixture.Latest,Target()).Columns,column=>column.Name=="Pending");
+        var message=fixture.Get<string>("案内");Assert.Contains("Item",message);Assert.Contains("Pending",message);Assert.Contains("int",message);Assert.Contains("Esc",message);
     }
     private static CatalogObject Target()=>new("Item","Item","","Table","global::Sample.Tables.Item");
     private static Definition Definition()=>new("db","DB",DefinitionKind.Database,"Sample.Container","",new("1",[new("Definition.cs","namespace Sample{internal static partial class DatabaseGenerator;namespace Tables{public partial record struct Item(int Id,string Title);}}")],[]));

@@ -48,12 +48,16 @@ public sealed class DatabaseDisplayOrder{
             var output=await renderer.RenderComponentAsync<WorkspaceStartup.TestWorkspace>(ParameterView.FromDictionary(new Dictionary<string,object?>{{"Capture",(Action<WorkspaceStartup.TestWorkspace>)(value=>workspace=value)},{"利用者",new UserInfo("owner",[new("*",ManagementPermission.All)],false)}}));
             var databases=new[]{DB("a","A"),DB("b","B")};Set(workspace!,"DB一覧",databases);
             var documents=Field<Dictionary<string,Seamless.Management.Components.文書状態>>(workspace!,"文書一覧");
+            var tabs=Field<文書タブ順序>(workspace!,"タブ順序");
+            var openDocuments=Field<Dictionary<string,対象文書状態>>(workspace!,"対象文書一覧");
             foreach(var database in databases){
                 var definition=global::Seamless.Management.DatabaseDesigner.Apply(global::Seamless.Management.DatabaseDesigner.Empty(database.DefinitionId,database.Name),new("Items","",[new("Id","int",true)],[]));
                 documents.Add(database.Id,new(database,new(definition,1,"owner",DateTimeOffset.UtcNow),null));
+                openDocuments.Add(database.Id,new(database.Id,database.DefinitionId,ID:database.Id));tabs.追加(database.Id);
                 var state=new ツリー展開状態{展開中か=true};state.分類を開閉("","Table",true);state.テーブルを開閉("Items",true);Field<Dictionary<string,ツリー展開状態>>(workspace!,"DBツリー一覧").Add(database.Id,state);
             }
             workspace!.Refresh();
+            Assert.DoesNotContain("class=\"文書タブ帯\"",System.Net.WebUtility.HtmlDecode(output.ToHtmlString()));
             var trees=Field<Dictionary<string,DBオブジェクトツリー>>(workspace,"DBツリー画面");var originalTree=trees["db:a"];
             await originalTree.列追加を開始Async("Items");
             var membership=Field<Dictionary<string,所属オブジェクト一覧>>(originalTree,"所属一覧")[""];
@@ -62,6 +66,8 @@ public sealed class DatabaseDisplayOrder{
             Assert.Same(originalTree,trees["db:a"]);Assert.Same(editor,Field<Dictionary<string,ツリー列一覧>>(Field<Dictionary<string,所属オブジェクト一覧>>(trees["db:a"],"所属一覧")[""],"列画面")["Items"]);
             Assert.Equal("PendingA",Field<string>(editor,"列名"));Assert.True(editor.未保存か);
             var html=System.Net.WebUtility.HtmlDecode(output.ToHtmlString());Assert.True(html.IndexOf("data-db-tree=\"db:b\"",StringComparison.Ordinal)<html.IndexOf("data-db-tree=\"db:a\"",StringComparison.Ordinal));
+            Assert.Matches("class=\"対象名\">A</span>\\s*<span class=\"変更印\"",html);
+            Assert.DoesNotMatch("class=\"対象名\">B</span>\\s*<span class=\"変更印\"",html);
         });
     }
     [Fact]public async Task DragRequestsUseTheSameBrowserOrderAndRejectUnavailableOrUnauthorizedTargets(){

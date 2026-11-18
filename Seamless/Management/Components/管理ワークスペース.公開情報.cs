@@ -14,7 +14,6 @@ public partial class 管理ワークスペース{
         this.公開DB一覧[DB.Id]=new(DB,版,スキーマ.ToArray(),一覧.ToArray());await this.登録関数を読むAsync(DB);
     }
     private CatalogObject[] 公開ツリー項目(公開DB表示状態 文書)=>[..文書.オブジェクト,..this.登録関数一覧.GetValueOrDefault(文書.DB.Id,[]).Select(関数=>new CatalogObject("registered:"+関数.Target.DefinitionId,関数.Name,"","RegisteredFunction",""))];
-    private string 文書DB名(対象文書状態 文書){if(this.公開情報表示か(文書.DBID)){return this.公開DB一覧[文書.DBID].DB.Name;}return this.文書一覧[文書.DBID].DB.Name;}
     private bool 文書は未適用か(対象文書状態 文書){if(this.公開情報表示か(文書.DBID)){return false;}return this.対象の定義文書(文書).未適用か;}
     private bool 行変更権限があるか(string DB)=>this.権限があるか(DB,ManagementPermission.WriteRows)||this.権限があるか("*",ManagementPermission.View|ManagementPermission.Execute|ManagementPermission.Edit|ManagementPermission.Validate|ManagementPermission.Apply|ManagementPermission.Manage);
     private bool 公開メニュー操作か(管理対象 対象,string ID){

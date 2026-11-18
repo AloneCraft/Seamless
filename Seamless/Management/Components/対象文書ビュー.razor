@@ -6,7 +6,7 @@
     @if(状態.データを開いたか){
         <div hidden="@(状態.表示!="データ")">
         @if(!公開済みか){
-            <section class="未適用テーブル"><h3>@状態.名前 <span class="未適用印">@表示文言.取得("未適用")</span></h3><p>@表示文言.取得("この定義は下書きにあります。変更を確認して稼働DBへ適用してください。")</p><button class="控えめボタン" @onclick="@(()=>表示変更時Async("構造"))"><操作アイコン 種類="編集"/>@表示文言.取得("定義を編集")</button><button class="主要ボタン" @onclick="変更確認時"><操作アイコン 種類="変更を確認"/>@表示文言.取得("変更を確認")</button></section>
+            <section class="未適用テーブル"><h3>@状態.名前 <span class="未適用印">@表示文言.取得("未適用")</span></h3><p>@表示文言.取得("この定義は下書きにあります。変更を確認して稼働DBへ適用してください。")</p><button class="控えめボタン" @onclick="定義編集時Async"><操作アイコン 種類="編集"/>@表示文言.取得("定義を編集")</button><button class="主要ボタン" @onclick="DBを開く時"><操作アイコン 種類="DB"/>@表示文言.取得("DBを開く")</button></section>
         }else if(状態.対象?.Kind is "Table" or "Set"){
             <結果グリッド DB名="@DB名" テーブル名="@状態.対象.Id" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 編集可能か="データ編集可能か" 未保存変更時="データ未保存時"/>
         }else{
@@ -19,7 +19,7 @@
     }
     @if(状態.計画を開いたか){
         <div hidden="@(状態.表示!="実行計画")">
-            @if(!計画を表示できるか){<p role="status">@表示文言.取得("実行計画を取得する前に下書きを保存してください。")</p><button class="控えめボタン" @onclick="変更確認時"><操作アイコン 種類="変更を確認"/>@表示文言.取得("変更を確認")</button>}
+            @if(!計画を表示できるか){<p role="status">@表示文言.取得("実行計画を取得する前に下書きを保存してください。")</p><button class="控えめボタン" @onclick="DBを開く時"><操作アイコン 種類="DB"/>@表示文言.取得("DBを開く")</button>}
             <div hidden="@(!計画を表示できるか)"><実行計画ビュー DB名="@DB名" 定義ID="@状態.定義ID" 対象="計画要求" ソース="定義.Source" 実測="状態.実測" 実績記録="状態.実績" トレース実行ID="状態.トレース実行ID" 資源記録="状態.資源記録" ノード実測="状態.ノード実測" 表示中か="@(表示中か&&状態.表示=="実行計画"&&計画を表示できるか)"/></div>
         </div>
     }
@@ -47,7 +47,8 @@
     [Parameter]public bool 資源計測可能か{get;set;}
     [Parameter]public string[] 型候補{get;set;}=[];
     [Parameter]public EventCallback<Definition> 定義変更時{get;set;}
-    [Parameter]public EventCallback 変更確認時{get;set;}
+    [Parameter]public EventCallback DBを開く時{get;set;}
+    [Parameter]public EventCallback 表の列を開く時{get;set;}
     [Parameter]public EventCallback 未保存変更時{get;set;}
     [Parameter]public EventCallback 表示変更通知{get;set;}
     private 対象定義エディター? エディター;
@@ -55,7 +56,8 @@
     private QueryDesign? 読取ビュー;
     private bool 計画を表示できるか=>!this.未保管か&&!this.状態.編集中か;
     // 取引を通さない表(Set<T>)は、設計器が宣言を読まないので構造・C# の編集は出さない(データだけ)。
-    private string[] 表示項目{get{if(this.状態.対象?.Kind=="Table"){return ["データ","構造","C#","アクセス履歴"];}if(this.状態.対象?.Kind=="Set"){return ["データ"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
+    private bool テーブルか=>this.状態.対象?.Kind=="Table";
+    private string[] 表示項目{get{if(this.テーブルか){return ["データ","C#","アクセス履歴"];}if(this.状態.対象?.Kind=="Set"){return ["データ"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
     private string 編集表示{get{if(this.状態.表示=="C#"){return "Source";}return "Structure";}}
     private string 実行対象ID{get{if(this.状態.関数?.Target.Origin==FunctionOrigin.RegisteredEntry){return this.状態.関数.Target.ObjectId;}return this.状態.対象!.Id;}}
     private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction"){return new(FunctionOrigin.DatabaseMember,this.状態.DBID,this.状態.定義ID,this.状態.対象.Id);}return null;}}
@@ -68,15 +70,8 @@
         }
         this.表示を準備();
     }
-    protected override async Task OnAfterRenderAsync(bool firstRender){
-        while(this.状態.追加列数>0&&this.エディター is not null){this.状態.追加列数--;await this.エディター.列を追加Async();}
-    }
     public async Task<bool> 同期Async(){if(this.エディター is not null){return await this.エディター.同期Async();}return true;}
-    public async Task 列を追加Async(){
-        await this.表示変更時Async("構造");
-        this.状態.追加列数++;
-        await this.InvokeAsync(this.StateHasChanged);
-    }
+    private Task 定義編集時Async(){if(this.テーブルか){return this.表の列を開く時.InvokeAsync();}return this.表示変更時Async("構造");}
     private Task 編集表示変更時(string 表示){if(表示=="Source"){this.状態.表示="C#";}else{this.状態.表示="構造";}return this.表示変更通知.InvokeAsync();}
     public async Task 表示変更時Async(string 表示){
         if(this.状態.表示==表示){return;}
@@ -84,6 +79,7 @@
         this.状態.表示=表示;this.表示を準備();await this.表示変更通知.InvokeAsync();
     }
     private void 表示を準備(){
+        if(this.テーブルか&&this.状態.表示=="構造"){this.状態.表示="データ";}
         if(this.状態.表示=="データ"){this.状態.データを開いたか=true;}
         else if(this.状態.表示 is "構造" or "C#"){this.状態.編集部品を開いたか=true;}
         else if(this.状態.表示=="実行計画"){this.状態.計画を開いたか=true;}

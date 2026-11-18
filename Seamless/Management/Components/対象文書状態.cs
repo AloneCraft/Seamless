@@ -14,7 +14,6 @@ public sealed class 対象文書状態{
     public bool データを開いたか{get;set;}
     public bool 計画を開いたか{get;set;}
     public bool 履歴を開いたか{get;set;}
-    public int 追加列数{get;set;}
     public ObjectExecutionStatistics? 実測{get;set;}
     public QueryExecutionObservation? 実績{get;set;}
     public Guid? トレース実行ID{get;set;}
