@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "Server + Browser Manager": {
+    "Seamless 開発サーバー": {
       "commandName": "Project",
-      "commandLineArgs": "serve --workspace-config --open-manager"
+      "commandLineArgs": "ide-server --root Work/IdeLaunch/server"
     }
   }
 }

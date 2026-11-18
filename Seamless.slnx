@@ -32,6 +32,7 @@
   </Folder>
   <Folder Name="/Samples/">
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
+    <Project Path="Samples/Sample.Management.Client/Sample.Management.Client.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Database.Generation/Database.Generation.shproj" />

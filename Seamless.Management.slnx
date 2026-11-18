@@ -5,6 +5,7 @@
     <Project Path="Seamless/Database/Server/Server.csproj" />
     <Project Path="Seamless/Database/Client/Client.csproj" />
     <Project Path="Seamless/Tsavorite/Core/Tsavorite.Core.csproj" />
+    <Project Path="Seamless/Management/Manager.csproj" />
   </Folder>
   <Folder Name="/Main/SourceGenerator/">
     <Project Path="Seamless/Database/Generator/Generator.csproj" />
@@ -15,6 +16,7 @@
   </Folder>
   <Folder Name="/Samples/">
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
+    <Project Path="Samples/Sample.Management.Client/Sample.Management.Client.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Database.Generation/Database.Generation.shproj" />

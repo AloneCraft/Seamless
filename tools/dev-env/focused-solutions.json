@@ -5,10 +5,13 @@
       "@folder:/Main/",
       "@folder:/Tests/",
       "@folder:/Template/",
-      "@folder:/solution/"
+      "@folder:/solution/",
+      "Samples/Sample.Management.Client/Sample.Management.Client.csproj"
     ],
     "Seamless.Management.slnx": [
       "Seamless/Database/Server/Server.csproj",
+      "Seamless/Management/Manager.csproj",
+      "Samples/Sample.Management.Client/Sample.Management.Client.csproj",
       "Tests/Management.Tests/Management.Tests.csproj"
     ],
     "DataGrip.Stage1.slnx": [
@@ -59,6 +62,9 @@
     ]
   },
   "launchExclude": [
+    "Seamless/Database/Server/Server.csproj",
+    "Seamless/Management/Manager.csproj",
+    "Samples/Sample.Management.Client/",
     "MultiProjectTemplate/",
     "Template/"
   ],

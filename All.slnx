@@ -117,6 +117,7 @@
     <Project Path="Samples/Sample.VirtualDb/Sample.VirtualDb.csproj" />
     <File Path="Samples/Sample.VirtualDb/README.md" />
     <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
+    <Project Path="Samples/Sample.Management.Client/Sample.Management.Client.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Database.Generation/Database.Generation.shproj" />

@@ -2,26 +2,38 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Seamless Server + Browser Manager (Debug)",
+      "name": "Seamless 開発サーバー",
       "type": "coreclr",
       "request": "launch",
       "program": "${workspaceFolder}/Seamless/Database/Server/bin/Debug/net10.0/Server.exe",
-      "args": ["serve", "--workspace-config", "--open-manager"],
       "cwd": "${workspaceFolder}/Seamless/Database/Server/bin/Debug/net10.0",
       "console": "internalConsole",
-      "stopAtEntry": false,
-      "preLaunchTask": "build-management-server-debug"
+      "args": ["ide-server", "--root", "Work/IdeLaunch/server"],
+      "presentation": {
+        "hidden": true
+      }
     },
     {
-      "name": "Seamless Server + Browser Manager (Release)",
+      "name": "Seamless テストクライアント",
       "type": "coreclr",
       "request": "launch",
-      "program": "${workspaceFolder}/Seamless/Database/Server/bin/Release/net10.0/Server.exe",
-      "args": ["serve", "--workspace-config", "--open-manager"],
-      "cwd": "${workspaceFolder}/Seamless/Database/Server/bin/Release/net10.0",
+      "program": "${workspaceFolder}/Samples/Sample.Management.Client/bin/Debug/net10.0-windows/Sample.Management.Client.exe",
+      "cwd": "${workspaceFolder}/Samples/Sample.Management.Client/bin/Debug/net10.0-windows",
       "console": "internalConsole",
-      "stopAtEntry": false,
-      "preLaunchTask": "build-management-server-release"
+      "args": ["--root", "Work/IdeLaunch/server"],
+      "presentation": {
+        "hidden": true
+      }
+    },
+    {
+      "name": "SeamlessDB + Manager (Standalone)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/Seamless/Management/bin/Debug/net10.0/Manager.exe",
+      "cwd": "${workspaceFolder}/Seamless/Management/bin/Debug/net10.0",
+      "console": "internalConsole",
+      "args": ["ide-standalone", "--root", "Work/IdeLaunch/standalone"],
+      "preLaunchTask": "build-seamless-standalone"
     },
     {
       "name": "Benchmark.Dynamic.UI (Debug)",
@@ -110,12 +122,6 @@
       "projectPath": "${workspaceFolder}/Benchmark/Experiments/Experiments.csproj"
     },
     {
-      "name": "▶ Manager",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Seamless/Management/Manager.csproj"
-    },
-    {
       "name": "▶ Sample.NetShop",
       "type": "dotnet",
       "request": "launch",
@@ -126,12 +132,6 @@
       "type": "dotnet",
       "request": "launch",
       "projectPath": "${workspaceFolder}/Samples/Sample.VirtualDb/Sample.VirtualDb.csproj"
-    },
-    {
-      "name": "▶ Server",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Seamless/Database/Server/Server.csproj"
     },
     {
       "name": "▶ TestSeamless",
@@ -146,5 +146,12 @@
       "projectPath": "${workspaceFolder}/Benchmark/Worker/Worker.csproj"
     }
   ],
-  "compounds": []
+  "compounds": [
+    {
+      "name": "SeamlessDB Server + Manager + Client",
+      "configurations": ["Seamless 開発サーバー", "Seamless テストクライアント"],
+      "preLaunchTask": "build-seamless-server-and-client",
+      "stopAll": true
+    }
+  ]
 }

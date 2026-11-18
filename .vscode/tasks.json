@@ -138,11 +138,23 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-management-server-release",
+            "label": "build-seamless-standalone",
             "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
             "type": "process",
-            "args": ["build", "${workspaceFolder}/Seamless/Database/Server/Server.csproj", "-c", "Release", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+            "args": ["build", "${workspaceFolder}/Seamless/Management/Manager.csproj", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-seamless-test-client",
+            "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
+            "type": "process",
+            "args": ["build", "${workspaceFolder}/Samples/Sample.Management.Client/Sample.Management.Client.csproj", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-seamless-server-and-client",
+            "dependsOn": ["build-management-server-debug", "build-seamless-test-client"],
+            "dependsOrder": "sequence"
         },
         {
             "label": "build-benchmark-dynamic-ui-debug",

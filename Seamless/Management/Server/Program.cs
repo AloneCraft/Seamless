@@ -6,9 +6,12 @@ using Seamless.Security;
 
 namespace Seamless.Management.Server;
 
-public static class Program{
+public static partial class Program{
     public static async Task<int> Main(string[] args){
         try{
+            if(args.Length>0&&args[0] is "ide-server" or "ide-standalone"){
+                return await RunIdeAsync(args);
+            }
             if(args.Length>0&&args[0]=="manager"){
                 var launch=await ManagerBrowserLauncher.CreateLaunchAsync(Required("--root"));
                 if(Optional("--launch-file") is{} launchFile){

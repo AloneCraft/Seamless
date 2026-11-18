@@ -91,16 +91,29 @@ DBの閲覧権限で、テーブルの列・型・キーや、関数の引数・
 
 ## 起動とデバッグ
 
-初回は開発者PCで `setup-local --root <空の保存先> --admin <管理者> --config <設定ファイル>` を明示実行する。パスワードは非表示入力、または自動試験用の `SEAMLESS_MANAGEMENT_PASSWORD` から受け取り、引数や設定ファイルへ保存しない。通常の設定ファイルは保存先・証明書・待受け設定を持つ。
+Visual Studioでは `Seamless.slnx` または `Seamless.Management.slnx` を開き、ツールバーの起動プロファイルを選んでF5を押す。VS Codeではリポジトリを開き、「実行とデバッグ」の一覧から同じ名前の構成を選ぶ。
+
+| 起動メニュー | 起動するもの | 開発用の保存先 |
+| --- | --- | --- |
+| SeamlessDB Server + Manager + Client | Server、WindowsテストGUI、既定のブラウザーに表示するManager。GUIはサーバーの所有者IPCに接続し、DB一覧を表示する | `Work/IdeLaunch/server` |
+| SeamlessDB + Manager (Standalone) | Managerのプロセス内に組込DBを起動し、既定のブラウザーにManagerを表示する | `Work/IdeLaunch/standalone` |
+
+初回のF5で開発用DBを初期化する。2回目以降はそれぞれの保存先を再利用する。開発用の待受けはループバックで空きポートを選ぶ。
+
+サーバー型のテストGUIは「サーバーの起動を待っています」と表示し、サーバーが接続先を公開したら自動で接続する。通信のタイムアウトは接続先が見つかった時点から数える。
+
+同じ構成を別のIDEで起動するときは、先に起動中のデバッグを停止する。Windowsでは実行中のDLLがロックされ、ビルドで上書きできない場合がある。
+
+既存領域を指定してCLIからサーバーを運用する場合、新規領域の初期設定は `setup-local --root <空の保存先> --admin <管理者> --config <設定ファイル>` で行う。パスワードは非表示入力、または自動試験用の `SEAMLESS_MANAGEMENT_PASSWORD` から受け取り、引数や設定ファイルへ保存しない。通常の設定ファイルは保存先・証明書・待受け設定を持つ。
 
 ```powershell
 # 共通画面を配信し、OS所有者のセッションでブラウザーを開く
-Seamless.Management.Server serve --config <設定ファイル> --open-manager
+Server.exe serve --config <設定ファイル> --open-manager
 # 稼働中の同じホストのManagerを追加で開く
-Seamless.Management.Server manager --root <保存先>
+Server.exe manager --root <保存先>
 ```
 
-Visual Studioのソリューション起動プロファイルは「Seamless Server + Browser Manager」、プロジェクト側は「Server + Browser Manager」を選ぶ。VS Codeの同名Debug／Release設定も、サーバーを一つ起動して `--open-manager` を渡す。`--workspace-config` はGit管理対象外の `seamless-management.local.json` を読む。IDE画面でのF5とブレークポイントの受入は、CLI起動の確認と区別する。
+`serve --workspace-config` はGit管理対象外の `seamless-management.local.json` を読む。
 
 ローカルWebの既定待受けは数値ループバック・空きポートである。固定する場合は `--manager-port <ポート>` を指定する。外部ブラウザー用の明示設定は `--manager-external-origin https://<DNS名>:<ポート>/` と、必要に応じて `--manager-external-address <待受けIP>` を使う。既存の秘密鍵付き証明書によりHTTPSを提供し、利用者ごとにログイン・認可する。ブラウザーが接続するDNS名と証明書のSAN・信頼チェーンを一致させる。
 

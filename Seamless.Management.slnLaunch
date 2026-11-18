@@ -1,9 +1,22 @@
 [
   {
-    "Name": "Seamless Server + Browser Manager",
+    "Name": "SeamlessDB Server + Manager + Client",
     "Projects": [
       {
-        "Path": "Seamless.Management.Server\\WindowsServer.csproj",
+        "Path": "Seamless\\Database\\Server\\Server.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Samples\\Sample.Management.Client\\Sample.Management.Client.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "SeamlessDB + Manager (Standalone)",
+    "Projects": [
+      {
+        "Path": "Seamless\\Management\\Manager.csproj",
         "Action": "Start"
       }
     ]

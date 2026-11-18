@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "Server + Browser Manager": {
+    "SeamlessDB + Manager (Standalone)": {
       "commandName": "Project",
-      "commandLineArgs": "serve --workspace-config --open-manager"
+      "commandLineArgs": "ide-standalone --root Work/IdeLaunch/standalone"
     }
   }
 }

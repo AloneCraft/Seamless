@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Seamless テストクライアント": {
+      "commandName": "Project",
+      "commandLineArgs": "--root Work/IdeLaunch/server"
+    }
+  }
+}
