@@ -9,9 +9,9 @@
     <ShouldUnsetParentConfigurationAndPlatform Condition="'$(ShouldUnsetParentConfigurationAndPlatform)'==''">false</ShouldUnsetParentConfigurationAndPlatform>
   </PropertyGroup>
 
-  <!-- IDE の共有 DLL は公開済み DB がファイルの指紋で参照する。
-       管理画面だけのコミットで、共有ライブラリと生成器の指紋が変わらないようにする。 -->
-  <PropertyGroup Condition="'$(Configuration)'=='Debug' And ('$(MSBuildProjectName)'=='Compiler' Or '$(MSBuildProjectName)'=='Generator' Or '$(MSBuildProjectName)'=='Runtime' Or '$(MSBuildProjectName)'=='Database' Or '$(MSBuildProjectName)'=='Client' Or '$(MSBuildProjectName)'=='Tsavorite.Core')">
+  <!-- 公開済みDBが参照するIDE向け共有DLLの指紋を、管理画面だけのコミットで変えない。
+       CLIで構成を省略すると、このファイルを読む時点では空で、SDKが後からDebugを設定する。 -->
+  <PropertyGroup Condition="('$(Configuration)'=='' Or '$(Configuration)'=='Debug') And ('$(MSBuildProjectName)'=='Compiler' Or '$(MSBuildProjectName)'=='Generator' Or '$(MSBuildProjectName)'=='Runtime' Or '$(MSBuildProjectName)'=='Database' Or '$(MSBuildProjectName)'=='Client' Or '$(MSBuildProjectName)'=='Tsavorite.Core')">
     <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
