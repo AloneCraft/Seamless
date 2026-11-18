@@ -117,8 +117,10 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
     let 選択セル = null, 編集セル = null, 開始値 = [], 行位置 = 0, 列位置 = 0;
     const 領域 = データ入力か ? 根.closest('.結果グリッド領域') : null;
     let 追加前の最終行;
-    const 行追加 = () => { 追加前の最終行 = 根.querySelector('[data-grid-new]:last-child'); };
+    const 行追加 = () => { 追加前の最終行 = 根.querySelector('[data-grid-placeholder]')?.previousElementSibling ?? null; };
     const 移動選択入力 = new WeakSet(), 変換中入力 = new WeakSet();
+    const 文字編集入力 = new WeakSet();
+    let 次行待ち = null;
     const 行一覧 = () => [...根.tBodies].flatMap(本体 => [...本体.rows]);
     const セル一覧 = 行 => [...行.cells].filter(セル => !セル.classList.contains('行操作列'));
     const 入力一覧 = セル => [...セル.querySelectorAll('input:not([type="hidden"]):not(:disabled),select:not(:disabled),textarea:not(:disabled)')];
@@ -153,6 +155,7 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
         選択(セル); 編集終了();
         const 入力 = 入力一覧(セル)[0];
         if (文字入力か(入力)) {
+            文字編集入力.delete(入力);
             入力.focus(); 編集開始(セル, false); 入力.select(); 移動選択入力.add(入力);
         } else セル.focus();
         セル.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -197,14 +200,24 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
         if (!セル) return;
         if (データ入力か && 引数.button === 0 && セル !== 選択セル && 引数.target.matches('input:not([readonly])')) {
             引数.preventDefault(); 移動(セル);
+        } else if (データ入力か && 引数.button === 0 && 引数.target === document.activeElement && 文字入力か(引数.target)) {
+            文字編集入力.add(引数.target);
         } else if (!引数.target.closest('input,select,textarea,button,label')) 移動(セル);
     };
     const 離脱 = 引数 => {
         移動選択入力.delete(引数.target);
+        文字編集入力.delete(引数.target);
         queueMicrotask(() => {
             if (編集セル && !編集セル.contains(document.activeElement)) 編集終了();
             if (選択セル?.isConnected && !根.contains(document.activeElement)) 選択セル.tabIndex = 0;
         });
+    };
+    // 最初の入力がサーバーで行に反映される前に移動キーを押したときは、追加の描画を待つ。
+    const 次の新規行へ = (セル, 列) => {
+        const 行 = セル.parentElement;
+        if (!データ入力か || !行.hasAttribute('data-grid-placeholder') || ![...行.querySelectorAll('input')].some(入力 => 入力.value.length)) return false;
+        次行待ち = { セル, 行, 列 };
+        return true;
     };
     const キー = (引数, 型移動か = false) => {
         if (引数.isComposing || 変換中入力.has(引数.target) || 引数.keyCode === 229 || 引数.defaultPrevented
@@ -234,6 +247,7 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
             return;
         }
         if (引数.key === 'Escape' && 編集セル) {
+            次行待ち = null;
             引数.preventDefault(); 引数.stopPropagation();
             for (const 記録 of 開始値) {
                 if (記録.要素.value === 記録.値 && (!('checked' in 記録.要素) || 記録.要素.checked === 記録.選択中か)) continue;
@@ -249,9 +263,14 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
             if (データ入力か && 引数.key === 'Enter') {
                 const 行 = 行一覧();
                 const 次行 = 行[行.indexOf(セル.parentElement) + (引数.shiftKey ? -1 : 1)];
-                移動(次行 && セル一覧(次行)[セル一覧(セル.parentElement).indexOf(セル)] || セル);
+                const 列 = セル一覧(セル.parentElement).indexOf(セル);
+                if (!引数.shiftKey && !次行 && 次の新規行へ(セル, 列)) return;
+                移動(次行 && セル一覧(次行)[列] || セル);
             } else if (編集セル && 引数.key === 'Enter') 移動(セル);
-            else 編集開始(セル, true, false);
+            else {
+                編集開始(セル, true, false);
+                if (データ入力か && 文字入力か(document.activeElement)) 文字編集入力.add(document.activeElement);
+            }
             return;
         }
         if (引数.key === 'Tab') {
@@ -263,10 +282,11 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
             let 差 = 1; if (引数.shiftKey) 差 = -1;
             const 次 = 全セル[全セル.indexOf(セル) + 差];
             if (次) { 引数.preventDefault(); 引数.stopPropagation(); 移動(次); }
+            else if (!引数.shiftKey && 次の新規行へ(セル, 0)) { 引数.preventDefault(); 引数.stopPropagation(); }
             else { 編集終了(); セル.tabIndex = -1; }
             return;
         }
-        if (編集セル && 引数.target.type !== 'checkbox' && !全文選択か(引数.target)) return;
+        if (編集セル && 引数.target.type !== 'checkbox' && (データ入力か ? 文字編集入力.has(引数.target) : !全文選択か(引数.target))) return;
         if (引数.ctrlKey || 引数.metaKey || 引数.altKey) return;
         if (引数.shiftKey && 引数.key.startsWith('Arrow')) return;
         if (引数.key === ' ' && 引数.target === セル) {
@@ -282,6 +302,7 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
             let 差 = 1; if (引数.key === 'ArrowUp') 差 = -1;
             const 次行 = 行[行.indexOf(セル.parentElement) + 差];
             if (次行) 次 = セル一覧(次行)[番号];
+            else if (差 > 0) 次の新規行へ(セル, 番号);
         } else return;
         引数.preventDefault(); 引数.stopPropagation(); 移動(次);
     };
@@ -317,8 +338,15 @@ export function 編集グリッドを初期化(根, データ入力か = false) 
             if (次) { 選択(次); if (前の選択か && document.activeElement === document.body) 移動(次); }
         }
         根.tabIndex = -1; if (!行.length) 根.tabIndex = 0;
+        if (次行待ち) {
+            const { セル, 行: 入力行, 列 } = 次行待ち;
+            if (!セル.contains(document.activeElement)) 次行待ち = null;
+            else if (入力行.nextElementSibling?.hasAttribute('data-grid-placeholder')) {
+                次行待ち = null; 移動(セル一覧(入力行.nextElementSibling)[列]);
+            }
+        }
         if (追加前の最終行 !== undefined) {
-            const 末尾 = 行.at(-1);
+            const 末尾 = 行.at(-1)?.hasAttribute('data-grid-placeholder') ? 行.at(-2) : 行.at(-1);
             if (末尾?.hasAttribute('data-grid-new') && 末尾 !== 追加前の最終行) {
                 追加前の最終行 = undefined;
                 if (領域?.contains(document.activeElement) || document.activeElement === document.body) 移動(セル一覧(末尾)[0]);

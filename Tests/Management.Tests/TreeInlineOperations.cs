@@ -42,7 +42,7 @@ public sealed class TreeInlineOperations{
             Assert.Same(before,Draft(workspace));
         }
     }
-    [Fact]public async Task RenamesAndCopiesTablesAndReportsUnsupportedOperationsInRed(){
+    [Fact]public async Task RenamesAndCopiesTablesAndViews(){
         await using var workspace=await Workspace(ManagementPermission.All);
         var operations=Operations(workspace);
         var items=Designer.Objects(Draft(workspace)).Single(item=>item.Name=="Items");
@@ -60,13 +60,12 @@ public sealed class TreeInlineOperations{
             Assert.Contains("Products",names);Assert.DoesNotContain("Items",names);
         }
         {
-            // ビュー・関数の名前変更は、ソースの参照先も直す必要がある。
             Assert.Null((await operations.作成("","View","Recent")).案内);
             var view=Designer.Objects(Draft(workspace)).Single(item=>item.Name=="Recent");
-            var before=Draft(workspace);
             var rename=await operations.名前変更(view,"Latest");
-            Assert.True(rename.未対応か);Assert.NotNull(rename.案内);
-            Assert.Same(before,Draft(workspace));
+            Assert.Null(rename.案内);
+            Assert.DoesNotContain(Designer.Objects(Draft(workspace)),item=>item.Name=="Recent");
+            Assert.Null((await operations.作成("","View","Recent")).案内);
         }
         {
             //ビューのコピーは定義ごと別名で作る
@@ -95,6 +94,40 @@ public sealed class TreeInlineOperations{
         var before=Draft(workspace);
         var result=await Operations(workspace).作成("","Table","Orders");
         Assert.NotNull(result.案内);Assert.Same(before,Draft(workspace));
+    }
+    [Fact]public async Task TreeChangesViewColumnsAndFunctionParametersInTheDatabaseDraft(){
+        await using var workspace=await Workspace(ManagementPermission.All);
+        var operations=Operations(workspace);
+        Assert.Null((await operations.作成("dbo0","View","Recent")).案内);
+        Assert.Null((await operations.作成("dbo0","Function","Total")).案内);
+        var view=Designer.Objects(Draft(workspace)).Single(item=>item.Kind=="View");
+        var recent=Designer.ReadObjectDefinition(Draft(workspace),view);
+        var columns=new ツリー列編集要求(recent,[..recent.Columns,new("Label","string",false)]);
+        Assert.True((await (Task<ObjectDefinitionEdit>)Invoke(workspace,"ツリー列確定時Async","db",columns)!).Succeeded);
+        Assert.Equal(new[]{"Id","Label"},Designer.ReadQuery(Draft(workspace),"dbo0.Recent").Columns.Select(column=>column.Name));
+        var function=Designer.Objects(Draft(workspace)).Single(item=>item.Kind=="ScalarFunction");
+        var total=Designer.ReadObjectDefinition(Draft(workspace),function);
+        var argument=new ツリー列編集要求(total,total.Columns){引数一覧=[new("quantity","long")],戻り型="long"};
+        Assert.True((await (Task<ObjectDefinitionEdit>)Invoke(workspace,"ツリー列確定時Async","db",argument)!).Succeeded);
+        var updated=Designer.ReadQuery(Draft(workspace),"dbo0.Total");
+        Assert.Equal(new ParameterDesign("quantity","long"),Assert.Single(updated.Parameters));
+        Assert.Equal("long",updated.ReturnType);
+        var columnsBefore=Designer.ReadObjectDefinition(Draft(workspace),function);
+        var tableRequest=new ツリー列編集要求(columnsBefore,[new("Amount","long",false)]);
+        Assert.True((await (Task<ObjectDefinitionEdit>)Invoke(workspace,"ツリー列確定時Async","db",tableRequest)!).Succeeded);
+        var table=Designer.ReadQuery(Draft(workspace),"dbo0.Total");
+        Assert.Equal(DatabaseQueryKind.TableFunction,table.Kind);
+        Assert.Equal("Amount",Assert.Single(table.Columns).Name);
+        Assert.Equal(updated.Parameters,table.Parameters);
+        Assert.Contains("Set.Empty",table.Body);
+        var shape=Designer.Objects(Draft(workspace)).Single(item=>item.Name=="Total");
+        var scalarRequest=new ツリー列編集要求(Designer.ReadObjectDefinition(Draft(workspace),shape),[]);
+        Assert.True((await (Task<ObjectDefinitionEdit>)Invoke(workspace,"ツリー列確定時Async","db",scalarRequest)!).Succeeded);
+        var scalar=Designer.ReadQuery(Draft(workspace),"dbo0.Total");
+        Assert.Equal(DatabaseQueryKind.ScalarFunction,scalar.Kind);
+        Assert.Equal("int",scalar.ReturnType);
+        Assert.Equal(updated.Parameters,scalar.Parameters);
+        Assert.Contains("return default;",scalar.Body);
     }
     [Fact]public async Task CategoryListShowsAddRowsAndRowButtonsButNoCategoryMenu(){
         var calls=new List<string>();

@@ -178,7 +178,7 @@
             var 所有=対象の定義文書(開いた文書);
             var 表示中=選択作業文書ID==開いた文書.ID&&!ロール表示か&&!設定表示か&&!利用者管理表示か&&!監査表示か&&!プロジェクト表示か;
             <div @key="開いた文書.ID" hidden="@(!表示中)">
-                <対象文書ビュー データ編集可能か="行変更権限があるか(所有.DB.Name)" 表示変更通知="()=>InvokeAsync(StateHasChanged)" @ref="対象画面[開いた文書.ID]" 状態="開いた文書" 定義="所有.定義" DB名="@所有.DB.Name" 公開版="所有.基準版" 下書き版="適用前の版(所有)" 成果物ハッシュ="@所有.選択成果物?.BundleHash" 保存状態="@対象の保存状態(所有)" 公開済みか="対象公開済みか(開いた文書)" 未保管か="所有.未保管か" 表示中か="表示中" 編集可能か="@(権限があるか(所有.DB.Name,ManagementPermission.Edit)&&所有.未確定操作 is null)" 実行可能か="権限があるか(所有.DB.Name,ManagementPermission.Execute)" 資源計測可能か="@(資源計測対応か&&権限があるか(所有.DB.Name,ManagementPermission.Manage))" 型候補="型候補" 定義変更時="値=>対象定義変更時Async(開いた文書,値)" DBを開く時="()=>DBを開く時Async(開いた文書.DBID)" 表の列を開く時="()=>表の列を開く(開いた文書.DBID,開いた文書.対象!)" 未保存変更時="()=>InvokeAsync(StateHasChanged)"/>
+                <対象文書ビュー データ編集可能か="行変更権限があるか(所有.DB.Name)" 表示変更通知="()=>InvokeAsync(StateHasChanged)" @ref="対象画面[開いた文書.ID]" 状態="開いた文書" 定義="所有.定義" DB名="@所有.DB.Name" 公開版="所有.基準版" 下書き版="適用前の版(所有)" 成果物ハッシュ="@所有.選択成果物?.BundleHash" 保存状態="@対象の保存状態(所有)" 公開済みか="対象公開済みか(開いた文書)" 未保管か="所有.未保管か" 表示中か="表示中" 編集可能か="@(権限があるか(所有.DB.Name,ManagementPermission.Edit)&&所有.未確定操作 is null)" 実行可能か="権限があるか(所有.DB.Name,ManagementPermission.Execute)" 資源計測可能か="@(資源計測対応か&&権限があるか(所有.DB.Name,ManagementPermission.Manage))" 型候補="型候補" 定義変更時="値=>対象定義変更時Async(開いた文書,値)" DBを開く時="()=>DBを開く時Async(開いた文書.DBID)" 左の構造を開く時="()=>左の構造を開く(開いた文書.DBID,開いた文書.対象!)" 未保存変更時="()=>InvokeAsync(StateHasChanged)"/>
             </div>
             }
         }

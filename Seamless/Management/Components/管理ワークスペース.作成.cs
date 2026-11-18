@@ -4,8 +4,13 @@ namespace Seamless.Management.Components;
 
 public partial class 管理ワークスペース{
     internal static string 新規ビュー本体(string 名前)=>
-        "// 例: Items と Id を実際のテーブル名・列名に置き換え、この return を使います。\n"+
-        "// return q.Items.Where(row => row.Id > 0).Select(row => new @"+名前+"(row.Id));\n"+
+        "// q はこのビューの読取口です。スキーマ名・テーブル名・Id を実際の名前に置き換えます。\n"+
+        "// メソッド構文\n"+
+        "// return q.スキーマ名.テーブル名.Select(row => new @"+名前+"(row.Id));\n"+
+        "// クエリ構文\n"+
+        "// return from a in q.スキーマ名.テーブル名\n"+
+        "//        select new @"+名前+"(a.Id);\n"+
+        "// DB直下や現在のスキーマのテーブルは、読取口で直接参照できる場合に q.テーブル名 と書けます。\n"+
         "return global::Seamless.Linq.Set.Empty<@"+名前+">();";
     private string 選択スキーマ名="";
     private string? スキーマ作成DBID;

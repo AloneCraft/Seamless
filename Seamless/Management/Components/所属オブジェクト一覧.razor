@@ -11,10 +11,27 @@
                     @if(名前変更中ID==項目.Id){
                         <span class="ツリー名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="名前の変更" 初期値="@項目.Name" クラス="ツリー名前入力" 無効か="@(編集操作停止中か||処理中か)" 確定時="名前=>名前変更確定Async(項目,名前)" 取消時="名前変更を閉じる"/></span>
                     }else{<span class="対象名" @ondblclick="()=>名前変更を開始(項目)">@項目.Name</span>}
+                    @if(項目.Kind=="ScalarFunction"){
+                        <span class="ツリー関数戻り型" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                            @if(戻り型の基準?.Object.Id==項目.Id){
+                                <型入力 ラベル="戻り型" 値="@戻り型の入力" 候補="型候補" 値変更時="型=>戻り型の入力=型"/>
+                                <button type="button" class="行右ボタン" aria-label="@表示文言.取得("下書きに反映")" disabled="@(編集操作停止中か||処理中か)" @onclick="戻り型を確定Async"><操作アイコン 種類="確認"/></button>
+                                <button type="button" class="行右ボタン" aria-label="@表示文言.取得("取消")" disabled="@処理中か" @onclick="戻り型を取り消すAsync"><操作アイコン 種類="取消"/></button>
+                            }else if(編集可能か){
+                                <button type="button" class="関数型ボタン" title="@表示文言.取得("戻り型")" aria-label="@表示文言.取得("戻り型 {0}",項目.RecordType)" disabled="@(編集操作停止中か||処理中か||戻り型の基準 is not null)" @onclick="()=>戻り型を開くAsync(項目)">@項目.RecordType</button>
+                            }else{<small>@項目.RecordType</small>}
+                        </span>
+                    }
                     @if(公開済みか is not null&&!公開済みか(項目)){<span class="未適用印" title="@表示文言.取得("下書きの定義 · 稼働DBへ未適用")">@(表示文言.取得("未適用"))</span>}
                 </対象操作ホスト>
-                @if(項目.Kind=="Table"){
-                    <div data-tree-children hidden="@(!展開状態.テーブル展開中か(項目.Id))"><ツリー列一覧 @key="項目.Id" @ref="列画面[項目.Id]" 定義="定義" 対象="項目" 表示中か="展開状態.テーブル展開中か(項目.Id)" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/></div>
+                @if(項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction"){
+                    var 展開か=展開状態.テーブル展開中か(項目.Id);
+                    <div data-tree-children hidden="@(!展開か)">
+                        @if(項目.Kind is "ScalarFunction" or "TableFunction"){
+                            <ツリー列一覧 @ref="引数画面[項目.Id]" 定義="定義" 対象="項目" 引数か="true" 表示中か="展開か" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/>
+                        }
+                        <ツリー列一覧 @ref="列画面[項目.Id]" 定義="定義" 対象="項目" 表示中か="展開か" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/>
+                    </div>
                 }
                 </div>
             }
@@ -50,8 +67,31 @@
     /// <summary>ツリー上の作成・名前変更・コピー・削除。失敗時は利用者へ表示する文を返す。</summary>
     [Parameter]public ツリー対象操作? 対象操作{get;set;}
     private string? 並びグループ(string 種類){if(this.DBID.Length==0){return null;}return System.Text.Json.JsonSerializer.Serialize(new[]{this.DBID,this.所属,種類,this.表示順世代});}
-    public bool 未保存か=>this.列画面.Values.Any(画面=>画面.未保存か)||this.作成中分類 is not null||this.名前変更中ID is not null;
+    public bool 未保存か=>this.列画面.Values.Concat(this.引数画面.Values).Any(画面=>画面.未保存か)||this.作成中分類 is not null||this.名前変更中ID is not null||this.戻り型の基準 is not null;
+    private ObjectDefinitionDesign? 戻り型の基準;
+    private string 戻り型の入力="";
+    private async Task 戻り型を開くAsync(CatalogObject 項目){
+        if(!this.編集可能か||this.編集操作停止中か||this.処理中か||this.定義 is null||this.列確定時 is null){return;}
+        try{
+            var 設計=DatabaseDesigner.ReadObjectDefinition(this.定義,項目);
+            if(!設計.StructureAvailable){this.案内=設計.StructureUnavailableReason;return;}
+            this.戻り型の基準=設計;this.戻り型の入力=設計.ReturnType;this.案内=null;
+            await this.未保存変更時.InvokeAsync();
+        }catch(ManagementException 例外){this.案内=例外.Message;}
+    }
+    private async Task 戻り型を確定Async(){
+        if(this.戻り型の基準 is not{} 基準||!this.編集可能か||this.編集操作停止中か||this.処理中か||this.列確定時 is not{} 確定){return;}
+        this.処理中か=true;
+        try{
+            var 結果=await 確定(new(基準,基準.Columns){戻り型=this.戻り型の入力});
+            if(結果.Succeeded){await this.戻り型を取り消すAsync();}
+            else{this.案内=string.Join("\n",結果.Diagnostics.Select(診断=>診断.Message));}
+        }catch(ManagementException 例外){this.案内=例外.Message;}
+        finally{this.処理中か=false;}
+    }
+    private async Task 戻り型を取り消すAsync(){this.戻り型の基準=null;this.案内=null;await this.未保存変更時.InvokeAsync();}
     private readonly Dictionary<string,ツリー列一覧> 列画面=new(StringComparer.Ordinal);
+    private readonly Dictionary<string,ツリー列一覧> 引数画面=new(StringComparer.Ordinal);
     private string? 作成中分類,名前変更中ID,案内;
     private bool 処理中か,未対応案内か;
     private string 案内クラス{get{if(this.未対応案内か){return "ツリー列未対応";}return "ツリー列診断";}}
@@ -107,7 +147,7 @@
         catch(ManagementException 例外){this.案内=例外.Message;}
         finally{this.処理中か=false;await this.InvokeAsync(this.StateHasChanged);}
     }
-    private bool? 表展開状態(CatalogObject 項目){if(項目.Kind=="Table"){return this.展開状態.テーブル展開中か(項目.Id);}return null;}
+    private bool? 表展開状態(CatalogObject 項目)=>項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction"?this.展開状態.テーブル展開中か(項目.Id):null;
     public async Task 列追加を開始Async(string ID){this.展開状態.分類を開閉(this.所属,"Table",true);this.展開状態.テーブルを開閉(ID,true);if(this.列画面.TryGetValue(ID,out var 画面)){await 画面.追加開始Async();}await this.InvokeAsync(this.StateHasChanged);}
     private static string 分類(string 種類){if(種類 is "ScalarFunction" or "TableFunction" or "RegisteredFunction"){return "Function";}return 種類;}
     private static string 表示名(string 種類)=>種類 switch{"Table"=>"テーブル","Set"=>"取引を通さない表","View"=>"ビュー","Function"=>"関数",_=>"その他"};

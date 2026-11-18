@@ -1,33 +1,37 @@
-<section class="ツリー列一覧" aria-label="@表示文言.取得("{0}の列",対象.Name)" aria-busy="@保存中か.ToString().ToLowerInvariant()">
+<section class="ツリー列一覧" aria-label="@表示文言.取得(引数か?"{0}の引数":"{0}の列",対象.Name)" aria-busy="@保存中か.ToString().ToLowerInvariant()">
     @if(基準 is{} 設計){
-        @foreach(var 列 in 表示列(設計.Columns)){
+        @foreach(var 列 in 表示列(対象項目(設計))){
             @if(編集基準 is not null&&Equals(元の列,列)){
                 @列入力()
             }else{
                 <div class="ツリー列外枠" data-列名="@列.Name" data-移動先="@(移動先==列.Name?"true":"false")" @ondragover="()=>移動先=列.Name" @ondragover:preventDefault="true" @ondrop="()=>列を移動(列.Name)" @ondrop:preventDefault="true">
                     <span class="ツリー列ドラッグ" draggable="@((編集基準 is null&&!保存中か).ToString().ToLowerInvariant())" title="@表示文言.取得("ドラッグして表示順を変更")" aria-label="@表示文言.取得("ドラッグして表示順を変更")" @ondragstart="()=>移動元=列.Name" @ondragend="移動取消"><操作アイコン 種類="ドラッグ"/></span>
-                    <button type="button" class="ツリー列行" title="@表示文言.取得("列を編集")" disabled="@(!編集可能か||編集操作停止中か||保存中か||編集基準 is not null)" @onclick="()=>編集開始(列)"><span>@列.Name</span><small>@列.Type</small>@if(列.PrimaryKey){<span title="@表示文言.取得("主キー")">◆</span>}</button>
+                    <button type="button" class="ツリー列行" title="@表示文言.取得(編集文言)" disabled="@(!構造を編集できるか||!編集可能か||編集操作停止中か||保存中か||編集基準 is not null)" @onclick="()=>編集開始(列)"><span>@列.Name</span><small>@列.Type</small>@if(列.PrimaryKey){<span title="@表示文言.取得("主キー")">◆</span>}</button>
                 </div>
             }
         }
     }
     @if(編集基準 is not null&&元の列 is null){@列入力()}
-    else if(基準?.StructureAvailable==true&&編集可能か){
+    else if(構造を編集できるか&&編集可能か){
         @* 既存の列を編集している間もボタンを残し(押せない状態)、下の行の位置を動かさない。 *@
-        <button type="button" class="テキストボタン ツリー列追加" disabled="@(編集操作停止中か||編集基準 is not null||保存中か)" @onclick="追加開始Async"><操作アイコン 種類="列を追加"/>@表示文言.取得("列を追加")</button>
+        <button type="button" class="テキストボタン ツリー列追加" disabled="@(編集操作停止中か||編集基準 is not null||保存中か)" @onclick="追加開始Async"><操作アイコン 種類="列を追加"/>@表示文言.取得(引数か?"引数を追加":"列を追加")</button>
     }
     @if(案内 is not null){<p class="ツリー列診断" role="status">@案内</p>}
 </section>
 @code{
     // 表示中の列と同じ1行・同じ高さで編集する。初期値・変換式は行の上へ重ねて開き、他の行の位置を動かさない。
     private RenderFragment 列入力()=>@<text>
-        <div class="ツリー列外枠 ツリー列編集中" data-column-editor role="group" aria-label="@表示文言.取得("列を編集")">
+        <div class="ツリー列外枠 ツリー列編集中" data-column-editor role="group" aria-label="@表示文言.取得(編集文言)">
             <span class="ツリー列ドラッグ" aria-hidden="true"><操作アイコン 種類="ドラッグ"/></span>
             <div class="ツリー列行 ツリー列編集行">
-                <input data-column-name-input aria-label="@表示文言.取得("列名")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @bind="列名" @bind:event="oninput" @onkeydown="名前キー時Async"/>
-                <型入力 ラベル="列の型" 値="@列型" 候補="型候補" 値変更時="型=>列型=型"/>
-                <input type="checkbox" aria-label="@表示文言.取得("主キー")" title="@表示文言.取得("主キー")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @bind="主キーか"/>
-                <button type="button" class="行右ボタン" aria-expanded="@式表示中か.ToString().ToLowerInvariant()" title="@表示文言.取得("初期値・変換式")" aria-label="@表示文言.取得("初期値・変換式")" @onclick="()=>式表示中か=!式表示中か"><操作アイコン 種類="編集"/></button>
+                <input data-column-name-input aria-label="@表示文言.取得(引数か?"引数名":"列名")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @bind="列名" @bind:event="oninput" @onkeydown="名前キー時Async"/>
+                <型入力 ラベル="@(引数か?"引数の型":"列の型")" 値="@列型" 候補="型候補" 値変更時="型=>列型=型"/>
+                @if(テーブルか){
+                    <input type="checkbox" aria-label="@表示文言.取得("主キー")" title="@表示文言.取得("主キー")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @bind="主キーか"/>
+                    <button type="button" class="行右ボタン" aria-expanded="@式表示中か.ToString().ToLowerInvariant()" title="@表示文言.取得("初期値・変換式")" aria-label="@表示文言.取得("初期値・変換式")" @onclick="()=>式表示中か=!式表示中か"><操作アイコン 種類="編集"/></button>
+                }else if(元の列 is not null){
+                    <button type="button" class="行右ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("削除")" disabled="@(編集操作停止中か||保存中か)" @onclick="()=>反映Async(true)"><操作アイコン 種類="削除"/></button>
+                }
                 <button type="button" class="行右ボタン" title="@表示文言.取得("下書きに反映 · Enter")" aria-label="@表示文言.取得("下書きに反映")" disabled="@(!編集可能か||編集操作停止中か||保存中か)" @onclick="確定Async"><操作アイコン 種類="確認"/></button>
             </div>
             @if(式表示中か){
@@ -41,6 +45,7 @@
     [Parameter]public Definition? 定義{get;set;}
     [Parameter,EditorRequired]public CatalogObject 対象{get;set;}=default!;
     [Parameter]public bool 表示中か{get;set;}
+    [Parameter]public bool 引数か{get;set;}
     [Parameter]public bool 編集可能か{get;set;}
     [Parameter]public bool 編集操作停止中か{get;set;}
     [Parameter]public IEnumerable<string> 型候補{get;set;}=[];
@@ -50,6 +55,10 @@
     private Definition? 読取定義;
     private ObjectDefinitionDesign? 基準,編集基準;
     private ColumnDesign? 元の列;
+    private bool テーブルか=>this.対象.Kind=="Table";
+    private string 編集文言=>this.引数か?"引数を編集":"列を編集";
+    private bool 構造を編集できるか=>this.基準 is{StructureAvailable:true} 設計&&(this.引数か||this.対象.Kind is "Table" or "ScalarFunction"||設計.Parts.Any(部分=>部分.Role=="Record"));
+    private IEnumerable<ColumnDesign> 対象項目(ObjectDefinitionDesign 設計)=>this.引数か?設計.Parameters.Select(引数=>new ColumnDesign(引数.Name,引数.Type,false)):設計.Columns;
     private readonly List<string> 列表示順=[];
     private string? 移動元,移動先;
     private IEnumerable<ColumnDesign> 表示列(IEnumerable<ColumnDesign> 列){
@@ -67,28 +76,39 @@
     private bool 主キーか,保存中か,式表示中か;
     protected override void OnParametersSet(){if(this.表示中か&&this.編集基準 is null&&!ReferenceEquals(this.読取定義,this.定義)){this.読み込む();}}
     private bool 読み込む(){
-        try{if(this.定義 is null){throw new ManagementException("Unsupported",表示文言.取得("列の定義を読み取るソースがありません。"));}this.基準=DatabaseDesigner.ReadObjectDefinition(this.定義,this.対象);this.読取定義=this.定義;this.案内=this.基準.StructureUnavailableReason;return this.基準.StructureAvailable;}
+        try{if(this.定義 is null){throw new ManagementException("Unsupported",表示文言.取得("列の定義を読み取るソースがありません。"));}this.基準=DatabaseDesigner.ReadObjectDefinition(this.定義,this.対象);this.読取定義=this.定義;this.案内=this.構造を編集できるか?null:表示文言.取得(this.基準.StructureUnavailableReason??"結果型をC#で編集してください。");return this.構造を編集できるか;}
         catch(ManagementException 例外){this.基準=null;this.案内=例外.Message;return false;}
     }
     public async Task 追加開始Async(){
         if(!this.編集可能か||this.編集操作停止中か||this.保存中か||this.編集基準 is not null){return;}
         if(!this.読み込む()||this.基準 is null){await this.InvokeAsync(this.StateHasChanged);return;}
-        this.編集基準=this.基準;this.元の列=null;this.列名="Column";var 番号=1;while(this.基準.Columns.Any(列=>列.Name==this.列名)){this.列名="Column"+番号++;}this.列型="int";this.列式="";this.主キーか=false;this.案内=null;await this.未保存変更時.InvokeAsync();await this.InvokeAsync(this.StateHasChanged);
+        this.編集基準=this.基準;this.元の列=null;
+        var 既定名=this.引数か?"parameter":"Column";
+        this.列名=既定名;var 番号=1;while(this.対象項目(this.基準).Any(列=>列.Name==this.列名)){this.列名=既定名+番号++;}
+        this.列型="int";this.列式="";this.主キーか=false;this.案内=null;await this.未保存変更時.InvokeAsync();await this.InvokeAsync(this.StateHasChanged);
     }
     private async Task 編集開始(ColumnDesign 列){if(!this.編集可能か||this.編集操作停止中か||this.保存中か||this.編集基準 is not null){return;}this.編集基準=this.基準;this.元の列=列;this.列名=列.Name;this.列型=列.Type;this.列式=列.Expression??"";this.主キーか=列.PrimaryKey;this.案内=null;await this.未保存変更時.InvokeAsync();}
-    private async Task 確定Async(){
+    private Task 確定Async()=>this.反映Async(false);
+    private async Task 反映Async(bool 削除か){
         if(this.編集基準 is not{} 基準||!this.編集可能か||this.編集操作停止中か||this.保存中か){return;}
-        if(string.IsNullOrWhiteSpace(this.列名)){await this.取消Async();return;}
+        if(!削除か&&string.IsNullOrWhiteSpace(this.列名)){await this.取消Async();return;}
         this.保存中か=true;
         try{
             if(this.確定時 is null){throw new ManagementException("Unsupported",表示文言.取得("この画面では列の変更を反映できません。"));}
-            var 次=this.元の列??new ColumnDesign(this.列名,this.列型,this.主キーか);次=次 with{Name=this.列名,Type=this.列型,PrimaryKey=this.主キーか,Expression=this.列式};
-            var 列=基準.Columns.ToList();if(this.元の列 is{} 元){列[列.IndexOf(元)]=次;}else{列.Add(次);}
-            var 結果=await this.確定時(new(基準,列.ToArray()));
+            var 要求=new ツリー列編集要求(基準,基準.Columns);
+            var 次=(this.元の列??new ColumnDesign(this.列名,this.列型,this.主キーか)) with{Name=this.列名,Type=this.列型,PrimaryKey=this.主キーか,Expression=this.テーブルか?this.列式:null};
+            var 列=this.対象項目(基準).ToList();
+            if(削除か){列.Remove(this.元の列!);}
+            else if(this.元の列 is{} 元){列[列.IndexOf(元)]=次;}
+            else{列.Add(次);}
+            要求=this.引数か?要求 with{引数一覧=列.Select(引数=>new ParameterDesign(引数.Name,引数.Type)).ToArray()}:要求 with{列一覧=列.ToArray()};
+            var 結果=await this.確定時(要求);
             if(!結果.Succeeded){this.案内=string.Join("\n",結果.Diagnostics.Select(診断=>診断.Message));return;}
-            this.編集基準=null;this.元の列=null;this.式表示中か=false;this.基準=DatabaseDesigner.ReadObjectDefinition(結果.Definition!,this.対象);this.読取定義=結果.Definition;this.案内=null;await this.未保存変更時.InvokeAsync();
+            this.編集基準=null;this.元の列=null;this.式表示中か=false;
+            var 更新後=DatabaseDesigner.Objects(結果.Definition!).Single(項目=>項目.Id==this.対象.Id);
+            this.基準=DatabaseDesigner.ReadObjectDefinition(結果.Definition!,更新後);this.読取定義=結果.Definition;this.案内=null;await this.未保存変更時.InvokeAsync();
         }catch(ManagementException 例外)when(例外.Code=="Conflict"){
-            this.案内=表示文言.取得("テーブル「{0}」の定義が編集中に変わったため、列「{1}」の型「{2}」を反映できませんでした。入力は保持しています。最新の定義でやり直すには、列名欄で Esc を押し、列を開き直してください。",this.対象.Id,this.列名,this.列型);
+            this.案内=this.テーブルか?表示文言.取得("テーブル「{0}」の定義が編集中に変わったため、列「{1}」の型「{2}」を反映できませんでした。入力は保持しています。最新の定義でやり直すには、列名欄で Esc を押し、列を開き直してください。",this.対象.Id,this.列名,this.列型):表示文言.取得("編集中に定義が変わりました。入力を取り消して開き直してください。");
         }catch(ManagementException 例外){this.案内=例外.Message;}
         finally{this.保存中か=false;}
     }

@@ -20,7 +20,7 @@ public partial class 管理ワークスペース{
     private async Task 対象表示を開くAsync(string 名前,string 表示){
         if(this.現在文書?.オブジェクト.FirstOrDefault(項目=>項目.Id==名前) is not{} 項目){return;}
         this.対象を文書で開く(項目,表示);
-        if(項目.Kind=="Table"&&表示=="構造"){return;}
+        if(項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction"&&表示=="構造"){return;}
         if(this.現在対象文書 is{} 文書){
             if(this.対象画面.TryGetValue(文書.ID,out var 画面)){await 画面.表示変更時Async(表示);}else{文書.表示=表示;}
         }
@@ -48,7 +48,7 @@ public partial class 管理ワークスペース{
         if(this.選択DBID is not{} ID||!this.文書一覧.ContainsKey(ID)&&!this.公開情報表示か(ID)){return;}
         var 対象=this.対象文書を取得(ID,項目);var 初回=!this.タブ順序.順序.Contains(対象.ID);
         this.作業文書を選ぶ(対象.ID);
-        if(項目.Kind=="Table"&&表示=="構造"){this.表の列を開く(ID,項目);}
+        if(項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction"&&表示=="構造"){this.左の構造を開く(ID,項目);}
         else if(初回){対象.表示=表示;}
     }
     private async Task 登録関数を開くAsync(string DBID,CatalogObject 項目){

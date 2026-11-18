@@ -6,7 +6,7 @@
         <tbody>@行</tbody>
     </table>
 </div>
-<p class="グリッド操作案内" id="@案内ID">@(表示文言.取得(データ入力か ? "入力で上書き · Enterで下 · Tabで次 · F2で文字編集 · Escでセル取消 · Ctrl+Enterで行追加 · Alt+Deleteで行を削除予定 · Ctrl+Sで保存" : "全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消"))</p>
+<p class="グリッド操作案内" id="@案内ID">@(表示文言.取得(データ入力か ? "末尾の＊に入力して行追加 · 矢印で移動 · Enterで下 · Tabで次 · F2で文字編集 · Escでセル取消 · Ctrl+Sで保存" : "全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消"))</p>
 @code{
     [Parameter,EditorRequired]public string 名前{get;set;}="";
     [Parameter]public RenderFragment? 見出し{get;set;}

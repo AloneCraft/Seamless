@@ -24,7 +24,8 @@ public sealed class DatabaseDesignerQueryMembers{
         var reader=schema.Length==0?"IReader":"I"+schema+"Reader";
         var view=definition.Source.Files.Single(file=>file.Path==(schema.Length==0?"Queries/Active.cs":"Queries/"+schema+"/Active.cs")).Text;
         Assert.Contains("extension(global::UserCode.ManagedDb."+reader+" q)",view);
-        Assert.Contains("ISet<global::UserCode.Views"+(schema.Length==0?"":"."+schema)+".@Active> @Active{get{",view);
+        Assert.Contains("ISet<global::UserCode.Views"+(schema.Length==0?"":"."+schema)+".@Active> @Active\n",view);
+        Assert.Contains("\n                get\n                {\n                    return ",view);
         // 結果の行型は Views・Functions に、キーを持たない行として置く。
         Assert.Contains(definition.Source.Files,file=>file.Path==(schema.Length==0?"Views/Active.cs":"Views/"+schema+"/Active.cs")&&file.Text.Contains("record struct @Active(int @Id)"));
         Assert.Contains(definition.Source.Files,file=>file.Path==(schema.Length==0?"Functions/FindRow.cs":"Functions/"+schema+"/FindRow.cs"));
@@ -48,6 +49,38 @@ public sealed class DatabaseDesignerQueryMembers{
             using var compiled=new RuntimeCompiler().Compile(definition.Source);
             Assert.DoesNotContain(compiled.Result.Diagnostics,item=>item.Severity=="Error");
         }
+    }
+
+    [Fact]
+    public void TheStarterViewShowsBothWaysToReadATableInASchema(){
+        var definition=WithItems("dbo0");
+        var starter=Seamless.Management.Components.管理ワークスペース.新規ビュー本体("Example");
+        definition=Designer.ApplyQuery(definition,new("Example","",DatabaseQueryKind.View,[new("Id","int",false)],[],"",starter));
+        var generated=definition.Source.Files.Single(file=>file.Path=="Queries/Example.cs").Text;
+        Assert.Contains("\n                    // return q.スキーマ名.テーブル名.Select",generated);
+        Assert.Contains("\n                    // return from a in q.スキーマ名.テーブル名",generated);
+        Assert.Contains("\n                    return global::Seamless.Linq.Set.Empty",generated);
+        definition=Designer.ApplyQuery(definition,new("MethodExample","",DatabaseQueryKind.View,[new("Id","int",false)],[],"","return q.dbo0.Items.Select(row => new MethodExample(row.Id));"));
+        definition=Designer.ApplyQuery(definition,new("QueryExample","",DatabaseQueryKind.View,[new("Id","int",false)],[],"","return from a in q.dbo0.Items select new QueryExample(a.Id);"));
+        using var compiled=new RuntimeCompiler().Compile(definition.Source);
+        Assert.DoesNotContain(compiled.Result.Diagnostics,item=>item.Severity=="Error");
+    }
+
+    [Fact]
+    public void RenamingQueriesUpdatesOnlyBoundReferencesAndTheirOwnResultType(){
+        var definition=WithItems("dbo0");
+        definition=Designer.ApplyQuery(definition,new("Recent","dbo0",DatabaseQueryKind.View,[new("Id","int",false)],[],"","return q.Items.Select(row => new Recent(row.Id));"));
+        definition=Designer.ApplyQuery(definition,new("Total","dbo0",DatabaseQueryKind.ScalarFunction,[],[new("id","int")],"int","return id;"));
+        definition=Designer.ApplyQuery(definition,new("Following","",DatabaseQueryKind.ScalarFunction,[],[],"int","return q.dbo0.Recent.Count + q.dbo0.Total(1);"));
+        var compiler=new RuntimeCompiler();
+        definition=Designer.RenameQuery(definition,"dbo0.Recent","Latest",compiler.CompileSchemaForEditing(definition.Source));
+        definition=Designer.RenameQuery(definition,"dbo0.Total","Quantity",compiler.CompileSchemaForEditing(definition.Source));
+        Assert.Contains("q.dbo0.@Latest",Designer.ReadQuery(definition,"Following").Body);
+        Assert.Contains("q.dbo0.@Quantity(1)",Designer.ReadQuery(definition,"Following").Body);
+        Assert.Contains("new @Latest(",Designer.ReadQuery(definition,"dbo0.Latest").Body);
+        Assert.Contains(definition.Source.Files,file=>file.Path=="Views/dbo0/Latest.cs");
+        using var compiled=compiler.Compile(definition.Source);
+        Assert.DoesNotContain(compiled.Result.Diagnostics,item=>item.Severity=="Error");
     }
 
     [Fact]

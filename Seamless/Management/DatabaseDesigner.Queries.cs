@@ -171,7 +171,7 @@ public static partial class DatabaseDesigner{
         var queriesClass=container.Name+(design.Schema.Length==0?"":"_"+design.Schema.Replace('.','_'))+"Queries";
         var queries="public static partial class @"+queriesClass+"{"+newLine+"extension("+receiver+" "+QueryReceiver+"){"+newLine+member+newLine+"}"+newLine+"}";
         var queryFolder="Queries/";if(design.Schema.Length>0){queryFolder+=design.Schema+"/";}
-        return WriteNewFile(definition,queryFolder+design.Name+".cs",usings,ns,queries);
+        return WriteNewFile(definition,queryFolder+design.Name+".cs",usings,ns,queries,format:design.Kind==DatabaseQueryKind.View);
     }
     private static Definition UpdateExistingQuery(Definition definition,QueryDesign previous,QueryDesign design){
         var target=Objects(definition).Single(item=>item.Id==previous.Path);var baseline=ReadObjectDefinition(definition,target);
@@ -197,7 +197,7 @@ public static partial class DatabaseDesigner{
         return updated with{Source=source};
     }
     // 新しいファイルはLFで作る。AppendLineはWindowsでCRLFとなり、同じ定義でもOSごとにソースと成果物のハッシュが変わる。
-    private static Definition WriteNewFile(Definition definition,string path,string[] usings,string ns,string text){
+    private static Definition WriteNewFile(Definition definition,string path,string[] usings,string ns,string text,bool format=false){
         if(definition.Source.Files.Any(file=>file.Path==path)){throw new ManagementException("Conflict","ソースファイルが既にあります: "+path);}
         var newLine=SourceNewLine.Default;
         var builder=new System.Text.StringBuilder();
@@ -205,6 +205,7 @@ public static partial class DatabaseDesigner{
         var parts=ns.Split('.',StringSplitOptions.RemoveEmptyEntries);
         foreach(var part in parts){builder.Append("namespace @").Append(part).Append('{').Append(newLine);}
         builder.Append(text).Append(newLine);foreach(var _ in parts){builder.Append('}').Append(newLine);}
-        return definition with{Source=definition.Source with{Files=[..definition.Source.Files,new(path,builder.ToString())]}};
+        var source=builder.ToString();
+        return definition with{Source=definition.Source with{Files=[..definition.Source.Files,new(path,format?Format(source):source)]}};
     }
 }

@@ -161,6 +161,15 @@ body:has(.管理ワークスペース){margin:0}
 .セル競合{display:flex;flex-wrap:wrap;gap:4px;padding:4px;min-width:10rem}
 .セル競合 small{flex-basis:100%;color:#a32424}
 .新規行{background:#f3f9ed}
+.新規入力行{background:#fbfdf8}
+.新規入力印{display:block;text-align:center;font-size:14px;font-weight:700;color:#4c633c}
+.ツリー関数戻り型{display:inline-flex;align-items:center;flex-shrink:0;gap:3px;color:#526552}
+.ツリー関数戻り型:has(.型入力){flex:0 1 10rem;min-width:7rem}
+.ツリー関数戻り型:has(.型入力)+.未適用印{display:none}
+.ツリー関数戻り型 .型入力{flex:1;min-width:0}
+.ツリー関数戻り型 .型入力 input{width:100%;min-width:0;height:24px;box-sizing:border-box;border:1px solid #b5c8b7;border-radius:4px;padding:2px 24px 2px 5px;font:inherit}
+.関数型ボタン{background:transparent;border:0;color:inherit;font:inherit;font-size:12px;padding:2px 4px}
+.関数型ボタン:enabled:hover{background:#dfe9dc}
 .変更行{background:#fffcf0}
 .削除行{background:#fdf2f2;opacity:0.7}
 .削除セル{text-decoration:line-through;color:#a85353}
@@ -319,6 +328,7 @@ button.テキストボタン.ツリー追加行:hover{color:#405b49}
 /* 名前・コピー・削除は、行にマウスを乗せたとき・フォーカス時・選択中に表示し、通常は名前を読めるようにする。行の高さと位置は変えない。 */
 .対象行 .行右操作{display:none}
 .対象行:hover .行右操作,.対象行:focus-within .行右操作,.対象行[data-選択中=true] .行右操作{display:flex}
+.対象行:has(.ツリー関数戻り型 .型入力)>.行右操作,.対象行:has(.ツリー関数戻り型 .型入力)>.操作帯{display:none}
 /* 生成コード表示: 左ツリーのメニューから開く読取専用のパネル。Escで閉じる。未対応の案内は赤い大きな太字。 */
 .生成コード表示{position:fixed;inset:5vh 4vw;z-index:60;background:#fff;border:1px solid #d6d6cf;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:8px;padding:12px 16px}
 .生成コード見出し{display:flex;justify-content:space-between;align-items:center;gap:8px}

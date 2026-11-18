@@ -41,6 +41,11 @@ public sealed class RuntimeCompiler{
         return files.ToArray();
     }
     private static string GeneratedPath(SyntaxTree tree)=>tree.FilePath.Replace('\\','/').Split('/').Last();
+    internal CSharpCompilation CompileSchemaForEditing(SourceSnapshot source){
+        var prepared=this.Prepare(source,null,null);
+        if(prepared.Policy.Length>0){throw new ManagementException("Validation",prepared.Policy[0].Message);}
+        return (CSharpCompilation)RunSchemaGenerators(prepared.Compilation,prepared.Parse,out _);
+    }
     private sealed record PreparedCompilation(SourceSnapshot Source,string Hash,CSharpParseOptions Parse,CSharpCompilation Compilation,SyntaxTree[] Trees,DiagnosticInfo[] Policy);
     private PreparedCompilation Prepare(SourceSnapshot source,IReadOnlyList<byte[]>? dependencies,string? generation){
         source=source.Freeze();SourceEditor.Validate(source);var hash=source.Hash();var name="Seamless.Managed_"+hash[..24];

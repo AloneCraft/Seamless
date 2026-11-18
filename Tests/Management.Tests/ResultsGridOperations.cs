@@ -58,6 +58,36 @@ public sealed class ResultsGridOperations{
             Assert.Contains("列が定義されていません",html);
         });
     }
+    [Fact]public async Task TypingInTheLastRowCreatesAnEditAndKeepsOneBlankRowOutsideTheSaveBatch(){
+        var operations=new GridOperations{Read=(_,_)=>Task.FromResult(Page([]))};
+        using var provider=Services(operations);
+        await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async()=>{
+            var rendered=await renderer.RenderComponentAsync<TestGrid>(Parameters("First"));
+            var grid=operations.Component!;
+            Assert.Contains("data-grid-placeholder",rendered.ToHtmlString());
+            await grid.保存実行Async();
+            Assert.Null(operations.Saved);
+            var first=Get(grid,"次の新規行");
+            Invoke(grid,"新規行セル変更",first,"id","1");
+            Invoke(grid,"新規行セル変更",first,"id","");
+            await grid.保存実行Async();
+            Assert.Null(operations.Saved);
+            first=Get(grid,"次の新規行");
+            Invoke(grid,"新規行セル変更",first,"id","1");
+            Invoke(grid,"新規行セル変更",first,"value","10");
+            var second=Get(grid,"次の新規行");
+            Assert.NotSame(first,second);
+            Invoke(grid,"新規行セル変更",second,"id","2");
+            Invoke(grid,"新規行セル変更",second,"value","20");
+            await grid.再読込Async();
+            await grid.保存実行Async();
+            Assert.Collection(operations.Saved!.Changes,
+                row=>Assert.Equal(10,row.Values!.Value.GetProperty("value").GetInt32()),
+                row=>Assert.Equal(20,row.Values!.Value.GetProperty("value").GetInt32()));
+            Assert.Contains("data-grid-placeholder",rendered.ToHtmlString());
+        });
+    }
     [Fact]public async Task EmptyTableSupportsInsertionAndKeyReplacementWithVisibleConfirmation(){
         var operations=new GridOperations();var empty=Page([]);operations.Read=(_,_)=>Task.FromResult(empty);
         using var provider=Services(operations);await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());

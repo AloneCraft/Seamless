@@ -48,7 +48,7 @@
     [Parameter]public string[] 型候補{get;set;}=[];
     [Parameter]public EventCallback<Definition> 定義変更時{get;set;}
     [Parameter]public EventCallback DBを開く時{get;set;}
-    [Parameter]public EventCallback 表の列を開く時{get;set;}
+    [Parameter]public EventCallback 左の構造を開く時{get;set;}
     [Parameter]public EventCallback 未保存変更時{get;set;}
     [Parameter]public EventCallback 表示変更通知{get;set;}
     private 対象定義エディター? エディター;
@@ -57,7 +57,8 @@
     private bool 計画を表示できるか=>!this.未保管か&&!this.状態.編集中か;
     // 取引を通さない表(Set<T>)は、設計器が宣言を読まないので構造・C# の編集は出さない(データだけ)。
     private bool テーブルか=>this.状態.対象?.Kind=="Table";
-    private string[] 表示項目{get{if(this.テーブルか){return ["データ","C#","アクセス履歴"];}if(this.状態.対象?.Kind=="Set"){return ["データ"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
+    private bool 左の構造か=>this.状態.対象?.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction";
+    private string[] 表示項目{get{if(this.テーブルか){return ["データ","C#","アクセス履歴"];}if(this.状態.対象?.Kind=="Set"){return ["データ"];}if(this.左の構造か){return ["データ","C#","実行計画","実行履歴"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
     private string 編集表示{get{if(this.状態.表示=="C#"){return "Source";}return "Structure";}}
     private string 実行対象ID{get{if(this.状態.関数?.Target.Origin==FunctionOrigin.RegisteredEntry){return this.状態.関数.Target.ObjectId;}return this.状態.対象!.Id;}}
     private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction"){return new(FunctionOrigin.DatabaseMember,this.状態.DBID,this.状態.定義ID,this.状態.対象.Id);}return null;}}
@@ -71,7 +72,7 @@
         this.表示を準備();
     }
     public async Task<bool> 同期Async(){if(this.エディター is not null){return await this.エディター.同期Async();}return true;}
-    private Task 定義編集時Async(){if(this.テーブルか){return this.表の列を開く時.InvokeAsync();}return this.表示変更時Async("構造");}
+    private Task 定義編集時Async(){if(this.左の構造か){return this.左の構造を開く時.InvokeAsync();}return this.表示変更時Async("構造");}
     private Task 編集表示変更時(string 表示){if(表示=="Source"){this.状態.表示="C#";}else{this.状態.表示="構造";}return this.表示変更通知.InvokeAsync();}
     public async Task 表示変更時Async(string 表示){
         if(this.状態.表示==表示){return;}
@@ -79,7 +80,7 @@
         this.状態.表示=表示;this.表示を準備();await this.表示変更通知.InvokeAsync();
     }
     private void 表示を準備(){
-        if(this.テーブルか&&this.状態.表示=="構造"){this.状態.表示="データ";}
+        if(this.左の構造か&&this.状態.表示=="構造"){this.状態.表示="データ";}
         if(this.状態.表示=="データ"){this.状態.データを開いたか=true;}
         else if(this.状態.表示 is "構造" or "C#"){this.状態.編集部品を開いたか=true;}
         else if(this.状態.表示=="実行計画"){this.状態.計画を開いたか=true;}

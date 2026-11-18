@@ -8,7 +8,7 @@
             <span class="表アイコン"><操作アイコン 種類="テーブル"/></span>
             <h3>@(string.IsNullOrEmpty(テーブル名) ? 表示文言.取得("テーブル未選択") : テーブル名)</h3>
             @if(読込完了か){
-                <span class="件数バッジ">@表示文言.取得("{0} 行",行一覧.Count) @if(さらにあるか){@表示文言.取得("（続きあり）")}</span>
+                <span class="件数バッジ">@表示文言.取得(新規行.Count>0?"保存済み {0} 行":"{0} 行",行一覧.Count) @if(さらにあるか){@表示文言.取得("（続きあり）")}</span>
                 <span class="版ラベル">v@(版)</span>
             }
         </div>
@@ -35,7 +35,7 @@
         <p class="小案内" role="note">@表示文言.取得("取引を通さない表です。保存時の衝突は行の値の比較だけで見つけます。照合から書き込みまでの間の他者の書き込みや、いったん変えて同じ値へ戻した変更は見つけられません。保存が途中で失敗しても、それまでの書き込みは取り消せません。")</p>
     }
 
-    @if(読込中か&&行一覧.Count==0){
+    @if(読込中か&&!読込完了か){
         <div class="グリッド案内">@(表示文言.取得("データを読み込んでいます..."))</div>
     }else if(string.IsNullOrEmpty(テーブル名)){
         <div class="空の構造"><span>▦</span><h3>@(表示文言.取得("テーブルを選択してください"))</h3><p>@(表示文言.取得("構造画面からテーブルを選択すると、行データの閲覧と編集が行えます。"))</p></div>
@@ -91,12 +91,16 @@
                             }
                         </tr>
                     }
-                    @foreach(var 新規 in 新規行){
-                        <tr @key="新規" class="新規行" data-grid-new>
-                            <td class="操作列 行操作列"><button class="省略ボタン" title="@表示文言.取得("取消")" aria-label="@表示文言.取得("取消")" disabled="@(読込中か||保存中か)" @onclick="()=>新規行.Remove(新規)"><操作アイコン 種類="取消"/></button></td>
+                    @foreach(var 新規 in 編集可能か ? 新規行.Append(次の新規行) : 新規行){
+                        var 空行か=ReferenceEquals(新規,次の新規行);
+                        <tr @key="新規" class="@(空行か?"新規入力行":"新規行")" data-grid-new="@(空行か?null:"")" data-grid-placeholder="@(空行か?"":null)">
+                            <td class="操作列 行操作列">
+                                @if(空行か){<span class="新規入力印" title="@表示文言.取得("新規行")" aria-label="@表示文言.取得("新規行")">＊</span>}
+                                else{<button class="省略ボタン" title="@表示文言.取得("取消")" aria-label="@表示文言.取得("取消")" disabled="@(読込中か||保存中か)" @onclick="()=>新規行.Remove(新規)"><操作アイコン 種類="取消"/></button>}
+                            </td>
                             @foreach(var 列 in 列一覧){
                                 <td>
-                                    <input class="セル入力" aria-label="@表示文言.取得("新規行 {0}",列.表示名)" readonly="@(読込中か||保存中か||!編集可能か)" value="@新規.GetDisplayValue(列.名前)" @oninput="引数=>セル変更(新規.Values, 列.名前, 引数.Value?.ToString())"/>
+                                    <input class="セル入力" aria-label="@表示文言.取得("新規行 {0}",列.表示名)" readonly="@(!行入力可能か)" value="@新規.GetDisplayValue(列.名前)" @oninput="引数=>新規行セル変更(新規, 列.名前, 引数.Value?.ToString())"/>
                                 </td>
                             }
                         </tr>
@@ -141,7 +145,9 @@
     private readonly List<列情報> 列一覧 = [];
     private readonly List<行モデル> 行一覧 = [];
     private readonly List<新規行モデル> 新規行 = [];
+    private 新規行モデル 次の新規行=new(){直接入力か=true};
 
+    private bool 行入力可能か=>編集可能か&&読込完了か&&!読込中か&&!保存中か&&!版更新待ちか;
     private int 変更件数 => 新規行.Count + 行一覧.Count(r => r.変更ありか || r.削除予定か);
     private bool 競合ありか=>this.行一覧.Any(行=>行.行競合!=行競合なし||行.競合セル.Count>0);
     private enum 行競合種別{なし,DBで削除,DBで変更}
@@ -167,7 +173,7 @@
                 this.案内=表示文言.取得("公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。");return;
             }
             if(対象変更か||版変更か&&this.変更件数==0){
-                this.行一覧.Clear();this.新規行.Clear();this.列一覧.Clear();this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;
+                this.行一覧.Clear();this.新規行.Clear();this.次の新規行=new(){直接入力か=true};this.列一覧.Clear();this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;
             }
             this.再開読込か=false;
             this.前DB=this.DB名;this.前テーブル=this.テーブル名;
@@ -316,7 +322,7 @@
     }
 
     private void 行追加開始(){
-        if(!this.編集可能か||this.読込中か||this.保存中か||this.版更新待ちか||!this.読込完了か){return;}
+        if(!this.行入力可能か){return;}
         新規行.Add(new 新規行モデル());
     }
 
@@ -334,9 +340,16 @@
     }
     private Task 破棄再読込Async(){this.新規行.Clear();this.行一覧.Clear();return this.再読込Async();}
 
-    private void セル変更(Dictionary<string, string> dict, string key, string? val){
-        if(!this.編集可能か){return;}
-        dict[key] = val ?? "";
+    private void 新規行セル変更(新規行モデル 行,string 列,string? 入力){
+        if(!this.行入力可能か){return;}
+        var 値=入力??"";
+        if(ReferenceEquals(行,this.次の新規行)){
+            if(値.Length==0){return;}
+            this.新規行.Add(行);
+            this.次の新規行=new(){直接入力か=true};
+        }else if(!this.新規行.Contains(行)){return;}
+        行.Values[列]=値;
+        if(行.直接入力か&&行.Values.Values.All(string.IsNullOrEmpty)){this.新規行.Remove(行);}
     }
 
     private void 行セル変更(行モデル row, string key, string? val){
@@ -409,6 +422,7 @@
 
     private sealed class 新規行モデル(行モデル? 元=null) {
         public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
+        public bool 直接入力か{get;init;}
         public 行モデル? 元の行{get;}=元;
         public string GetDisplayValue(string name)=>this.Values.GetValueOrDefault(name)??this.元の行?.GetDisplayValue(name)??"";
     }

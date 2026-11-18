@@ -46,18 +46,21 @@ public partial class 管理ワークスペース{
         return Task.FromResult(ツリー操作結果.成功);
     }
 
-    private Task<ツリー操作結果> ツリー作成Async(string DBID,string 所属,string 分類,string 名前){
-        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return Task.FromResult(拒否!);}
+    private async Task<ツリー操作結果> ツリー作成Async(string DBID,string 所属,string 分類,string 名前){
+        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return 拒否!;}
+        ツリー操作結果 結果;
         if(分類=="Table"){
-            var 結果=this.下書きを更新Async(文書,定義=>DatabaseDesigner.Apply(定義,new TableDesign(名前,所属,[new ColumnDesign("Id","int",true)],[])));
-            // 作成したテーブルは開いて、列をその場で追加できるようにする。
-            var 経路=string.Join(".",new[]{所属,名前}.Where(値=>値.Length>0));this.DBツリー状態(DBID).テーブルを開閉(経路,true);
-            return 結果;
+            結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.Apply(定義,new TableDesign(名前,所属,[new ColumnDesign("Id","int",true)],[])));
+        }else if(分類=="View"){
+            結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.View,[new("Id","int",false)],[],"",新規ビュー本体(名前))));
+        }else{
+            結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.ScalarFunction,[new("Id","int",false)],[],"int","return default;")));
         }
-        if(分類=="View"){
-            return this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.View,[new("Id","int",false)],[],"",新規ビュー本体(名前))));
+        if(結果.案内 is null){
+            var 経路=所属.Length==0?名前:所属+"."+名前;
+            this.DBツリー状態(DBID).テーブルを開閉(経路,true);
         }
-        return this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.ScalarFunction,[new("Id","int",false)],[],"int","return default;")));
+        return 結果;
     }
 
     private Task<ツリー操作結果> ツリースキーマ作成Async(string DBID,string 名前){
@@ -81,13 +84,21 @@ public partial class 管理ワークスペース{
         await this.InvokeAsync(this.StateHasChanged);
     }
 
-    private Task<ツリー操作結果> ツリー名前変更Async(string DBID,CatalogObject 項目,string 名前){
-        if(項目.Kind=="Set"){return Task.FromResult(new ツリー操作結果(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true));}
-        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return Task.FromResult(拒否!);}
-        if(項目.Kind!="Table"){
-            return Task.FromResult(new ツリー操作結果(表示文言.取得("ビュー・関数の名前変更は未対応です。C#タブで型名とメソッド名を変更してください。"),true));
+    private async Task<ツリー操作結果> ツリー名前変更Async(string DBID,CatalogObject 項目,string 名前){
+        if(項目.Kind=="Set"){return new(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true);}
+        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return 拒否!;}
+        if(項目.Kind=="Table"){
+            return await this.下書きを更新Async(文書,定義=>DatabaseDesigner.Apply(定義,DatabaseDesigner.Read(定義,項目.Id) with{Name=名前,OriginalPath=項目.Id}));
         }
-        return this.下書きを更新Async(文書,定義=>DatabaseDesigner.Apply(定義,DatabaseDesigner.Read(定義,項目.Id) with{Name=名前,OriginalPath=項目.Id}));
+        await this.定義編集を同期Async(文書);
+        var 結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.RenameQuery(定義,項目.Id,名前,new Server.RuntimeCompiler().CompileSchemaForEditing(定義.Source)));
+        if(結果.案内 is not null){return 結果;}
+        var 次=文書.オブジェクト.Single(対象=>対象.Schema==項目.Schema&&対象.Name==名前);
+        foreach(var 開いた文書 in this.対象文書一覧.Values.Where(対象=>対象.DBID==DBID&&対象.対象?.Id==項目.Id&&対象.対象.Kind==項目.Kind)){開いた文書.対象=次;}
+        var 状態=this.DBツリー状態(DBID);
+        if(状態.テーブル展開中か(項目.Id)){状態.テーブルを開閉(項目.Id,false);状態.テーブルを開閉(次.Id,true);}
+        if(!文書.定義.Source.Files.Any(ファイル=>ファイル.Path==文書.選択ファイル)){文書.選択ファイル=文書.定義.Source.Files[0].Path;}
+        return 結果;
     }
 
     private Task<ツリー操作結果> ツリーコピーAsync(string DBID,CatalogObject 項目){
