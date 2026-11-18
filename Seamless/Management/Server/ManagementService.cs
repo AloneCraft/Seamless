@@ -132,13 +132,18 @@ public sealed partial class ManagementService:IDisposable{
     }
     private ChangePreview PreviewPublication(UserAccount user,Draft draft,DefinitionVersion? active,Definition candidate,string? table,string? bundleHash=null){
         using var build=this.ReadDraftBuild(user,draft with{Definition=candidate},new(draft.Definition.Id,draft.Revision){BundleHash=bundleHash});string[] changes;DiagnosticInfo? migrationError=null;
-        try{changes=this.runtime.DescribeChanges(active,candidate,build);}catch(ManagementException error){changes=[error.Message];migrationError=new(error.Code,error.Message);}
+        try{changes=this.runtime.DescribeChanges(active,candidate,build);}catch(ManagementException error){
+            changes=[];var message=error.Message;
+            if(error.Code=="BuildMismatch"&&active is not null){message="公開済み v"+active.Version+" を読み出せません。適用の前に保守復旧が必要です。"+message;}
+            migrationError=new(error.Code,message);
+        }
         var dependencies=this.runtime.Dependencies(candidate);var version=active?.Version??0;
         var diagnostics=build.Result.Diagnostics.Concat(this.runtime.ValidateDependents(candidate,build)).ToList();if(migrationError is not null){diagnostics.Add(migrationError);}if(version!=draft.BaseVersion){diagnostics.Add(new("Conflict","共有版が進んでいます。差分を確認し基準版を更新してください。"));}
-        var validation=this.store.Read<ValidationResult>("lastValidation",DraftSubject(user.Name,draft.Definition.Id));if(validation is null||validation.DefinitionHash!=candidate.Hash()||validation.DraftRevision!=draft.Revision||validation.BundleHash!=bundleHash){validation=null;diagnostics.Add(new("ValidationNotRun","この適用候補の検証結果はまだありません。",Severity:"Warning"));}else if(!validation.Passed){diagnostics.Add(new("ValidationFailed","直近の検証は失敗しています: "+validation.Error,Severity:"Warning"));}
+        var actualBundle=build.ImportedBuild?.Build.BundleHash;
+        var validation=this.store.Read<ValidationResult>("lastValidation",DraftSubject(user.Name,draft.Definition.Id));if(validation is null||validation.DefinitionHash!=candidate.Hash()||validation.DraftRevision!=draft.Revision||validation.BundleHash!=actualBundle){validation=null;diagnostics.Add(new("ValidationNotRun","この適用候補の検証結果はまだありません。",Severity:"Warning"));}else if(!validation.Passed){diagnostics.Add(new("ValidationFailed","直近の検証は失敗しています: "+validation.Error,Severity:"Warning"));}
         var intent=draft.Definition.Hash()+"\n"+draft.Revision+"\n"+version+"\n"+string.Join("\n",dependencies);
         if(table is not null){intent+="\nTablePublicationV1\n"+table+"\n"+candidate.Hash();}
-        if(bundleHash is not null){intent+="\nSourceBuildV1\n"+bundleHash;}
+        if(actualBundle is not null){intent+="\nSourceBuildV1\n"+actualBundle;}
         var token=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(intent)));
         return new(token,draft.Definition.Id,draft.Revision,version,changes,dependencies,diagnostics.All(item=>item.Severity!="Error"),diagnostics.ToArray(),validation,candidate.Migration?.HasDataLoss==true){BundleHash=bundleHash};
     }

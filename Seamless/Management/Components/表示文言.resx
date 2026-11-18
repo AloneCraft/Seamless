@@ -1167,6 +1167,9 @@
   <data name="検証しました。変更内容を確認して適用してください。" xml:space="preserve">
     <value>検証しました。変更内容を確認して適用してください。</value>
   </data>
+  <data name="適用できません。変更の確認に表示された理由を確認してください。" xml:space="preserve">
+    <value>適用できません。変更の確認に表示された理由を確認してください。</value>
+  </data>
   <data name="検証中に追加の編集がありました。変更をもう一度確認してください。" xml:space="preserve">
     <value>検証中に追加の編集がありました。変更をもう一度確認してください。</value>
   </data>

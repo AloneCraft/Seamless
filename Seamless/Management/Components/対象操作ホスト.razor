@@ -1,5 +1,5 @@
 <div class="対象行" data-対象-id="@ID" data-選択中="@選択中か.ToString().ToLowerInvariant()" data-メニュー中="@メニュー表示中か.ToString().ToLowerInvariant()"
-     data-db-order-row="@DB表示順ID" data-db-order-enabled="@表示順ドラッグ可能か.ToString().ToLowerInvariant()" data-object-order-group="@オブジェクト表示順グループ" data-object-order-enabled="@オブジェクト表示順可能か.ToString().ToLowerInvariant()" tabindex="0" role="group" aria-label="@名前" @onclick="選択時" @onkeydown="キー押下時Async" @oncontextmenu="右クリック時Async" @oncontextmenu:preventDefault="true">
+     data-db-order-row="@DB表示順ID" data-db-order-enabled="@表示順ドラッグ可能か.ToString().ToLowerInvariant()" data-object-order-group="@オブジェクト表示順グループ" data-object-order-enabled="@オブジェクト表示順可能か.ToString().ToLowerInvariant()" tabindex="0" role="group" aria-label="@名前" @onclick="行選択時Async" @onkeydown="キー押下時Async" @oncontextmenu="右クリック時Async" @oncontextmenu:preventDefault="true">
     <span class="操作帯">
         @if(追加ボタンを表示するか&&(追加時.HasDelegate||追加メニュー要求時.HasDelegate)){
             <button type="button" @ref="追加ハンドル" class="操作ハンドル" title="@表示文言.取得(追加の説明)" aria-label="@表示文言.取得(追加の説明)" aria-haspopup="@追加メニュー種別" disabled="@(!追加可能か)" @onclick="追加押下時Async" @onclick:stopPropagation="true"><操作アイコン 種類="追加"/></button>
@@ -45,6 +45,10 @@
     [Parameter]public EventCallback<対象操作要求> メニュー要求時{get;set;}
     private ElementReference ハンドル;
     private ElementReference 追加ハンドル;
+    private Task 行選択時Async(MouseEventArgs 引数){
+        if(引数.Detail>1&&this.名前変更時.HasDelegate){return Task.CompletedTask;}
+        return this.選択時.InvokeAsync();
+    }
     private string? 追加メニュー種別{get{if(this.追加メニュー要求時.HasDelegate){return "menu";}return null;}}
     private Task 追加押下時Async(){
         if(!this.追加可能か){return Task.CompletedTask;}

@@ -10,7 +10,7 @@
                     <span class="DBアイコン"><操作アイコン 種類="@アイコン(項目.Kind)"/></span>
                     @if(名前変更中ID==項目.Id){
                         <span class="ツリー名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="名前の変更" 初期値="@項目.Name" クラス="ツリー名前入力" 無効か="@(編集操作停止中か||処理中か)" 確定時="名前=>名前変更確定Async(項目,名前)" 取消時="名前変更を閉じる"/></span>
-                    }else{<span class="対象名">@項目.Name</span>}
+                    }else{<span class="対象名" @ondblclick="()=>名前変更を開始(項目)">@項目.Name</span>}
                     @if(公開済みか is not null&&!公開済みか(項目)){<span class="未適用印" title="@表示文言.取得("下書きの定義 · 稼働DBへ未適用")">@(表示文言.取得("未適用"))</span>}
                 </対象操作ホスト>
                 @if(項目.Kind=="Table"){

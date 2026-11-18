@@ -235,7 +235,10 @@ public partial class 管理ワークスペース{
         try{
             if(文書.定義.Kind==DefinitionKind.Database){検証=await this.管理操作.CreateValidationDraftAsync(キー,this.寿命.Token);}
             var 結果=await this.管理操作.PreviewAsync(キー,this.寿命.Token);
-            if(文書.プレビューを設定(検証定義,結果)){this.案内=表示文言.取得("検証しました。変更内容を確認して適用してください。");}
+            if(文書.プレビューを設定(検証定義,結果)){
+                if(結果.CanApply){this.案内=表示文言.取得("検証しました。変更内容を確認して適用してください。");}
+                else{this.案内=表示文言.取得("適用できません。変更の確認に表示された理由を確認してください。");}
+            }
             else{this.案内=表示文言.取得("検証中に追加の編集がありました。変更をもう一度確認してください。");}
         }
         finally{if(検証 is not null){await this.管理操作.DropValidationAsync(検証.Id);}}

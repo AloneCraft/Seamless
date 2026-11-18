@@ -28,7 +28,7 @@
                     <span class="DBアイコン"><操作アイコン 種類="DB"/></span>
                     @if(DB名前変更ID==DB.Id){
                         <span class="DB名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="データベース名を変更" 初期値="@(DB名前変更要求?.Name??DB.Name)" クラス="DB名前入力" 無効か="DB名前変更中か" 確定時="DB名前変更確定時Async" 取消時="DB名前変更取消時"/></span>
-                    }else{<span class="対象名">@DB.Name</span>}
+                    }else{<span class="対象名" @ondblclick="()=>DB名前変更開始時(DB)">@DB.Name</span>}
                     @if(DBに変更があるか(DB.Id)){<span class="変更印" role="img" title="@表示文言.取得("未適用の変更")" aria-label="@表示文言.取得("未適用の変更")">*</span>}
                 </対象操作ホスト>
                 @if(公開情報表示か(DB.Id)){
