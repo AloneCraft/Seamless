@@ -37,6 +37,19 @@ body:has(.管理ワークスペース){margin:0}
 .ツリー列行:hover,.ツリー列行:focus-visible{background:#eeeee8}
 .ツリー列行 span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ツリー列行 small{margin-left:auto;color:#879578;overflow:hidden;text-overflow:ellipsis}
+.下書き二段{display:grid;align-content:center;grid-auto-rows:minmax(23px,auto);min-width:0}
+.対象内容:has(.下書き二段){min-height:62px}
+.対象内容:has(.下書き二段)>.ツリー関数戻り型{align-self:end}
+.所属並び項目>.対象行:has(.下書き二段)>.操作帯,.所属並び項目>.対象行:has(.下書き二段) .未適用印{display:none}
+.下書き変更前,.下書き削除{color:#923e32;text-decoration:line-through;text-decoration-thickness:1px}
+.下書き変更前{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.下書き変更後{color:#195e4f;font-weight:600}
+.下書き削除行{padding-inline-start:24px}
+.ツリー列外枠.下書き削除行{padding-inline-start:0}
+.ツリー列行 .下書き二段{flex:1}
+.ツリー列表示{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.ツリー列表示.下書き変更前 small,.ツリー列表示.下書き削除 small{color:inherit}
+.ツリー列外枠:has(.下書き二段){min-height:54px}
 .ツリー列入力 fieldset{display:grid;gap:6px;min-width:0;border:0;padding:4px 0}
 .ツリー列入力 label{display:grid;gap:3px;min-width:0}
 .ツリー列入力 input{min-width:0;width:100%}
@@ -52,7 +65,7 @@ body:has(.管理ワークスペース){margin:0}
 .インライン作成,.インライン保存先{display:flex;align-items:center;gap:7px;padding:5px 8px 0 44px}.インライン作成 input,.インライン保存先 input{min-width:0;width:100%;border:1px solid #b2c9b9;border-radius:4px;padding:5px;font:inherit;outline-color:#559c83}
 .システム区分{margin-top:25px;color:#8a8e80;font-size:11px}.システム区分 summary{cursor:pointer;padding:7px 13px}.接続フッター{margin-top:auto;border-top:1px solid #e5e4dc;padding:16px 10px 1px;display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:10px;color:#83887a}.接続フッター .接続点{margin:0}.利用者名{display:block;width:100%;padding-left:12px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
 .作業領域{min-width:0;flex:1;display:flex;flex-direction:column}.上部バー{display:flex;justify-content:space-between;align-items:center;min-height:57px;border-bottom:1px solid var(--線);padding:0 30px;color:#6d7266;font-size:11px}.パンくず>span{padding:0 10px;color:#b4b9ad}.環境ラベル{font-size:10px;color:#909486;border:1px solid #e9ebe4;border-radius:20px;padding:3px 10px}
-.文書タブ帯{display:flex;min-height:43px;border-bottom:1px solid var(--線);padding:0 22px;gap:4px;overflow:auto}.文書タブ{flex-shrink:0;border-bottom:2px solid transparent;min-width:145px;padding:3px 4px 0}.文書タブ:has([data-選択中=true]){border-bottom-color:#427d67}.文書タブ .対象行{min-height:35px;font-size:11px;background:transparent}.文書タブ .操作帯{width:24px}.文書タブ .ハンドル余白{display:none}.文書タブ .対象内容{gap:6px}.変更印{color:#be8e43;font-weight:700}
+.変更印{color:#be8e43;font-weight:700}
 .状態通知{min-height:26px;padding:6px 34px 0;font-size:11px;color:#697563}.状態通知[data-エラー=true]{color:#a64d43;background:#fff7f4;padding-bottom:6px}
 .文書領域{max-width:1140px;width:100%;margin:0 auto;padding:34px 65px 60px;flex:1}.文書見出し{display:flex;justify-content:space-between;align-items:center;gap:20px}.種類ラベル{font-size:9px;font-weight:600;letter-spacing:2px;color:#9ca68e;margin:0 0 9px}h1{font-size:34px;line-height:1.25;font-weight:650;letter-spacing:-1.3px;margin:0 0 10px}.文書説明{font-size:13px;color:#727b6b;margin:0 0 12px}.文書操作{display:flex;align-items:center;gap:10px;flex-shrink:0}.版ラベル{color:#979e8c;font-size:10px;white-space:nowrap}.省略ボタン{font-size:17px!important;color:#8b9382!important;padding:5px 8px!important;border-radius:5px}.省略ボタン:hover{background:#f0f2eb!important}
 .表示切替{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--線);margin-top:26px;min-height:39px}.表示切替 button{height:39px;font-size:12px;color:#969d8a;padding:0 0 11px;border-bottom:2px solid transparent}.表示切替 button[data-選択中=true]{color:#407258;border-bottom-color:#407258}.下書き状態{margin-left:auto;font-size:11px;color:#69775b}
@@ -95,10 +108,16 @@ body:has(.管理ワークスペース){margin:0}
 .コード行番号 pre{position:absolute;top:0;right:0;min-width:100%;padding:16px 10px}.コード編集枠{position:relative;min-width:0;min-height:0;overflow:hidden}
 .コード色表示{position:absolute;top:0;left:0;width:100%;height:100%;padding:16px 12px;overflow:hidden;pointer-events:none;color:#334039}
 .コード色表示 code{display:block;font:inherit;transform-origin:top left}.コード色表示 .keyword{color:#2356a7}.コード色表示 .string{color:#9b472c}.コード色表示 .number{color:#784f99}.コード色表示 .comment{color:#52814a}.コード色表示 .directive{color:#865399}
+.固定コード行,.固定コード番号{min-width:0;margin:0;background:#fff0d2;color:#614a2d;font:12px/22px Consolas,"Cascadia Code",monospace;tab-size:4}
+.固定コード番号{padding:0 10px;text-align:right;user-select:none}.固定コード行{padding:0 12px;overflow:auto}.固定コード行 code{font:inherit}.固定コード行 .keyword{color:#2356a7}
+.固定行案内{grid-column:1/-1;text-align:end;padding:4px 12px;font-size:13px}.固定行凡例{background:#fff0d2;color:#614a2d;padding:0 6px}
+.構造クラス表示{margin-block:20px}
 .コード編集枠 textarea{display:block;width:100%;height:calc(var(--コード行数)*22px + 32px);min-height:120px;max-height:560px;padding:16px 12px;outline:none;resize:vertical;background:transparent;color:transparent;caret-color:#263e32;overflow:auto}
 .色付きコード[data-待機中=true] .コード色表示{visibility:hidden}.色付きコード[data-待機中=true] textarea{color:#334039}
 .コード編集枠 textarea::selection{background:#b8d3ef80}.プロジェクトコード枠{flex:1;border:0;border-radius:0}.プロジェクトコード枠 .コード編集枠 textarea{height:100%;min-height:360px}
 .文書領域:has(.DBコード枠){padding-bottom:12px}.DBコード枠 .コード編集枠 textarea{height:var(--DBコード高さ,calc(var(--コード行数)*22px + 32px));max-height:none;resize:none}
+.DBコード枠:has(.固定コード行) .コード編集枠 textarea{height:calc(var(--入力行数)*22px);min-height:22px;max-height:65vh}
+.色付きコード:has(.固定コード行) :is(.コード行番号 pre,.コード色表示,.コード編集枠 textarea){padding-block:0}
 @media(forced-colors:active){.コード色表示{display:none}.コード編集枠 textarea{color:CanvasText;caret-color:CanvasText}}
 
 .表カード{padding:0;display:block}.表カード>.対象行{margin:0;min-height:76px;border-radius:7px}.表カード .対象内容{gap:14px;padding:17px 20px 17px 0}.表カード .操作帯{width:38px}.表カード .ハンドル余白{width:16px}.表を開く印{margin-left:auto;color:#879578;opacity:0}.表カード:hover .表を開く印,.表カード:focus-within .表を開く印{opacity:1}.DB作成照会{padding:8px 10px;overflow-wrap:anywhere}.DB作成照会 small{display:block;margin-bottom:8px;color:#6f7a63;font-size:10px}
@@ -261,7 +280,7 @@ body:has(.管理ワークスペース){margin:0}
 .管理ワークスペース{--文字:#252e28;--補助:#46574a;font-size:15px}
 .検索入口,.ソース入口,.DB一覧>.対象行 .対象内容,.区分見出し,.表示切替 button,.管理ワークスペース select:not([multiple]),.管理ワークスペース input[type=file]{font-size:14px!important}
 .ナビ区分,.件数,.小案内,.接続フッター,.環境ラベル,.版ラベル,.種類ラベル{font-size:12px;color:#536454}
-.状態通知,.上部バー,.文書タブ .対象行,.下書き状態,.テキストボタン,.控えめボタン,.主要ボタン,.グリッド操作案内{font-size:13px!important}
+.状態通知,.上部バー,.下書き状態,.テキストボタン,.控えめボタン,.主要ボタン,.グリッド操作案内{font-size:13px!important}
 .分類名,.システム区分{font-size:13px;color:#536454}.文書説明{font-size:15px;color:#46574a}
 .検索入口,.ソース入口,.テキストボタン,.控えめボタン{color:#405b49!important}
 .表示切替 button{color:#526552}.表示切替 button[data-選択中=true]{color:#245e45}
@@ -319,11 +338,6 @@ button.テキストボタン.ツリー列追加:hover{color:#405b49}
 .ツリー追加行 .ツリー追加入力,.ツリー名前入力{height:24px;min-width:0;flex:1;box-sizing:border-box;border:1px solid #b2c9b9;border-radius:4px;padding:2px 6px;font:inherit;font-size:12px;outline-color:#559c83;background:#fff}
 .ツリー名前変更{display:flex;flex:1;min-width:0}
 .ツリー追加行{justify-content:flex-start}
-.DB名作成行{height:auto;min-height:35px;flex-wrap:wrap}
-.DB名作成行 .ツリー追加入力{min-width:90px}
-.名前作成操作{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
-.名前作成操作 button{min-height:24px;padding:2px 7px;white-space:nowrap;font-size:12px}
-.名前作成操作 [role=status]{font-size:12px;white-space:nowrap}
 button.テキストボタン.ツリー追加行{color:#80857e}
 button.テキストボタン.ツリー追加行:hover{color:#405b49}
 /* 名前・コピー・削除は、行にマウスを乗せたとき・フォーカス時・選択中に表示し、通常は名前を読めるようにする。行の高さと位置は変えない。 */

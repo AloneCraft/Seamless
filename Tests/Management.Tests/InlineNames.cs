@@ -9,46 +9,44 @@ using Designer=Seamless.Management.DatabaseDesigner;
 namespace Management.Tests;
 
 public sealed class InlineNames{
-    [Theory][InlineData(true)][InlineData(false)]
-    public async Task EnterAndBlurCommitTheTrimmedName(bool enter){
+    [Fact]
+    public async Task EnterCommitsTheTrimmedName(){
         var input=new インライン名前入力();string? actual=null;
         Parameter(input,"確定時",EventCallback.Factory.Create<string>(new object(),(string name)=>actual=name));
         Set(input,"編集値","  dbo0  ");
-        if(enter){await Key(input,"Enter");}else{await Blur(input);}
+        await Key(input,"Enter");
         Assert.Equal("dbo0",actual);
     }
-    [Theory][InlineData(true)][InlineData(false)]
-    public async Task ExplicitCreationKeepsTheDraftOnBlurAndSubmitsOnlyOnEnterOrClick(bool enter){
+    [Fact]
+    public async Task TypingKeepsTheNameInTheEditorUntilEnter(){
         var input=new インライン名前入力();var committed=new List<string>();
-        Parameter(input,"明示作成か",true);
         Parameter(input,"確定時",EventCallback.Factory.Create<string>(new object(),(string name)=>committed.Add(name)));
-        Set(input,"編集値"," 222 ");
-        await Blur(input);
+        Invoke(input,"入力時",new ChangeEventArgs{Value=" 222 "});
         Assert.Equal(" 222 ",Get<string>(input,"編集値"));Assert.Empty(committed);
-        if(enter){await Key(input,"Enter");}else{await Confirm(input);}
+        await Key(input,"Enter");
         Assert.Equal(new[]{"222"},committed);
     }
-    [Fact]public async Task EscapeCancelsBeforeTheBlurEvent(){
+    [Fact]public async Task EscapeCancelsWithoutCommitting(){
         var input=new インライン名前入力();var committed=0;var cancelled=0;
         Parameter(input,"確定時",EventCallback.Factory.Create<string>(new object(),(string _)=>committed++));
         Parameter(input,"取消時",EventCallback.Factory.Create(new object(),()=>cancelled++));
-        Set(input,"編集値","dbo0");await Key(input,"Escape");await Blur(input);
+        Set(input,"編集値","dbo0");await Key(input,"Escape");await Key(input,"Enter");
         Assert.Equal(0,committed);Assert.Equal(1,cancelled);
     }
-    [Theory][InlineData("",true)][InlineData("",false)][InlineData(" \t ",true)][InlineData(" \t ",false)]
-    public async Task EmptyNamesCancel(string name,bool enter){
+    [Theory][InlineData("")][InlineData(" \t ")]
+    public async Task EmptyNamesCancel(string name){
         var input=new インライン名前入力();var committed=0;var cancelled=0;
         Parameter(input,"確定時",EventCallback.Factory.Create<string>(new object(),(string _)=>committed++));
         Parameter(input,"取消時",EventCallback.Factory.Create(new object(),()=>cancelled++));
         Set(input,"編集値",name);
-        if(enter){await Key(input,"Enter");}else{await Blur(input);}
+        await Key(input,"Enter");
         Assert.Equal(0,committed);Assert.Equal(1,cancelled);
     }
-    [Fact]public async Task BlurDuringEnterDoesNotCommitTwice(){
+    [Fact]public async Task ASecondEnterDuringConfirmationDoesNotCommitTwice(){
         var input=new インライン名前入力();var entered=0;var release=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Parameter(input,"確定時",EventCallback.Factory.Create<string>(new object(),async(string _)=>{entered++;await release.Task;}));
         Set(input,"編集値","dbo0");var pending=Key(input,"Enter");
-        try{await Blur(input);await Key(input,"Escape");Assert.Equal(1,entered);}
+        try{await Key(input,"Enter");await Key(input,"Escape");Assert.Equal(1,entered);}
         finally{release.TrySetResult();await pending;}
     }
     [Fact]public async Task ARejectedNameCanBeCorrectedAndRetried(){
@@ -84,7 +82,6 @@ public sealed class InlineNames{
         return component;
     }
     private static Task Key(インライン名前入力 input,string key)=>(Task)Invoke(input,"キー時Async",new KeyboardEventArgs{Key=key})!;
-    private static Task Blur(インライン名前入力 input)=>(Task)Invoke(input,"フォーカス離脱時Async")!;
     private static Task Confirm(インライン名前入力 input)=>(Task)Invoke(input,"確定Async")!;
     private static object? Invoke(object target,string name,params object?[] args)=>target.GetType().GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(target,args);
     private static T Get<T>(object target,string name)=>(T)target.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(target)!;

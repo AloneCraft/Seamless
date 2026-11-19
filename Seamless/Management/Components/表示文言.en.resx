@@ -84,12 +84,11 @@
   <data name="DOT グラフ" xml:space="preserve">
     <value>DOT graph</value>
   </data>
-  <data name="Enter・フォーカス移動で確定 · Escで取消" xml:space="preserve">
-    <value>Enter or leave the field to confirm · Esc to cancel</value>
+  <data name="Enterで確定 · Escで取消" xml:space="preserve">
+    <value>Enter to confirm · Esc to cancel</value>
   </data>
-  <data name="Enter・フォーカス移動で作成 · Escで取消" xml:space="preserve">
-    <value>Enter or leave the field to create · Esc to cancel</value>
-  </data>
+  <data name="変更を取り消す" xml:space="preserve"><value>Undo change</value></data>
+  <data name="削除を取り消す" xml:space="preserve"><value>Undo deletion</value></data>
   <data name="Enterで専用C#プロジェクトを生成 · Escでスキップ" xml:space="preserve">
     <value>Enter to generate a C# project · Esc to skip</value>
   </data>
@@ -2431,7 +2430,7 @@
   <data name="この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。" xml:space="preserve">
     <value>No FLinq-expanded plan matches this target. Constant-returning code, for example, does not generate a plan. If the code contains supported LINQ operations, check the source version, SDK build, artifact import, and explicit publication.</value>
   </data>
-  <data name="ドット入力またはCtrl+Spaceで意味解析補完。外部参照DLLの補完は未対応です。" xml:space="preserve"><value>Type a dot or press Ctrl+Space for semantic completion. External reference DLL completion is not supported yet.</value></data>
+  <data name="ドット・:: の入力または Ctrl+Space で意味解析補完。外部参照DLLの補完は未対応です。" xml:space="preserve"><value>Type a dot or ::, or press Ctrl+Space for semantic completion. External reference DLL completion is not supported yet.</value></data>
   <data name="補完候補を解析中" xml:space="preserve"><value>Analyzing completion candidates</value></data>
   <data name="C#補完候補" xml:space="preserve"><value>C# completion candidates</value></data>
   <data name="候補は先頭100件です。入力を絞って再取得してください。" xml:space="preserve"><value>Showing the first 100 candidates. Narrow the input and request completion again.</value></data>
@@ -2617,9 +2616,12 @@
   <data name="戻り型 {0}" xml:space="preserve"><value>Return type {0}</value></data>
   <data name="レコードの集合を返すには、関数に結果列を追加してください。" xml:space="preserve"><value>Add a result column to return a set of records.</value></data>
   <data name="保存済み {0} 行" xml:space="preserve"><value>{0} saved rows</value></data>
-  <data name="テーブルを挿入" xml:space="preserve"><value>Insert table</value></data>
-  <data name="q はこのDBの読み取り口です。" xml:space="preserve"><value>Use q to read from this database.</value></data>
-  <data name="参照できるテーブル" xml:space="preserve"><value>Available tables</value></data>
-  <data name="この読み取り口から参照できるテーブルがありません。" xml:space="preserve"><value>No tables are available through this reader.</value></data>
-  <data name="この位置のDBの読み取り口を解決できません。" xml:space="preserve"><value>The database reader is unavailable at this position.</value></data>
+  <data name="テーブルのC#は読み取り専用です。構造は左のツリーで編集できます。" xml:space="preserve"><value>Table C# is read-only. Edit the structure in the left tree.</value></data>
+  <data name="外側の宣言（読み取り専用）" xml:space="preserve"><value>Enclosing declaration (read-only)</value></data>
+  <data name="処理本体のC#を確認してください。宣言は左のツリーで変更できます。" xml:space="preserve"><value>Check the C# in the body. Change the declaration in the left tree.</value></data>
+  <data name="ここでは処理本体を編集します。宣言は左のツリーで変更できます。" xml:space="preserve"><value>Edit the body here. Change the declaration in the left tree.</value></data>
+  <data name="この表示を閉じる" xml:space="preserve"><value>Close this view</value></data>
+  <data name="データベースのクラス定義（読み取り専用）" xml:space="preserve"><value>Database class definition (read-only)</value></data>
+  <data name="スキーマのクラス定義（読み取り専用）" xml:space="preserve"><value>Schema class definition (read-only)</value></data>
+  <data name="表示できるクラス宣言がありません。" xml:space="preserve"><value>No class declaration is available.</value></data>
 </root>

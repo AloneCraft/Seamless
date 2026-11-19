@@ -26,8 +26,7 @@ public static partial class DatabaseDesigner{
             var folder="Functions/";
             if(query.Schema.Length>0){ns+="."+query.Schema;folder+=query.Schema.Replace('.','/')+"/";}
             var prefix=query.Member.Name+"Result";
-            var rowName=prefix;
-            for(var suffix=2;definition.Source.Files.Any(file=>file.Path.Equals(folder+rowName+".cs",StringComparison.OrdinalIgnoreCase))||compilation.GetTypeByMetadataName(ns+"."+rowName) is not null;suffix++){rowName=prefix+suffix;}
+            var rowName=AvailableQueryResultName(definition,compilation,ns,folder,prefix);
             var row="public readonly record struct @"+rowName+"("+string.Join(", ",columns.Select(column=>column.Type+" @"+column.Name))+");";
             definition=WriteNewFile(definition,folder+rowName+".cs",[],ns,row);
             var fullName="global::"+ns+".@"+rowName;

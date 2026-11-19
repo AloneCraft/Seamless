@@ -9,7 +9,6 @@ public partial class 管理ワークスペース{
     private bool 資源計測対応か;
     private long 対象選択世代;
     private IEnumerable<文書状態> 全定義文書=>this.文書一覧.Values.Concat(this.関数定義文書.Values);
-    private IEnumerable<string> 表示文書タブ()=>this.タブ順序.順序.Where(ID=>this.対象文書一覧.TryGetValue(ID,out var 文書)&&!文書.DBか&&(this.文書一覧.ContainsKey(文書.DBID)||this.公開情報表示か(文書.DBID)));
     private bool DBに変更があるか(string ID){
         if(this.DBツリー画面.GetValueOrDefault(ID)?.未保存か is true||this.対象文書一覧.Values.Any(文書=>文書.DBID==ID&&(文書.編集中か||文書.データ編集中か))){return true;}
         if(this.公開情報表示か(ID)){return false;}

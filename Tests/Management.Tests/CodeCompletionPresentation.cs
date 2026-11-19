@@ -35,7 +35,7 @@ public sealed class CodeCompletionPresentation{
             else{
                 Assert.NotNull(applied);Assert.Null(changed);
                 Assert.Equal(input.Replace(".Sub;",".Substring;",StringComparison.Ordinal),applied.Text);
-                await(Task)typeof(コードエディター).GetMethod("入力時Async",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(editor,[new ChangeEventArgs{Value=applied.Text}])!;
+                await(Task)typeof(コードエディター).GetMethod("入力時Async",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(editor,[applied.Text])!;
                 Assert.Equal(applied.Text,changed);
             }
             Assert.Equal(before+input+" int Other=42;}",source.Files[0].Text);

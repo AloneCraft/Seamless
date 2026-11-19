@@ -1,5 +1,6 @@
 using Seamless.Management;
 using Seamless.Management.Server;
+using Designer=Seamless.Management.DatabaseDesigner;
 using HostService=Seamless.Management.Server.ManagementService;
 
 namespace Management.Tests;
@@ -8,6 +9,57 @@ public sealed class DatabaseDraftPublication{
     private static string Root()=>Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,Guid.NewGuid().ToString("N"));
     private static UserAccount Admin(HostService service)=>service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
     private static ApplyRequest Request(ChangePreview preview,bool confirm=false)=>new(preview.Id,preview.DraftRevision,preview.Token,Guid.NewGuid(),confirm);
+
+    [Fact]public void QueryRenameHistoryIsPrivateToTheDraftAndClearsOnPublication(){
+        var root=Root();
+        var original=Designer.ApplyQuery(Designer.Empty("query-draft","QueryDraft"),new("ById","",DatabaseQueryKind.ScalarFunction,[],[new("id","int")],"int","return default;"));
+        using(var store=ManagementStore.Initialize(root,"admin","TestPassword-123"))
+        using(var service=new HostService(store)){
+            var owner=Admin(service);
+            NativeWorkflow.Publish(service,owner,original);
+            var edited=Designer.ApplyQuery(Designer.RemoveQuery(original,"ById"),new("ByKey","",DatabaseQueryKind.ScalarFunction,[],[new("key","long")],"int","return default;"));
+            var state=new Seamless.Management.Components.文書状態(new("db:query-draft","QueryDraft","query-draft",1,"",false),
+                service.GetDefinition(owner,original.Id),null);
+            state.定義=edited;
+            state.問い合わせ改名を記録("ById","ByKey");
+            var current=Assert.Single(state.オブジェクト);
+            state.問い合わせ列の改名を記録(current,true,"id","key");
+            var saved=service.SaveDraft(owner,new(edited,1,1,1){QueryRenames=state.保管する問い合わせ改名});
+            Assert.Equal(2,saved.QueryRenames!.Length);
+            Assert.Equal(1,service.GetDefinition(owner,original.Id).Version);
+        }
+        using(var store=new ManagementStore(root))
+        using(var service=new HostService(store)){
+            var owner=Admin(service);
+            var draft=service.FindDraft(owner,original.Id)!;
+            var published=service.GetDefinition(owner,original.Id);
+            var state=new Seamless.Management.Components.文書状態(new("db:query-draft","QueryDraft","query-draft",1,"",false),published,draft);
+            var current=Assert.Single(state.オブジェクト);
+            Assert.Equal("ById",state.公開時の項目(current)?.Name);
+            Assert.Equal("id",state.公開時の問い合わせ列(current,true,"key"));
+            Assert.Empty(state.削除したオブジェクト());
+            var preview=service.Preview(owner,new(original.Id,draft.Revision));
+            Assert.True(preview.CanApply);
+            Assert.Equal(OperationState.Succeeded,service.Apply(owner,Request(preview)).State);
+            Assert.Null(service.FindDraft(owner,original.Id)?.QueryRenames);
+        }
+    }
+
+    [Fact]public void ReopenedTreeUsesThePublishedNameForRenamedAndDeletedTablesUntilApply(){
+        var published=Designer.Empty("db","DraftTree");
+        published=Designer.Apply(published,new("First","",[new("Id","int",true)],[]));
+        published=Designer.Apply(published,new("Second","",[new("Id","int",true)],[])) with{Migration=null};
+        var renamed=Designer.Apply(published,Designer.Read(published,"First") with{Name="Renamed",OriginalPath="First"});
+        var edited=Designer.Remove(renamed,"Second");
+        var document=new Seamless.Management.Components.文書状態(new("db:db","DraftTree","db",1,"",false),
+            new(published,1,"owner",DateTimeOffset.UtcNow),new(edited,"owner",1,1,DateTimeOffset.UtcNow));
+        var row=Assert.Single(document.オブジェクト);
+        Assert.Equal("First",document.公開時の項目(row)?.Name);
+        Assert.Equal("Second",Assert.Single(document.削除したオブジェクト()).Name);
+        document.公開完了(2);
+        Assert.Equal("Renamed",document.公開時の項目(row)?.Name);
+        Assert.Empty(document.削除したオブジェクト());
+    }
 
     [Fact]public async Task PrivateNewDatabaseDraftSurvivesRestartAndPublishesItsFirstTableTogether(){
         var root=Root();

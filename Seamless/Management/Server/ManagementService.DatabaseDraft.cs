@@ -19,7 +19,7 @@ public sealed partial class ManagementService{
             throw new ManagementException("Conflict","削除済みDBはバックアップから復旧してください。");
         }
         if(change is null){return;}
-        if(definition.Kind!=DefinitionKind.Database||change.Delete&&change.NewName is not null){
+        if(definition.Kind!=DefinitionKind.Database||change.Delete&&change.NewName is not null||!change.Delete&&change.NameBeforeDeletion is not null){
             throw new ManagementException("InvalidRequest","DBの変更内容が不正です。");
         }
         if(change.ExpectedName is null){
@@ -32,6 +32,7 @@ public sealed partial class ManagementService{
             throw new ManagementException("Conflict","稼働中のDB名が変更されました。一覧を更新してください。");
         }
         Require(user,active.Database,ManagementPermission.Manage);
+        if(change.NameBeforeDeletion is{} beforeDeletion){ValidateDatabaseName(beforeDeletion);}
         if(change.NewName is{} name){
             ValidateDatabaseName(name);
             if(name!=active.Database){this.CheckDatabaseNameAvailable(active,name);}

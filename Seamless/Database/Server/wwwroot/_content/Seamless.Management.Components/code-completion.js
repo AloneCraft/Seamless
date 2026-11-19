@@ -30,8 +30,9 @@ export function 初期化(root, input, receiver, failureMessage) {
     let generation = 0;
     let pendingRequest = null;
     let requested = null;
+    let pendingChoice = null;
     const list = () => root.querySelector('[role="listbox"]');
-    const options = () => Array.from(root.querySelectorAll('[data-code-completion-index]'));
+    const options = () => Array.from(root.querySelectorAll('[data-code-completion-index]:not([hidden])'));
     const ownsFocus = () => root.contains(document.activeElement);
     const place = () => {
         const popup = list();
@@ -69,7 +70,7 @@ export function 初期化(root, input, receiver, failureMessage) {
         console.error('Code completion interop failed', error);
     };
     const cancel = () => {
-        generation++; pendingRequest = null; requested = null;
+        generation++; pendingRequest = null; requested = null; pendingChoice = null;
         const popup = list(); if (popup) popup.hidden = true;
         input.removeAttribute('aria-activedescendant');
         return receiver.invokeMethodAsync('補完取消Async').catch(report);
@@ -77,7 +78,20 @@ export function 初期化(root, input, receiver, failureMessage) {
     const update = () => {
         if (disposed) return;
         const popup = list();
-        if (popup && (!requested || !matches(requested))) popup.hidden = true;
+        if (popup) {
+            const prefix = requested?.prefix;
+            const entries = Array.from(popup.querySelectorAll('[data-code-completion-index]'));
+            const name = entry => entry.dataset.completionName.replace(/^@/, '');
+            const exact = prefix != null && entries.some(entry => name(entry).startsWith(prefix));
+            for (const entry of entries) {
+                const candidate = name(entry);
+                entry.hidden = prefix != null && !(exact
+                    ? candidate.startsWith(prefix)
+                    : candidate.toLowerCase().startsWith(prefix.toLowerCase()));
+                if (entry.hidden) entry.setAttribute('aria-selected', 'false');
+            }
+            popup.hidden = !requested || !matches(requested) || options().length === 0;
+        }
         const entries = options();
         selected = Math.min(selected, Math.max(0, entries.length - 1));
         entries.forEach((entry, index) => {
@@ -92,35 +106,39 @@ export function 初期化(root, input, receiver, failureMessage) {
         && generation === request.generation && input.value === request.text
         && root.dataset.completionScope === request.scope
         && input.selectionStart === request.position && input.selectionEnd === request.end;
-    const capture = tables => ({
-        text: input.value, position: input.selectionStart, end: tables ? input.selectionEnd : input.selectionStart,
-        scope: root.dataset.completionScope, generation, tables
+    const capture = () => ({
+        text: input.value, position: input.selectionStart, end: input.selectionStart,
+        scope: root.dataset.completionScope, generation
     });
     const request = async snapshot => {
         if (!matches(snapshot)) return;
         if (inFlight) { pendingRequest = snapshot; return; }
-        inFlight = true; selected = 0; requested = snapshot;
+        inFlight = true; requested = snapshot;
+        if (snapshot.prefix == null) selected = 0;
         try {
-            if (snapshot.tables) {
-                await receiver.invokeMethodAsync('テーブル候補要求Async', snapshot.position, snapshot.end, snapshot.text);
-            } else {
-                await receiver.invokeMethodAsync('補完要求Async', snapshot.position, snapshot.text);
-            }
+            const method = snapshot.prefix == null ? '補完要求Async' : '補完再要求Async';
+            await receiver.invokeMethodAsync(method, snapshot.position, snapshot.text);
+            snapshot.ready = true;
         }
         catch (error) { report(error); }
         finally {
             inFlight = false;
             const next = pendingRequest; pendingRequest = null;
             if (next) void request(next);
+            else if (pendingChoice?.snapshot === snapshot && snapshot.ready) {
+                const choice = pendingChoice; pendingChoice = null;
+                void apply(choice);
+            }
         }
     };
-    const apply = async index => {
-        if (disposed || inFlight || composing || !ownsFocus() || !requested) return;
-        const snapshot = requested;
+    const apply = async ({ snapshot, name, kind }) => {
+        if (disposed || composing || !ownsFocus() || !snapshot || snapshot !== requested) return;
         if (!matches(snapshot)) { await cancel(); return; }
+        if (!snapshot.ready) { pendingChoice = { snapshot, name, kind }; return; }
+        if (inFlight) return;
         inFlight = true;
         try {
-            const result = await receiver.invokeMethodAsync('補完適用Async', index, input.value);
+            const result = await receiver.invokeMethodAsync('補完候補を選ぶAsync', name, kind, input.value);
             if (result && matches(snapshot)) {
                 // 解析側の応答中に入力やキャレットが変わっていない場合だけ、通常の入力イベントへ渡す。
                 input.value = result.text;
@@ -128,7 +146,14 @@ export function 初期化(root, input, receiver, failureMessage) {
                 input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
             }
         } catch (error) { report(error); }
-        finally { inFlight = false; }
+        finally {
+            inFlight = false;
+            const next = pendingRequest; pendingRequest = null;
+            if (next) void request(next);
+        }
+    };
+    const choose = entry => {
+        if (entry) return apply({ snapshot: requested, name: entry.dataset.completionName, kind: entry.dataset.completionKind });
     };
     const keydown = async event => {
         if (disposed || event.target !== input || input.readOnly || composing || event.isComposing || event.keyCode === 229) return;
@@ -136,7 +161,7 @@ export function 初期化(root, input, receiver, failureMessage) {
         compositionEnded = false;
         if (event.ctrlKey && !event.altKey && !event.metaKey && event.code === 'Space') {
             event.preventDefault(); event.stopPropagation();
-            await request(capture(false));
+            await request(capture());
             return;
         }
         if (event.key === 'Escape' && (inFlight || pendingRequest)) {
@@ -152,50 +177,68 @@ export function 初期化(root, input, receiver, failureMessage) {
             selected = (selected + delta + entries.length) % entries.length;
             update(); entries[selected]?.scrollIntoView({ block: 'nearest' });
         } else if (event.key === 'Enter' || event.key === 'Tab') {
-            event.preventDefault(); event.stopPropagation(); await apply(selected);
+            event.preventDefault(); event.stopPropagation(); await choose(entries[selected]);
         } else if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { await cancel(); }
     };
     const pointerdown = event => {
         const entry = event.target.closest('[data-code-completion-index]');
         if (event.target === input && (list() || inFlight)) { void cancel(); return; }
         if (!entry || !root.contains(entry)) return;
-        event.preventDefault(); selected = Number(entry.dataset.codeCompletionIndex); void apply(selected);
+        event.preventDefault(); void choose(entry);
     };
-    const click = event => {
-        if (!event.target.closest('[data-table-picker]') || input.readOnly || composing) return;
-        input.focus({ preventScroll: true });
-        void request(capture(true));
+    const requestAfterInput = data => {
+        const snapshot = capture();
+        const offset = snapshot.position;
+        const dot = snapshot.text[offset - 1] === '.' && (data == null || data.endsWith('.'));
+        const alias = snapshot.text.slice(Math.max(0, offset - 2), offset) === '::' && (data == null || data.endsWith(':'));
+        if (dot || alias) requestAnimationFrame(() => { void request(snapshot); });
     };
     const inputChanged = event => {
-        generation++; pendingRequest = null; requested = null;
+        const previous = requested;
+        generation++; pendingRequest = null; requested = null; pendingChoice = null;
         const popup = list(); if (popup) popup.hidden = true;
         input.removeAttribute('aria-activedescendant');
-        if (composing || compositionEnded || event.isComposing || event.inputType !== 'insertText' || event.data !== '.') return;
-        const snapshot = capture(false);
-        requestAnimationFrame(() => { if (matches(snapshot)) void request(snapshot); });
+        if (composing || event.isComposing || event.inputType !== 'insertText') return;
+        const snapshot = capture();
+        const added = snapshot.position - (previous?.position ?? snapshot.position);
+        if (popup && previous && previous.scope === snapshot.scope && added > 0) {
+            const before = snapshot.text.slice(0, snapshot.position);
+            const inserted = before.slice(previous.position);
+            if (/^[\p{ID_Continue}@]+$/u.test(inserted)
+                && previous.text === before.slice(0, previous.position) + snapshot.text.slice(snapshot.position)) {
+                snapshot.prefix = (before.match(/[\p{ID_Continue}@]+$/u)?.[0] ?? '').replace(/^@/, '');
+                selected = 0; requested = snapshot;
+                update();
+                options()[0]?.scrollIntoView({ block: 'nearest' });
+                requestAnimationFrame(() => { void request(snapshot); });
+                return;
+            }
+        }
+        requestAfterInput(event.data);
     };
     const compositionStart = () => { composing = true; compositionEnded = false; void cancel(); };
-    const compositionEnd = () => { composing = false; compositionEnded = true; };
+    const compositionEnd = event => {
+        composing = false; compositionEnded = true;
+        if (event.data) requestAfterInput(event.data);
+    };
     const focusout = event => { if (!root.contains(event.relatedTarget)) void cancel(); };
     input.addEventListener('keydown', keydown);
     input.addEventListener('input', inputChanged);
     input.addEventListener('compositionstart', compositionStart);
     input.addEventListener('compositionend', compositionEnd);
     root.addEventListener('pointerdown', pointerdown);
-    root.addEventListener('click', click);
     root.addEventListener('focusout', focusout);
     window.addEventListener('scroll', place, true);
     window.addEventListener('resize', place);
     return {
         update,
         dispose() {
-            disposed = true; generation++; pendingRequest = null; requested = null;
+            disposed = true; generation++; pendingRequest = null; requested = null; pendingChoice = null;
             input.removeEventListener('keydown', keydown);
             input.removeEventListener('input', inputChanged);
             input.removeEventListener('compositionstart', compositionStart);
             input.removeEventListener('compositionend', compositionEnd);
             root.removeEventListener('pointerdown', pointerdown);
-            root.removeEventListener('click', click);
             root.removeEventListener('focusout', focusout);
             window.removeEventListener('scroll', place, true);
             window.removeEventListener('resize', place);

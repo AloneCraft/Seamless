@@ -148,7 +148,7 @@ public sealed class DatabaseRename{
             Assert.Equal(0,Assert.Single(service.Execute(Admin(),new("sum",null,ManagementJson.Element(new{})),CancellationToken.None)).Value.GetInt32());
         }
     }
-    [Fact]public async Task TheMenuCommandOpensTheTreeInputAndKeepsItEditableAfterAConflict(){
+    [Fact]public async Task F2OpensTheDatabaseNameInputAndKeepsItEditableAfterAConflict(){
         using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");using var service=new Service(store,null,startAuditWorker:false);Add(store);Add(store,"other","Taken");
         await using var operations=new ConcurrentManagementOperations(service);await using var component=new 管理ワークスペース();
         const BindingFlags flags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
@@ -157,12 +157,14 @@ public sealed class DatabaseRename{
         Task Invoke(string method,params object?[] values)=>(Task)component.GetType().GetMethod(method,flags)!.Invoke(component,values)!;
         object? Field(string name)=>component.GetType().GetField(name,flags)!.GetValue(component);
         await Invoke("OnInitializedAsync");
-        var registry=Field("コマンド")!;var targetType=registry.GetType().GetMethod("実行Async")!.GetParameters()[1].ParameterType;
-        var target=Activator.CreateInstance(targetType,new object?[]{"DB","db:db",null,"",null});
-        component.GetType().GetField("メニュー対象",flags)!.SetValue(component,target);
-        await Invoke("コマンド選択時Async","DB名変更");Assert.Equal("db:db",Field("DB名前変更ID"));
+        var database=service.Databases(Admin()).Items.Single(item=>item.Id=="db:db");
+        var row=new 対象操作ホスト();
+        row.GetType().GetProperty("名前変更時")!.SetValue(row,Microsoft.AspNetCore.Components.EventCallback.Factory.Create(new object(),
+            ()=>component.GetType().GetMethod("DB名前変更開始時",flags)!.Invoke(component,[database])));
+        await(Task)row.GetType().GetMethod("キー押下時Async",flags)!.Invoke(row,[new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs{Key="F2"}])!;
+        Assert.Equal("db:db",Field("DB名前変更ID"));
         component.GetType().GetMethod("DB名前変更取消時",flags)!.Invoke(component,null);Assert.Null(Field("DB名前変更ID"));
-        component.GetType().GetMethod("DB名前変更開始時",flags)!.Invoke(component,[service.Databases(Admin()).Items.Single(item=>item.Id=="db:db")]);
+        component.GetType().GetMethod("DB名前変更開始時",flags)!.Invoke(component,[database]);
         await Invoke("DB名前変更確定時Async","Taken");Assert.Equal("db:db",Field("DB名前変更ID"));Assert.True((bool)Field("エラーか")!);
         await Invoke("DB名前変更確定時Async","After");Assert.Null(Field("DB名前変更ID"));
         var catalog=Assert.Single((CatalogDatabase[])Field("DB一覧")!,item=>item.Id=="db:db");

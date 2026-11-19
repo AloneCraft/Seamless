@@ -5,15 +5,15 @@ using Seamless.Management.Components;
 namespace Management.Tests;
 
 public sealed class WorkspaceSelection{
-    [Theory][InlineData(true,false)][InlineData(false,true)][InlineData(false,false)]
-    public async Task NewDatabaseInputWaitsForTheRenameResult(bool running,bool unknown){
+    [Theory][InlineData(true,false)][InlineData(false,false)][InlineData(true,true)]
+    public async Task NewDatabaseInputRequiresDraftSupportAndWaitsForNameEditing(bool draftSupported,bool renaming){
         await using var component=new 管理ワークスペース();
         const BindingFlags flags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
         component.GetType().GetProperty("利用者",flags)!.SetValue(component,new UserInfo("owner",[new("*",ManagementPermission.All)],false));
-        component.GetType().GetField("DB名前変更中か",flags)!.SetValue(component,running);
-        if(unknown){component.GetType().GetField("DB名前変更要求",flags)!.SetValue(component,new RenameDatabaseRequest("db:db","Before","After",Guid.NewGuid()));}
+        component.GetType().GetField("DB一括適用対応か",flags)!.SetValue(component,draftSupported);
+        if(renaming){component.GetType().GetField("DB名前変更ID",flags)!.SetValue(component,"db:db");}
         component.GetType().GetMethod("新規DB開始時",flags)!.Invoke(component,null);
-        Assert.Equal(!running&&!unknown,component.GetType().GetField("DB名編集中か",flags)!.GetValue(component));
+        Assert.Equal(draftSupported&&!renaming,component.GetType().GetField("DB名編集中か",flags)!.GetValue(component));
     }
     [Theory][InlineData(true)][InlineData(false)]
     public async Task ChangingDatabaseClearsThePreviousExecutionContext(bool changeDatabase){

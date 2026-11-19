@@ -3,8 +3,8 @@
     @foreach(var 診断 in this.診断一覧){<p class="構造診断" role="alert"><code>@診断.Code</code> @診断.Message</p>}
     @if(this.基準 is{} 設計){
         @if(this.内部表示=="Source"){
-            <div class="コード見出し"><select aria-label="@表示文言.取得("対象の部分宣言")" disabled="@this.同期中か" @bind:get="this.選択部分ID" @bind:set="this.部分選択時Async">@foreach(var 部分 in 設計.Parts){<option value="@部分.Id">@部分.Path · @表示文言.取得(部分.Role) · @部分.Start</option>}</select><span>@表示文言.取得("対象の宣言だけを編集します。usingと名前空間は保持します。")</span></div>
-            <コードエディター @key="this.選択部分ID" 追加クラス="DBコード枠" ラベル="対象のC#" 値="@this.入力コード" 補完範囲="this.選択補完範囲" 読み取り専用か="@(!this.編集可能か||this.同期中か)" 値変更時="this.コード変更時Async"/>
+            <div class="コード見出し"><select aria-label="@表示文言.取得("対象の部分宣言")" disabled="@this.同期中か" @bind:get="this.選択部分ID" @bind:set="this.部分選択時Async">@foreach(var 部分 in 設計.Parts){<option value="@部分.Id">@部分.Path · @表示文言.取得(部分.Role) · @部分.Start</option>}</select><span>@表示文言.取得(this.コード編集案内)</span></div>
+            <コードエディター @key="this.選択部分ID" 追加クラス="DBコード枠" ラベル="対象のC#" 値="@this.入力コード" 外側宣言="this.外側宣言" 補完範囲="this.選択補完範囲" 読み取り専用か="@(!this.編集可能か||this.同期中か||this.コード読み取り専用か)" 値変更時="this.コード変更時Async"/>
         }else if(!設計.StructureAvailable){
             <p class="小案内">@設計.StructureUnavailableReason</p>
         }else{
@@ -55,16 +55,27 @@
     private ObjectDefinitionDesign? 基準;
     private Definition? 読取定義;
     private string 内部表示="Structure",選択部分ID="",入力コード="",戻り型="";
+    private (string Opening,string Closing)? 外側宣言;
+    private DatabaseDesigner.QueryEditingFrame? 問い合わせ編集範囲;
+    private bool 本文を編集できないか;
+    private bool コード読み取り専用か=>this.対象.Kind=="Table"||this.本文を編集できないか;
+    private string コード編集案内=>this.対象.Kind=="Table"?"テーブルのC#は読み取り専用です。構造は左のツリーで編集できます。"
+        :this.問い合わせ編集範囲 is not null?"ここでは処理本体を編集します。宣言は左のツリーで変更できます。"
+        :"対象の宣言だけを編集します。usingと名前空間は保持します。";
     private string? 案内;
     private DiagnosticInfo[] 診断一覧=[];
     private bool 変更ありか,同期中か;
     private readonly List<列入力> 列一覧=[];
     private readonly List<引数入力> 引数一覧=[];
     private コード補完範囲? 選択補完範囲{get{
+        if(this.コード読み取り専用か){return null;}
         var 部分=this.基準?.Parts.SingleOrDefault(部分=>部分.Id==this.選択部分ID);
         if(部分 is null){return null;}
         var DB定義=この部分は問い合わせ本体か(部分)?this.定義:null;
-        return new(this.定義.Source,部分.Path,部分.Start,部分.Length){DB定義=DB定義,スキーマ=this.対象.Schema};
+        if(this.問い合わせ編集範囲 is{} 枠){
+            return new(this.定義.Source,部分.Path,部分.Start+枠.Prefix.Length,部分.Length-枠.Prefix.Length-枠.Suffix.Length){DB定義=DB定義};
+        }
+        return new(this.定義.Source,部分.Path,部分.Start,部分.Length){DB定義=DB定義};
     }}
     private bool この部分は問い合わせ本体か(ObjectDefinitionPart 部分)=>this.定義.Kind==DefinitionKind.Database&&部分.Role=="Member"&&this.対象.Kind is "View" or "ScalarFunction" or "TableFunction";
     protected override void OnParametersSet(){
@@ -80,7 +91,7 @@
             var 初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Member");if(this.対象.Kind=="Table"){初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Record");}
             this.選択部分ID=(初期??次.Parts[0]).Id;
         }
-        this.入力コード=this.表示コード(定義,次.Parts.Single(部分=>部分.Id==this.選択部分ID));
+        this.部分を表示(定義,次.Parts.Single(部分=>部分.Id==this.選択部分ID));
         this.列一覧.Clear();this.列一覧.AddRange(次.Columns.Select(列=>new 列入力{名前=列.Name,型=列.Type,主キーか=列.PrimaryKey,元名=列.OriginalName,式=列.Expression}));
         this.引数一覧.Clear();this.引数一覧.AddRange(次.Parameters.Select(引数=>new 引数入力{名前=引数.Name,型=引数.Type}));
         this.戻り型=次.ReturnType;this.案内=null;this.診断一覧=[];
@@ -93,7 +104,14 @@
         this.同期中か=true;
         try{
             ObjectDefinitionEdit 結果;
-            if(this.内部表示=="Source"){結果=DatabaseDesigner.ApplyObjectSource(this.定義,this.基準,this.選択部分ID,this.入力コード);}
+            if(this.内部表示=="Source"){
+                var 置換=this.入力コード;
+                if(this.問い合わせ編集範囲 is{} 枠){
+                    if(!枠.PreservesFrame(置換)){this.案内=表示文言.取得("処理本体のC#を確認してください。宣言は左のツリーで変更できます。");return false;}
+                    置換=枠.Prefix+置換+枠.Suffix;
+                }
+                結果=DatabaseDesigner.ApplyObjectSource(this.定義,this.基準,this.選択部分ID,置換);
+            }
             else{結果=DatabaseDesigner.ApplyObjectStructure(this.定義,this.基準,this.列一覧.Select(列=>new ColumnDesign(列.名前,列.型,列.主キーか,列.元名,列.式)).ToArray(),this.引数一覧.Select(引数=>new ParameterDesign(引数.名前,引数.型)).ToArray(),this.戻り型);}
             this.診断一覧=結果.Diagnostics;
             if(!結果.Succeeded){return false;}
@@ -114,12 +132,23 @@
     private async Task 部分選択時Async(string ID){
         if(!await this.同期Async()||this.基準 is null){return;}
         var 部分=this.基準.Parts.SingleOrDefault(部分=>部分.Id==ID);if(部分 is null){return;}
-        this.選択部分ID=ID;this.入力コード=this.表示コード(this.定義,部分);
+        this.選択部分ID=ID;this.部分を表示(this.定義,部分);
+    }
+    private void 部分を表示(Definition 定義,ObjectDefinitionPart 部分){
+        this.入力コード=this.表示コード(定義,部分);
+        var 問い合わせか=this.この部分は問い合わせ本体か(部分);
+        this.問い合わせ編集範囲=問い合わせか?DatabaseDesigner.ReadQueryEditingFrame(定義.Source,部分,this.入力コード):null;
+        this.本文を編集できないか=問い合わせか&&this.問い合わせ編集範囲 is null;
+        this.外側宣言=null;
+        if(this.問い合わせ編集範囲 is{} 枠){this.入力コード=枠.Body;this.外側宣言=(枠.Opening,枠.Closing);}
     }
     private string 表示コード(Definition 定義,ObjectDefinitionPart 部分)=>this.対象.Kind is "View" or "ScalarFunction" or "TableFunction"
         ?DatabaseDesigner.FormatObjectPart(定義.Source,部分):部分.Text;
     private Task 変更通知Async(){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.変更ありか=true;this.案内=null;this.診断一覧=[];return this.未保存変更時.InvokeAsync(true);}
-    private Task コード変更時Async(string 値){this.入力コード=値;return this.変更通知Async();}
+    private Task コード変更時Async(string 値){
+        if(this.コード読み取り専用か){return Task.CompletedTask;}
+        this.入力コード=値;return this.変更通知Async();
+    }
     private Task 列名変更時Async(列入力 列,ChangeEventArgs 値){列.名前=値.Value?.ToString()??"";return this.変更通知Async();}
     private Task 列型変更時Async(列入力 列,string 型){列.型=型;return this.変更通知Async();}
     private Task 戻り型変更時Async(string 型){this.戻り型=型;return this.変更通知Async();}

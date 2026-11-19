@@ -8,9 +8,9 @@ public partial class 管理ワークスペース{
     // コマンドパレット(Ctrl+K)は従来どおり全操作を検索できる。
     private bool ツリーメニュー操作か(管理対象 対象,string ID){
         if(this.パレットか){return true;}
-        if(対象.種類=="DB"){return ID is "DB名変更" or "DB削除" or "全ソース";}
+        if(対象.種類=="DB"){return ID is "DB削除" or "全ソース";}
         if(対象.種類=="分類"){return ID=="全ソース";}
-        if(対象.種類 is "表" or "問い合わせ"){return ID is "対象名前変更" or "対象コピー" or "対象削除" or "生成コード";}
+        if(対象.種類 is "表" or "問い合わせ"){return ID is "対象コピー" or "対象削除" or "生成コード";}
         if(対象.種類=="スキーマ"){return ID is "生成コード" or "スキーマ削除";}
         if(対象.種類=="オブジェクト分類"){return ID=="生成コード";}
         return true;
@@ -22,6 +22,8 @@ public partial class 管理ワークスペース{
                 作成=(所属,分類,名前)=>this.ツリー作成Async(DBID,所属,分類,名前),
                 スキーマ作成=名前=>this.ツリースキーマ作成Async(DBID,名前),
                 名前変更=(項目,名前)=>this.ツリー名前変更Async(DBID,項目,名前),
+                変更取消=項目=>this.ツリー変更取消Async(DBID,項目),
+                削除取消=(ID,種類)=>this.ツリー削除取消Async(DBID,ID,種類),
                 コピー=項目=>this.ツリーコピーAsync(DBID,項目),
                 削除=項目=>this.ツリー削除Async(DBID,項目),
                 スキーマ削除=名前=>this.ツリースキーマ削除Async(DBID,名前),
@@ -52,7 +54,7 @@ public partial class 管理ワークスペース{
         if(分類=="Table"){
             結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.Apply(定義,new TableDesign(名前,所属,[new ColumnDesign("Id","int",true)],[])));
         }else if(分類=="View"){
-            結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.View,[new("Id","int",false)],[],"",新規ビュー本体(名前)),formatBody:true));
+            結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.CreateStarterView(定義,名前,所属,新規ビュー本体));
         }else{
             結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.ApplyQuery(定義,new(名前,所属,DatabaseQueryKind.ScalarFunction,[new("Id","int",false)],[],"int","return default;")));
         }
@@ -84,21 +86,46 @@ public partial class 管理ワークスペース{
         await this.InvokeAsync(this.StateHasChanged);
     }
 
-    private async Task<ツリー操作結果> ツリー名前変更Async(string DBID,CatalogObject 項目,string 名前){
+    private async Task<ツリー操作結果> ツリー名前変更Async(string DBID,CatalogObject 項目,string 名前,string? 復元型=null){
         if(項目.Kind=="Set"){return new(表示文言.取得("取引を通さない表の名前の変更・コピー・削除は、C#で編集してください。"),true);}
         if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return 拒否!;}
-        if(項目.Kind=="Table"){
-            return await this.下書きを更新Async(文書,定義=>DatabaseDesigner.Apply(定義,DatabaseDesigner.Read(定義,項目.Id) with{Name=名前,OriginalPath=項目.Id}));
-        }
         await this.定義編集を同期Async(文書);
-        var 結果=await this.下書きを更新Async(文書,定義=>DatabaseDesigner.RenameQuery(定義,項目.Id,名前,new Server.RuntimeCompiler().CompileSchemaForEditing(定義.Source)));
+        var 結果=await this.下書きを更新Async(文書,定義=>{
+            if(項目.Kind=="Table"){
+                return DatabaseDesigner.Apply(定義,DatabaseDesigner.Read(定義,項目.Id) with{Name=名前,OriginalPath=項目.Id});
+            }
+            if(項目.Name!=名前){定義=DatabaseDesigner.RenameQuery(定義,項目.Id,名前,new Server.RuntimeCompiler().CompileSchemaForEditing(定義.Source));}
+            if(復元型 is not null){
+                var 次の項目=DatabaseDesigner.Objects(定義).Single(候補=>候補.Schema==項目.Schema&&候補.Name==名前&&候補.Kind==項目.Kind);
+                var 設計=DatabaseDesigner.ReadObjectDefinition(定義,次の項目);
+                var 編集=DatabaseDesigner.ApplyObjectStructure(定義,設計,設計.Columns,設計.Parameters,復元型);
+                if(!編集.Succeeded){throw new ManagementException("Validation",string.Join("\n",編集.Diagnostics.Select(診断=>診断.Message)));}
+                定義=編集.Definition!;
+            }
+            return 定義;
+        });
         if(結果.案内 is not null){return 結果;}
         var 次=文書.オブジェクト.Single(対象=>対象.Schema==項目.Schema&&対象.Name==名前);
+        if(項目.Kind!="Table"){文書.問い合わせ改名を記録(項目.Id,次.Id);}
         foreach(var 開いた文書 in this.対象文書一覧.Values.Where(対象=>対象.DBID==DBID&&対象.対象?.Id==項目.Id&&対象.対象.Kind==項目.Kind)){開いた文書.対象=次;}
         var 状態=this.DBツリー状態(DBID);
         if(状態.テーブル展開中か(項目.Id)){状態.テーブルを開閉(項目.Id,false);状態.テーブルを開閉(次.Id,true);}
         if(!文書.定義.Source.Files.Any(ファイル=>ファイル.Path==文書.選択ファイル)){文書.選択ファイル=文書.定義.Source.Files[0].Path;}
         return 結果;
+    }
+    private Task<ツリー操作結果> ツリー変更取消Async(string DBID,CatalogObject 項目){
+        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return Task.FromResult(拒否!);}
+        if(文書.公開時の項目(項目) is not{} 旧){return Task.FromResult(new ツリー操作結果("公開時の定義がありません。"));}
+        string? 復元型=null;
+        if(項目.Kind=="ScalarFunction"&&旧.Kind==項目.Kind&&旧.RecordType!=項目.RecordType){
+            復元型=DatabaseDesigner.ReadObjectDefinition(文書.公開定義!,旧).ReturnType;
+        }
+        return this.ツリー名前変更Async(DBID,項目,旧.Name,復元型);
+    }
+    private Task<ツリー操作結果> ツリー削除取消Async(string DBID,string ID,string 種類){
+        if(this.編集できる文書(DBID,out var 拒否) is not{} 文書){return Task.FromResult(拒否!);}
+        if(文書.公開定義 is not{} 公開){return Task.FromResult(new ツリー操作結果("公開時の定義がありません。"));}
+        return this.下書きを更新Async(文書,定義=>DatabaseDesigner.RestoreRemoved(定義,公開,ID,種類));
     }
 
     private Task<ツリー操作結果> ツリーコピーAsync(string DBID,CatalogObject 項目){
@@ -123,9 +150,6 @@ public partial class 管理ワークスペース{
         if(対象.表 is not{} 経路||!this.文書一覧.TryGetValue(対象.ID,out var 文書)){return null;}
         return 文書.オブジェクト.FirstOrDefault(項目=>項目.Id==経路&&(対象.種類=="表")==(項目.Kind=="Table"));
     }
-    private async Task ツリー名前変更をメニューから開始Async(管理対象 対象){
-        if(this.メニューの項目(対象) is{} 項目&&this.DBツリー画面.TryGetValue(対象.ID,out var 木)){await 木.名前変更を開始Async(項目);}
-    }
     private async Task ツリー操作をメニューから実行Async(管理対象 対象,Func<ツリー対象操作,CatalogObject,Task<ツリー操作結果>> 操作){
         if(this.メニューの項目(対象) is not{} 項目){return;}
         var 結果=await 操作(this.ツリー操作(対象.ID),項目);
@@ -141,6 +165,7 @@ public partial class 管理ワークスペース{
         }
         var 結果=await this.下書きを更新Async(文書,定義=>項目.Kind=="Table"?DatabaseDesigner.Remove(定義,項目.Id):DatabaseDesigner.RemoveQuery(定義,項目.Id));
         if(結果.案内 is not null){return 結果;}
+        文書.問い合わせ改名を解除(項目.Id);
         if(!文書.定義.Source.Files.Any(ファイル=>ファイル.Path==文書.選択ファイル)){文書.選択ファイル=文書.定義.Source.Files[0].Path;}
         var DBを選ぶか=開いた文書.Any(対象=>対象.ID==this.選択作業文書ID);
         foreach(var 対象 in 開いた文書){

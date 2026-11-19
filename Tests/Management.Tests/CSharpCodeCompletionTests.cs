@@ -17,39 +17,31 @@ public sealed class CSharpCodeCompletionTests{
     }
 
     [Theory]
-    [InlineData("q.",2)]
-    [InlineData("",0)]
-    [InlineData("null",4)]
-    public void TablePickerInsertsTheQualifiedTableAndPreservesSurroundingCode(string expression,int replacedLength){
-        var (definition,path,position)=Query(expression);
-        var start=expression=="null"?position-expression.Length:position;
-        var result=TableReferenceCompletion.Find(definition,definition.Source,path,start,position,"",CancellationToken.None);
+    [InlineData("q.","aa","ab")]
+    [InlineData("global::","System","Seamless")]
+    public void ViewGetterCompletesBeforeTheReturnStatementIsFinished(string expression,string first,string second){
+        var (definition,path,position)=Query(expression,view:true);
+        var completion=new CSharpCodeCompletion();
+        var result=completion.Complete(definition.Source,path,position,new RuntimeCompiler().CompileSchemaForEditing,CancellationToken.None);
         Assert.Null(result.UnavailableReason);
-        Assert.Equal(new[]{"q.Sales.aa","q.aa","q.ab"},result.Items.Select(item=>item.InsertText).Order(StringComparer.Ordinal));
-        Assert.Equal(replacedLength,result.Length);
-        var index=Array.FindIndex(result.Items,item=>item.DisplayText=="ab");
-        var applied=new CSharpCodeCompletion().Apply(definition.Source,result,index);
-        Assert.Contains("return q.ab;",applied.Files.Single(file=>file.Path==path).Text);
+        Assert.Contains(result.Items,item=>item.InsertText==second);
+        var index=Array.FindIndex(result.Items,item=>item.InsertText==first);
+        Assert.True(index>=0);
+        Assert.Contains("return "+expression+first,completion.Apply(definition.Source,result,index).Files.Single(file=>file.Path==path).Text);
     }
 
-    [Fact]
-    public void TablePickerExplainsWhenThePositionHasNoDatabaseReader(){
-        var (definition,path,_)=Query("");
-        var result=TableReferenceCompletion.Find(definition,definition.Source,path,0,0,"",CancellationToken.None);
-        Assert.Empty(result.Items);
-        Assert.NotNull(result.UnavailableReason);
-    }
-
-    private static (Definition Definition,string Path,int Position) Query(string expression){
+    private static (Definition Definition,string Path,int Position) Query(string expression,bool view=false){
         const string path="Queries/PickTable.cs";
         var definition=Designer.AddSchema(Designer.Empty("completion","Completion"),"Sales");
         foreach(var (name,schema) in new[]{("aa",""),("ab",""),("aa","Sales")}){
             definition=Designer.Apply(definition,new(name,schema,[new("Id","int",true)],[]));
         }
-        definition=Designer.ApplyQuery(definition,new("PickTable","",DatabaseQueryKind.TableFunction,[new("Id","int",false)],[],"ISet<PickTableResult>","return default;"));
-        var files=definition.Source.Files.Select(file=>file.Path==path?file with{Text=file.Text.Replace("return default;","return "+expression+";",StringComparison.Ordinal)}:file).ToArray();
+        var kind=view?DatabaseQueryKind.View:DatabaseQueryKind.TableFunction;
+        definition=Designer.ApplyQuery(definition,new("PickTable","",kind,[new("Id","int",false)],[],view?"":"ISet<PickTableResult>","return default;"));
+        var statement="return "+expression+(view?"":";");
+        var files=definition.Source.Files.Select(file=>file.Path==path?file with{Text=file.Text.Replace("return default;",statement,StringComparison.Ordinal)}:file).ToArray();
         var text=files.Single(file=>file.Path==path).Text;
-        var body=text.IndexOf("return "+expression+";",StringComparison.Ordinal);
+        var body=text.IndexOf(statement,StringComparison.Ordinal);
         Assert.True(body>=0);
         return(definition with{Source=definition.Source with{Files=files}},path,body+"return ".Length+expression.Length);
     }

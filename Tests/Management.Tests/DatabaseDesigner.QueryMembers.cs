@@ -9,6 +9,83 @@ namespace Management.Tests;
 /// ビューは ISet&lt;行&gt; を返すプロパティ、テーブル関数は ISet&lt;行&gt; を返すメソッド、スカラー関数は値を返すメソッド。
 /// </summary>
 public sealed class DatabaseDesignerQueryMembers{
+    [Theory][InlineData("")][InlineData("Sales")]
+    public void RecreatingAViewReportsAnOccupiedQueryFileWithoutReplacingIt(string schema){
+        var definition=WithItems(schema);
+        var starter=Seamless.Management.Components.管理ワークスペース.新規ビュー本体;
+        var folder=schema.Length==0?"":schema+"/";
+        var path=schema.Length==0?"v":schema+".v";
+        var originalPath="Queries/"+folder+"v.cs";
+        definition=Designer.CreateStarterView(definition,"v",schema,starter);
+        var source=definition.Source with{Files=definition.Source.Files.Select(file=>file.Path==originalPath?file with{
+            Text=file.Text+"namespace UserCode{internal static class RetainedHelpers{internal const int Value=1;}}\n"
+        }:file).ToArray()};
+        definition=Designer.RemoveQuery(definition with{Source=source},path);
+        var retained=definition.Source.Files.Single(file=>file.Path==originalPath);
+        Assert.DoesNotContain(Designer.Objects(definition),item=>item.Id==path);
+        var conflict=Assert.Throws<ManagementException>(()=>Designer.CreateStarterView(definition,"v",schema,starter));
+        Assert.Equal("Conflict",conflict.Code);
+        Assert.Contains(originalPath,conflict.Message);
+        Assert.Contains("RetainedHelpers",retained.Text);
+    }
+
+    [Theory][InlineData("")][InlineData("Sales")]
+    public void RecreatingAViewCleansUpUnusedLegacyFilesAndUsesCanonicalNames(string schema){
+        var definition=WithItems(schema);
+        var starter=Seamless.Management.Components.管理ワークスペース.新規ビュー本体;
+        var folder=schema.Length==0?"":schema+"/";
+        var queryPath=schema.Length==0?"v":schema+".v";
+        var memberFile="Queries/"+folder+"v.cs";
+        var rowFile="Views/"+folder+"v.cs";
+        definition=Designer.CreateStarterView(definition,"v",schema,starter);
+        // 以前の版でビューをスカラー列の集合へ変更した状態。
+        var originalType="global::UserCode.Views"+(schema.Length==0?"":"."+schema)+".@v";
+        var changed=definition.Source.Files.Select(file=>file.Path==memberFile?file with{
+            Text=file.Text.Replace("ISet<"+originalType+">","ISet<int>",StringComparison.Ordinal)
+                .Replace("Empty<@v>()","Empty<int>()",StringComparison.Ordinal)
+        }:file).ToArray();
+        definition=Designer.RemoveQuery(definition with{Source=definition.Source with{Files=changed}},queryPath);
+        Assert.DoesNotContain(Designer.Objects(definition),item=>item.Id==queryPath);
+        Assert.DoesNotContain(definition.Source.Files,file=>file.Path==rowFile||file.Path==memberFile);
+        // 古い版が残したファイルがある下書きからも、同じ名前で作り直せる。
+        definition=definition with{Source=definition.Source with{Files=[..definition.Source.Files,
+            changed.Single(file=>file.Path==rowFile),new(memberFile,"using System.Linq;namespace UserCode{}")
+        ]}};
+        var recreated=Designer.CreateStarterView(definition,"v",schema,starter);
+        Assert.Contains(recreated.Source.Files,file=>file.Path==rowFile);
+        Assert.DoesNotContain(recreated.Source.Files,file=>file.Path=="Views/"+folder+"v2.cs"||file.Path=="Queries/"+folder+"v.2.cs");
+        Assert.Contains("Empty<@v>()",recreated.Source.Files.Single(file=>file.Path==memberFile).Text);
+        Assert.Equal("View",Assert.Single(Designer.Objects(recreated),item=>item.Id==queryPath).Kind);
+        Assert.Equal("Conflict",Assert.Throws<ManagementException>(()=>Designer.CreateStarterView(recreated,"v",schema,starter)).Code);
+        using var compiled=new RuntimeCompiler().Compile(recreated.Source);
+        Assert.DoesNotContain(compiled.Result.Diagnostics,item=>item.Severity=="Error");
+    }
+
+    [Fact]
+    public void DeletingAViewBlocksPublicationOfItsDependentFunction(){
+        var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,Guid.NewGuid().ToString("N"));
+        using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
+        using var service=new Seamless.Management.Server.ManagementService(store);
+        var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
+        var definition=WithItems("");
+        var starter=Seamless.Management.Components.管理ワークスペース.新規ビュー本体;
+        definition=Designer.CreateStarterView(definition,"v","",starter);
+        definition=Designer.ApplyQuery(definition,new("FindItem","",DatabaseQueryKind.ScalarFunction,[],[new("id","int")],"int","return q.v.Count(row=>row.Id==id);"));
+        NativeWorkflow.Publish(service,user,definition);
+        var deleted=Designer.RemoveQuery(definition,"v");
+        Assert.DoesNotContain(deleted.Source.Files,file=>file.Path is "Queries/v.cs" or "Views/v.cs");
+        var draft=service.SaveDraft(user,new(deleted,1,1));
+        var validationError=Assert.Throws<ManagementException>(()=>service.CreateValidationDraft(user,new(definition.Id,draft.Revision)));
+        Assert.Contains("Queries/FindItem.cs CS1061",validationError.Message);
+        var preview=service.Preview(user,new(definition.Id,draft.Revision));
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Diagnostics,item=>item.Code=="CS1061"&&item.Path=="Queries/FindItem.cs");
+        Assert.Equal(1,service.GetDefinition(user,definition.Id).Version);
+        var recreated=Designer.CreateStarterView(deleted,"v","",starter);
+        var repaired=service.SaveDraft(user,new(recreated,draft.Revision,1));
+        Assert.True(service.Preview(user,new(definition.Id,repaired.Revision)).CanApply);
+    }
+
     private static Definition WithItems(string schema){
         var definition=Designer.Empty("members","Members");
         if(schema.Length>0){definition=Designer.AddSchema(definition,schema);}

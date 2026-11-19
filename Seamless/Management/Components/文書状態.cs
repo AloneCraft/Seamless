@@ -7,12 +7,61 @@ internal sealed class 文書状態{
         this.DB=情報;
     }
     public Definition 定義{get;set;}
-    private Definition? 公開定義;
-    private HashSet<(string 種類,string ID)>? 公開オブジェクト;
+    public Definition? 公開定義{get;private set;}
+    private CatalogObject[]? 公開オブジェクト;
+    private string[]? 公開スキーマ;
+    private QueryDraftRename[] 問い合わせ改名=[];
+    public QueryDraftRename[]? 保管する問い合わせ改名=>this.基準版>0&&this.定義.Kind==DefinitionKind.Database?this.問い合わせ改名:null;
+    public string[] 公開スキーマ一覧=>this.公開スキーマ??=this.公開定義 is{} 公開?DatabaseDesigner.Schemas(公開):[];
+    public CatalogObject[] 公開オブジェクト一覧=>this.公開オブジェクト??=this.公開定義 is{} 公開?DatabaseDesigner.Objects(公開):[];
+    public CatalogObject? 公開時の項目(CatalogObject 項目){
+        var ID=項目.Id;
+        if(項目.Kind=="Table"){
+            if(this.定義.Migration?.NewTables?.Contains(ID,StringComparer.Ordinal) is true){return null;}
+            ID=this.定義.Migration?.Tables.FirstOrDefault(表=>表.Target==ID)?.Source??ID;
+        }else{
+            if(this.問い合わせ改名.FirstOrDefault(行=>行.Part==QueryDraftRenamePart.Query&&行.Query==ID) is{} 改名){ID=改名.Before;}
+            else if(this.問い合わせ改名.Any(行=>行.Part==QueryDraftRenamePart.Query&&行.Before==ID)){return null;}
+        }
+        return this.公開オブジェクト一覧.FirstOrDefault(旧=>旧.Id==ID&&同種か(旧.Kind,項目.Kind));
+    }
+    public void 問い合わせ改名を記録(string 元,string 次){
+        if(元==次){return;}
+        var 公開名=this.問い合わせ改名.FirstOrDefault(行=>行.Part==QueryDraftRenamePart.Query&&行.Query==元)?.Before;
+        if(公開名 is null&&!this.問い合わせ改名.Any(行=>行.Part==QueryDraftRenamePart.Query&&行.Before==元)&&
+            this.公開オブジェクト一覧.Any(項目=>項目.Id==元&&項目.Kind is "View" or "ScalarFunction" or "TableFunction")){公開名=元;}
+        this.問い合わせ改名=this.問い合わせ改名.Where(行=>行.Part!=QueryDraftRenamePart.Query||行.Query!=元)
+            .Select(行=>行.Query==元?行 with{Query=次}:行).ToArray();
+        if(公開名 is not null&&公開名!=次){this.問い合わせ改名=[..this.問い合わせ改名,new(次,公開名,次,QueryDraftRenamePart.Query)];}
+    }
+    public void 問い合わせ改名を解除(string ID)=>this.問い合わせ改名=this.問い合わせ改名.Where(行=>行.Query!=ID).ToArray();
+    public string? 公開時の問い合わせ列(CatalogObject 項目,bool 引数か,string 名前){
+        var 種類=引数か?QueryDraftRenamePart.Parameter:QueryDraftRenamePart.ResultColumn;
+        var 行=this.問い合わせ改名.FirstOrDefault(候補=>候補.Query==項目.Id&&候補.Part==種類&&候補.After==名前);
+        if(行 is not null){return 行.Before;}
+        if(this.問い合わせ改名.Any(候補=>候補.Query==項目.Id&&候補.Part==種類&&候補.Before==名前)){return null;}
+        return 名前;
+    }
+    public void 問い合わせ列の改名を記録(CatalogObject 項目,bool 引数か,string 元,string? 次){
+        if(元==次){return;}
+        var 元の名前=this.公開時の問い合わせ列(項目,引数か,元);
+        var 種類=引数か?QueryDraftRenamePart.Parameter:QueryDraftRenamePart.ResultColumn;
+        this.問い合わせ改名=this.問い合わせ改名.Where(行=>行.Query!=項目.Id||行.Part!=種類||行.After!=元).ToArray();
+        if(次 is null||元の名前 is null||元の名前==次||this.公開定義 is not{} 公開||this.公開時の項目(項目) is not{} 公開項目){return;}
+        try{
+            var 設計=DatabaseDesigner.ReadObjectDefinition(公開,公開項目);
+            if(引数か?設計.Parameters.Any(列=>列.Name==元の名前):設計.Columns.Any(列=>列.Name==元の名前)){
+                this.問い合わせ改名=[..this.問い合わせ改名,new(項目.Id,元の名前,次,種類)];
+            }
+        }catch(ManagementException){/* 比較できない公開定義には元の列を割り当てない。 */}
+    }
+    public CatalogObject[] 削除したオブジェクト(){
+        var 残す=this.オブジェクト.Select(this.公開時の項目).ToHashSet();
+        return this.公開オブジェクト一覧.Where(項目=>!残す.Contains(項目)).ToArray();
+    }
+    private static bool 同種か(string 左,string 右)=>左==右||(左 is "ScalarFunction" or "TableFunction")&&(右 is "ScalarFunction" or "TableFunction");
     public bool 公開済みか(string 種類,string ID){
-        if(this.公開定義 is null){return false;}
-        this.公開オブジェクト??=DatabaseDesigner.Objects(this.公開定義).Select(項目=>(項目.Kind,項目.Id)).ToHashSet();
-        return this.公開オブジェクト.Contains((種類,ID));
+        return this.公開オブジェクト一覧.Any(項目=>項目.Kind==種類&&項目.Id==ID);
     }
     private string 公開ハッシュ;
     private string 保存済みハッシュ;
@@ -65,6 +114,7 @@ internal sealed class 文書状態{
                 this.基準版=下書き.BaseVersion;
             }
             this.DB変更=下書き.DatabaseChange;
+            if(公開?.Version==下書き.BaseVersion){this.問い合わせ改名=下書き.QueryRenames??[];}
         }
         this.保存済みDB変更=this.DB変更;
         this.保存済みハッシュ=公開 is null&&this.下書き版==0?"":this.定義.Hash();
@@ -88,7 +138,7 @@ internal sealed class 文書状態{
         this.DB変更=null;this.保存済みDB変更=null;
         // 適用済みの移行設定を次の編集へ持ち越すと、既存の表を新規表として扱ってしまう。
         this.定義=this.定義 with{Migration=null};
-        this.公開定義=this.定義;this.公開オブジェクト=null;
+        this.公開定義=this.定義;this.公開オブジェクト=null;this.公開スキーマ=null;this.問い合わせ改名=[];
         this.公開ハッシュ=this.定義.Hash();
         this.保存済みハッシュ=this.公開ハッシュ;
         this.プレビュー=null;

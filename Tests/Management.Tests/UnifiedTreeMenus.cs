@@ -21,15 +21,14 @@ public sealed class UnifiedTreeMenus{
         using var services=new ServiceCollection().AddLogging().BuildServiceProvider();await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async()=>{var output=await renderer.RenderComponentAsync<対象操作ホスト>(ParameterView.FromDictionary(new Dictionary<string,object?>{{"ID","databases"},{"名前","Databases"},{"追加ボタンを表示するか",false},{"追加時",EventCallback.Factory.Create(this,()=>{})}}));var html=System.Net.WebUtility.HtmlDecode(output.ToHtmlString());Assert.DoesNotContain("data-操作アイコン=\"追加\"",html);Assert.Contains("data-メニュー起点=\"databases\"",html);Assert.Contains("data-操作アイコン=\"その他\"",html);});
     }
-    // 左ツリーのメニューには作成を出さない(子ノードの「＋…を追加」行で作成する)。見出し・DBは全ソースの表示(DBは名前の変更も)、
-    // 分類は生成コードの表示、スキーマは生成コードの表示と削除(空のスキーマだけ消せる)、テーブル・ビュー・関数は生成コードの表示と名前変更・コピー・削除。コマンドパレットは従来どおり全操作を検索できる。
+    // 名前編集はツリーのダブルクリックとF2で開始する。生成コードの表示・コピー・削除は対象別のメニューで使える。
     [Theory]
     [InlineData("db","全ソース")]
     [InlineData("schema:dbo0","生成コード,スキーマ削除")]
     [InlineData("group:View:dbo0","生成コード")]
     [InlineData("group:Schema:","生成コード")]
     [InlineData("databases","全ソース")]
-    [InlineData("table:Items","生成コード,対象名前変更,対象コピー,対象削除")]
+    [InlineData("table:Items","生成コード,対象コピー,対象削除")]
     public async Task TreeMenusShowOnlyTheRowOwnActions(string id,string expected){
         await using var workspace=await Workspace(ManagementPermission.All);
         await(Task)Invoke(workspace,"メニュー要求時Async",new 対象操作要求(id,default,0,0))!;
@@ -43,7 +42,7 @@ public sealed class UnifiedTreeMenus{
         var target=Get<object>(workspace,"メニュー対象");
         Set(workspace,"パレットか",true);
         var ids=Commands(workspace,target).Select(command=>(string)command.GetType().GetProperty("ID")!.GetValue(command)!).ToArray();
-        Assert.Contains("表データ",ids);Assert.Contains("表の列追加",ids);Assert.Contains("対象名前変更",ids);
+        Assert.Contains("表データ",ids);Assert.Contains("表の列追加",ids);Assert.DoesNotContain("対象名前変更",ids);
     }
     [Fact]public async Task DatabaseDisplayOrderChangesOnlyTheBrowserOrderForAViewUser(){
         await using var workspace=await Workspace(ManagementPermission.View);

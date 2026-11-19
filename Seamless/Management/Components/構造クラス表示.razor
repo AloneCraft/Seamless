@@ -1,0 +1,36 @@
+<section class="構造クラス表示" aria-label="@表示文言.取得(this.見出し)">
+    <div class="コード見出し">
+        @if(this.宣言一覧.Length>1){
+            <select aria-label="@表示文言.取得("対象の部分宣言")" @bind="this.選択番号">
+                @for(var 番号=0;番号<this.宣言一覧.Length;番号++){
+                    var 宣言=this.宣言一覧[番号];
+                    <option value="@番号">@宣言.Path · @宣言.Start</option>
+                }
+            </select>
+        }else if(this.宣言一覧.Length==1){
+            <span>@this.宣言一覧[0].Path</span>
+        }
+        <span>@表示文言.取得(this.見出し)</span>
+    </div>
+    @if(this.宣言一覧.Length>0){
+        var 宣言=this.宣言一覧[this.選択番号];
+        <コードエディター @key="宣言.Id" 値="@宣言.Text" ラベル="@this.見出し" 読み取り専用か="true" 行数="@Math.Clamp(宣言.Text.Count(文字=>文字=='\n')+1,3,18)"/>
+    }else{
+        <p class="小案内" role="status">@表示文言.取得("表示できるクラス宣言がありません。")</p>
+    }
+</section>
+@code{
+    [Parameter,EditorRequired]public Definition 定義{get;set;}=default!;
+    [Parameter]public string? スキーマ{get;set;}
+    private Definition? 読取定義;
+    private string? 読取スキーマ;
+    private ObjectDefinitionPart[] 宣言一覧=[];
+    private int 選択番号;
+    private string 見出し=>string.IsNullOrEmpty(this.スキーマ)?"データベースのクラス定義（読み取り専用）":"スキーマのクラス定義（読み取り専用）";
+    protected override void OnParametersSet(){
+        if(ReferenceEquals(this.読取定義,this.定義)&&this.読取スキーマ==this.スキーマ){return;}
+        this.読取定義=this.定義;this.読取スキーマ=this.スキーマ;this.選択番号=0;
+        try{this.宣言一覧=DatabaseDesigner.ReadStructureClassParts(this.定義,this.スキーマ);}
+        catch(ManagementException){this.宣言一覧=[];}
+    }
+}

@@ -101,23 +101,33 @@ public static partial class DatabaseDesigner{
         var sourcePath=removal.SyntaxTree.FilePath;
         var sourceFile=definition.Source.Files.Single(file=>file.Path==sourcePath);
         var updatedText=sourceFile.Text.Remove(removal.SpanStart,removal.Span.Length);
-        var generatedPath="Queries/"+path.Replace('.','/')+".cs";
-        var removeFile=sourcePath==generatedPath&&!SyntaxFactory.ParseCompilationUnit(updatedText).DescendantNodes().OfType<MemberDeclarationSyntax>().Any(member=>member is not BaseNamespaceDeclarationSyntax);
-        var files=definition.Source.Files.Where(file=>!removeFile||file.Path!=sourcePath).Select(file=>file.Path==sourcePath?file with{Text=updatedText}:file).ToArray();
+        var removeFile=IsGeneratedQueryFile(path,sourcePath)&&IsEmptyQueryFile(updatedText);
+        definition=definition with{Source=definition.Source with{Files=definition.Source.Files
+            .Where(file=>!removeFile||file.Path!=sourcePath)
+            .Select(file=>file.Path==sourcePath?file with{Text=updatedText}:file).ToArray(),Revision=Guid.NewGuid().ToString("N")}};
         // 専用の結果型ファイルは、他のソースで参照されていない場合だけ片付ける。
         if(query.Kind is "View" or "TableFunction"&&query.Result is INamedTypeSymbol row&&row.DeclaringSyntaxReferences is [var reference]&&reference.GetSyntax() is RecordDeclarationSyntax record){
             var folder=query.Kind=="View"?"Views/":"Functions/";
             var rowPath=folder+(query.Schema.Length==0?"":query.Schema.Replace('.','/')+"/")+row.Name+".cs";
-            if(record.SyntaxTree.FilePath==rowPath&&record.SyntaxTree.GetRoot().DescendantNodes().OfType<MemberDeclarationSyntax>().All(member=>member is BaseNamespaceDeclarationSyntax||member==record)&&
-                !files.Where(file=>file.Path!=rowPath).Any(file=>SyntaxFactory.ParseCompilationUnit(file.Text).DescendantNodes().OfType<SimpleNameSyntax>().Any(name=>name.Identifier.ValueText==row.Name))){
-                files=files.Where(file=>file.Path!=rowPath).ToArray();
+            if(record.SyntaxTree.FilePath==rowPath&&IsDedicatedResultFile(record)&&
+                !UsesResultType(compilation,row,record.SyntaxTree,removal)){
+                definition=WithoutSourceFile(definition,rowPath);
             }
         }
-        return definition with{Source=definition.Source with{Files=files,Revision=Guid.NewGuid().ToString("N")}};
+        if(query.Kind=="View"){
+            var ns=Container(compilation,definition).ContainingNamespace.ToDisplayString()+".Views";
+            if(query.Schema.Length>0){ns+="."+query.Schema;}
+            definition=RemoveUnusedStarterResult(definition,compilation,ns,"Views/"+path.Replace('.','/')+".cs",query.Member.Name,removal);
+        }
+        return definition;
     }
 
     public static Definition ApplyQuery(Definition definition,QueryDesign design)=>ApplyQuery(definition,design,formatBody:false);
-    internal static Definition ApplyQuery(Definition definition,QueryDesign design,bool formatBody){
+    internal static Definition CreateStarterView(Definition definition,string name,string schema,Func<string,string> starterBody)=>
+        ApplyQuery(definition,new(name,schema,DatabaseQueryKind.View,[new("Id","int",false)],[],"",starterBody(name)),formatBody:true,starterBody);
+
+    internal static Definition ApplyQuery(Definition definition,QueryDesign design,bool formatBody)=>ApplyQuery(definition,design,formatBody,null);
+    private static Definition ApplyQuery(Definition definition,QueryDesign design,bool formatBody,Func<string,string>? starterBody){
         ObjectName(design.Name);foreach(var part in design.Schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){ObjectName(part);}
         if(!Enum.IsDefined(design.Kind)||SyntaxFactory.ParseStatement("{\n"+design.Body+"\n}").ContainsDiagnostics){throw new ManagementException("Validation","処理本体のC#構文を確認してください。");}
         // [本体] FLinq は本体が式1つ(return 文1つ)のビュー・関数だけを呼び出し側へ展開し、展開できなければコンパイルエラー(FLINQ007)にする。
@@ -148,12 +158,28 @@ public static partial class DatabaseDesigner{
         var rowNamespace=ns+(design.Kind==DatabaseQueryKind.TableFunction?".Functions":".Views");
         if(design.Schema.Length>0){rowNamespace+="."+design.Schema;}
         var folder=design.Kind==DatabaseQueryKind.TableFunction?"Functions/":"Views/";if(design.Schema.Length>0){folder+=design.Schema+"/";}
+        var queryFile=QueryFileStem(design.Path)+".cs";
+        if(starterBody is not null){
+            if(definition.Source.Files.FirstOrDefault(file=>file.Path.Equals(queryFile,StringComparison.OrdinalIgnoreCase)) is{} existing){
+                if(!IsEmptyQueryFile(existing.Text)){
+                    throw new ManagementException("Conflict","別の宣言や記述があるため、ビューのソースファイルを作成できません: "+existing.Path);
+                }
+                definition=WithoutSourceFile(definition,existing.Path);
+            }
+            var cleaned=RemoveUnusedStarterResult(definition,compilation,rowNamespace,folder+design.Name+".cs",design.Name);
+            if(cleaned!=definition){definition=cleaned;compilation=Compilation(definition);}
+        }
         var resultType=design.ReturnType;
+        var queryBody=design.Body;
         // 本体と戻り型から結果の行型を名前だけで書けるよう、行型の名前空間を読み込む(型の名前の探索はプロパティ名と衝突しない)。
         string[] usings=["global::System.Linq","global::Seamless.Linq"];
         if(design.Kind!=DatabaseQueryKind.ScalarFunction){
             usings=[..usings,"global::"+rowNamespace];
             var rowName=design.Name;
+            if(starterBody is not null){
+                rowName=AvailableQueryResultName(definition,compilation,rowNamespace,folder,rowName);
+                queryBody=starterBody(rowName);
+            }
             if(design.Kind==DatabaseQueryKind.TableFunction){
                 var element=FunctionElementType(design.ReturnType)??throw new ManagementException("Validation","テーブル関数の戻り型は ISet<行> にしてください。");
                 rowName=SyntaxFactory.ParseTypeName(element).GetLastToken().ValueText;Identifier(rowName);
@@ -166,15 +192,70 @@ public static partial class DatabaseDesigner{
         var receiver="global::"+container.ToDisplayString()+"."+ReaderInterfaceName(design.Schema);
         var newLine=SourceNewLine.Default;
         const string bodyMarker="__SeamlessQueryBody__();";
-        var body=formatBody?design.Body:bodyMarker;
+        var body=formatBody?queryBody:bodyMarker;
         string member;
         if(design.Kind==DatabaseQueryKind.View){member="public "+resultType+" @"+design.Name+"{get{"+newLine+body+newLine+"}}";}
         else{member="public "+resultType+" @"+design.Name+"("+string.Join(",",design.Parameters.Select(parameter=>parameter.Type+" @"+parameter.Name))+"){"+newLine+body+newLine+"}";}
         // スキーマごとに静的クラスを分ける(同じクラスに同名の関数が並ぶと、生成コードの名前を区別できない)。
         var queriesClass=container.Name+(design.Schema.Length==0?"":"_"+design.Schema.Replace('.','_'))+"Queries";
         var queries="public static partial class @"+queriesClass+"{"+newLine+"extension("+receiver+" "+QueryReceiver+"){"+newLine+member+newLine+"}"+newLine+"}";
-        var queryFolder="Queries/";if(design.Schema.Length>0){queryFolder+=design.Schema+"/";}
-        return WriteNewFile(definition,queryFolder+design.Name+".cs",usings,ns,queries,formatBody?null:(bodyMarker,design.Body));
+        return WriteNewFile(definition,queryFile,usings,ns,queries,formatBody?null:(bodyMarker,queryBody));
+    }
+    private static Definition WithoutSourceFile(Definition definition,string path)=>
+        definition with{Source=definition.Source with{Files=definition.Source.Files.Where(file=>file.Path!=path).ToArray()}};
+    private static bool IsEmptyQueryFile(string text){
+        var root=SyntaxFactory.ParseCompilationUnit(text);
+        return CanDiscardFile(root)&&root.DescendantNodes().OfType<MemberDeclarationSyntax>().All(node=>node is BaseNamespaceDeclarationSyntax);
+    }
+    private static bool CanDiscardFile(CompilationUnitSyntax root)=>!root.ContainsDiagnostics&&root.AttributeLists.Count==0&&
+        root.DescendantNodes().OfType<UsingDirectiveSyntax>().All(node=>node.GlobalKeyword.RawKind==0)&&
+        root.DescendantTrivia().All(trivia=>trivia.IsKind(SyntaxKind.WhitespaceTrivia)||trivia.IsKind(SyntaxKind.EndOfLineTrivia));
+    private static bool IsDedicatedResultFile(RecordDeclarationSyntax record){
+        var root=(CompilationUnitSyntax)record.SyntaxTree.GetRoot();
+        return CanDiscardFile(root)&&root.DescendantNodes().OfType<MemberDeclarationSyntax>().All(member=>member is BaseNamespaceDeclarationSyntax||member==record);
+    }
+    private static Definition RemoveUnusedStarterResult(Definition definition,CSharpCompilation compilation,string ns,string path,string name,MemberDeclarationSyntax? removal=null){
+        if(!definition.Source.Files.Any(file=>file.Path==path)||
+            compilation.GetTypeByMetadataName(ns+"."+name) is not{TypeKind:TypeKind.Struct,IsRecord:true,IsReadOnly:true} row||
+            row.DeclaringSyntaxReferences is not [var reference]||reference.GetSyntax() is not RecordDeclarationSyntax record||
+            record.SyntaxTree.FilePath!=path||record is not{ParameterList.Parameters.Count:>0,Members.Count:0,BaseList:null,TypeParameterList:null,AttributeLists.Count:0}||
+            record.ParameterList.Parameters.Any(parameter=>parameter.Modifiers.Count>0||parameter.AttributeLists.Count>0||parameter.Default is not null)){
+            return definition;
+        }
+        if(!IsDedicatedResultFile(record)||UsesResultType(compilation,row,record.SyntaxTree,removal)){
+            return definition;
+        }
+        return WithoutSourceFile(definition,path);
+    }
+    private static bool UsesResultType(CSharpCompilation compilation,INamedTypeSymbol row,SyntaxTree declaration,MemberDeclarationSyntax? removal){
+        foreach(var tree in compilation.SyntaxTrees){
+            if(tree==declaration){continue;}
+            var model=compilation.GetSemanticModel(tree);
+            foreach(var name in tree.GetRoot().DescendantNodes().OfType<SimpleNameSyntax>()){
+                if(name.Identifier.ValueText!=row.Name||tree==removal?.SyntaxTree&&removal.Span.Contains(name.Span)){continue;}
+                // q.v はビューの参照。型を指す Views.v や、解決できない型名は残す。
+                if(name.Parent is MemberAccessExpressionSyntax access&&access.Name==name&&
+                    model.GetSymbolInfo(access.Expression).Symbol is IParameterSymbol or ILocalSymbol){continue;}
+                var symbol=model.GetSymbolInfo(name).Symbol;
+                if(symbol is null||SymbolEqualityComparer.Default.Equals(symbol,row)){return true;}
+            }
+        }
+        return false;
+    }
+    private static string QueryFileStem(string path)=>"Queries/"+path.Replace('.','/');
+    private static bool IsGeneratedQueryFile(string path,string sourcePath){
+        var stem=QueryFileStem(path);
+        if(sourcePath==stem+".cs"){return true;}
+        return sourcePath.StartsWith(stem+".",StringComparison.Ordinal)&&sourcePath.EndsWith(".cs",StringComparison.Ordinal)
+            &&int.TryParse(sourcePath.AsSpan(stem.Length+1,sourcePath.Length-stem.Length-4),out var suffix)&&suffix>=2;
+    }
+    private static string AvailableQueryResultName(Definition definition,CSharpCompilation compilation,string ns,string folder,string prefix){
+        var name=prefix;
+        for(var suffix=2;definition.Source.Files.Any(file=>file.Path.Equals(folder+name+".cs",StringComparison.OrdinalIgnoreCase))
+            ||compilation.GetTypeByMetadataName(ns+"."+name) is not null;suffix++){
+            name=prefix+suffix;
+        }
+        return name;
     }
     private static Definition UpdateExistingQuery(Definition definition,QueryDesign previous,QueryDesign design){
         var target=Objects(definition).Single(item=>item.Id==previous.Path);var baseline=ReadObjectDefinition(definition,target);

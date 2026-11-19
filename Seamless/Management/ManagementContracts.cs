@@ -32,10 +32,18 @@ public sealed record DefinitionVersion(Definition Definition,long Version,string
 public sealed record DefinitionHeader(string Id,string Database,DefinitionKind Kind,string EntryType,string EntryMember,bool WritesData);
 public sealed record DefinitionSummary(DefinitionHeader Definition,long Version,string Owner,DateTimeOffset CreatedAt,string ArtifactHash);
 public sealed record PublishedDefinitionInfo(DefinitionHeader Definition,long Version,string ArtifactHash,AuditQueryInfo? Method=null);
-public sealed record DatabaseDraftChange(string? ExpectedName,string? NewName=null,bool Delete=false);
+public sealed record DatabaseDraftChange(string? ExpectedName,string? NewName=null,bool Delete=false){
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? NameBeforeDeletion{get;init;}
+}
+// Managerの左ツリーで下書きの変更前と変更後を対応付ける。公開定義や成果物には含めない。
+public enum QueryDraftRenamePart{Query,Parameter,ResultColumn}
+public sealed record QueryDraftRename(string Query,string Before,string After,QueryDraftRenamePart Part);
 public sealed record Draft(Definition Definition,string Owner,long Revision,long BaseVersion,DateTimeOffset SavedAt){
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public DatabaseDraftChange? DatabaseChange{get;init;}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public QueryDraftRename[]? QueryRenames{get;init;}
 }
 public sealed record DraftLookup(Draft? Draft);
 public sealed record DraftSummary(DefinitionHeader Definition,long Revision,long BaseVersion,DateTimeOffset SavedAt);
@@ -45,6 +53,8 @@ public sealed record SaveDraftRequest(Definition Definition,long ExpectedRevisio
     public DatabaseDraftChange? DatabaseChange{get;init;}
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool ClearDatabaseChange{get;init;}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public QueryDraftRename[]? QueryRenames{get;init;}
 }
 public sealed record DraftKey(string Id,long Revision){
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]

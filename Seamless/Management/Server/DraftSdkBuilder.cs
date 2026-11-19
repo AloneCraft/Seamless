@@ -197,7 +197,10 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     // 失敗したらビルドの出力を返す。成功なら null。
     private static string? Run(string project,CancellationToken cancellationToken){
         var executable=SourceProjectService.DotnetHost();
-        using var process=new Process{StartInfo=new(executable){UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=Path.GetDirectoryName(project)!,RedirectStandardOutput=true,RedirectStandardError=true}};
+        using var process=new Process{StartInfo=new(executable){
+            UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=Path.GetDirectoryName(project)!,
+            RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8
+        }};
         foreach(var argument in new[]{"build",project,"-nologo","-v:minimal","-m:1","-nodeReuse:false","-p:UseSharedCompilation=false","-p:Configuration=Release"}){process.StartInfo.ArgumentList.Add(argument);}
         if(!process.Start()){throw new ManagementException("Unavailable","SDKを起動できません。");}
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);deadline.CancelAfter(TimeSpan.FromMinutes(10));

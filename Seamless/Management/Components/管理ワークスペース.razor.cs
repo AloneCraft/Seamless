@@ -36,7 +36,7 @@ public partial class 管理ワークスペース{
     private int 処理中数;
     private string 案内=表示文言.取得("接続しています…");
     private bool 外部取り込みできるか,外部取り込み表示か;
-    private bool エラーか,表入力中か,DB名編集中か,DB作成中か,DB保存先指定中か,保存先フォーカス待ちか,プロジェクト生成中か;
+    private bool エラーか,表入力中か,DB名編集中か,DB保存先指定中か,保存先フォーカス待ちか,プロジェクト生成中か;
     private enum 表示種別{構造,ソース,データ,問い合わせ,クエリ一覧,計画,履歴}
     private 表示種別 表示=表示種別.構造;
     private bool ソース表示か{get=>this.表示==表示種別.ソース;set=>this.表示=value?表示種別.ソース:表示種別.構造;}
@@ -45,12 +45,10 @@ public partial class 管理ワークスペース{
     private QueryPlanRequest? 計画対象;
     private string? 計画対象名;
     private ObjectExecutionStatistics? 最新実測;
-    private string 新DB名="",新プロジェクト保存先="",表名="NewTable",スキーマ名="";
+    private string 新プロジェクト保存先="",表名="NewTable",スキーマ名="";
     private Definition? 作成完了定義;
     private string? 作成完了DB名;
     private SourceProjectDocument? 作成済みプロジェクト;
-    private ApplyRequest? 新DB未確定操作;
-    private string? 新DB定義ID;
     private readonly List<列入力> 入力列=[];
     private static readonly string[] 基本型候補=["bool","byte","sbyte","short","ushort","int","uint","long","ulong","nint","nuint","float","double","decimal","char","string","Guid","DateTime","DateTimeOffset","DateOnly","TimeOnly","TimeSpan","byte[]"];
     private string[] プロジェクト型候補=[];
@@ -77,11 +75,11 @@ public partial class 管理ワークスペース{
     private long メニュー世代;
     private double メニューX,メニューY;
     private bool パレットか;
-    private bool 操作中か=>this.DB名前変更中か||this.コマンド?.実行中か==true||this.DB作成中か||this.処理中数>0||this.ソース下書き処理中か;
+    private bool 操作中か=>this.コマンド?.実行中か==true||this.処理中数>0||this.ソース下書き処理中か;
     private bool DB作成できるか=>this.認証有効か&&this.利用者 is{Disabled:false} 利用者&&利用者.Grants.Any(許可=>(許可.Permissions&ManagementPermission.Edit)!=0);
     private 文書状態? 現在文書{get{if(this.選択DBID is not null&&!this.公開情報表示か(this.選択DBID)&&this.文書一覧.TryGetValue(this.選択DBID,out var 文書)){return 文書;}return null;}}
     private bool プロジェクト表示か,プロジェクト未保存か,ソース操作できるか,ソース参照できるか,ソース下書きできるか,ソース成果物できるか,ソースSDKビルドできるか,ソース成果物取込できるか,ソース下書き処理中か,ソース競合できるか,ソース構成できるか;
-    private bool 未保管の作業があるか=>this.DBツリー画面.Values.Any(木=>木.未保存か)||this.ロール未保存か||this.設定未保存か||this.管理未保存か||this.プロジェクト未保存か||this.文書一覧.Values.Any(文書=>文書.未保管か)||this.関数定義文書.Values.Any(文書=>文書.未保管か)||this.対象文書一覧.Values.Any(文書=>文書.編集中か||文書.データ編集中か);
+    private bool 未保管の作業があるか=>this.DB名編集中か||this.DB名前変更ID is not null||this.DBツリー画面.Values.Any(木=>木.未保存か)||this.ロール未保存か||this.設定未保存か||this.管理未保存か||this.プロジェクト未保存か||this.文書一覧.Values.Any(文書=>文書.未保管か)||this.関数定義文書.Values.Any(文書=>文書.未保管か)||this.対象文書一覧.Values.Any(文書=>文書.編集中か||文書.データ編集中か);
 
     protected override async Task OnInitializedAsync(){
         this.コマンド=new(new 操作コマンド<管理対象>[]{
@@ -115,25 +113,21 @@ public partial class 管理ワークスペース{
             new("対象表示上","上へ移動",対象=>対象.種類 is "表" or "問い合わせ" or "登録関数",対象=>this.オブジェクト表示順を変更できるか(対象,-1),対象=>this.オブジェクト表示順を変更Async(対象,-1),["order","up","表示順"],グループ:"表示順（この画面内・未保存）",アイコン:"上"),
             new("対象表示下","下へ移動",対象=>対象.種類 is "表" or "問い合わせ" or "登録関数",対象=>this.オブジェクト表示順を変更できるか(対象,1),対象=>this.オブジェクト表示順を変更Async(対象,1),["order","down","表示順"],グループ:"表示順（この画面内・未保存）",アイコン:"下"),
             new("対象表示既定","既定の表示順に戻す",対象=>対象.種類 is "表" or "問い合わせ" or "登録関数",対象=>this.オブジェクト表示順を使えるか(対象.ID),this.オブジェクト表示順を戻すAsync,["order","reset","表示順"],グループ:"表示順（この画面内・未保存）",アイコン:"戻す"),
-            new("DB名変更","名前の変更",対象=>対象.種類=="DB"&&this.DB名変更対応か,対象=>this.対象DB(対象) is{} DB&&this.DB名を変更できるか(DB),対象=>{this.DB名前変更開始時(this.対象DB(対象)!);return Task.CompletedTask;},["名前","rename"],ショートカット:"F2",アイコン:"編集"),
             new("開く","開く",対象=>対象.種類=="DB",_=>this.認証有効か,対象=>this.DBを開く時Async(対象.ID),["open","表示"],アイコン:"開く"),
             new("DB削除","データベースの削除・取消",対象=>対象.種類=="DB"&&this.DB一括適用対応か,
                 対象=>this.対象DB(対象) is{} DB&&this.DB削除を下書きにできるか(DB),対象=>this.DB削除を切り替えるAsync(this.対象DB(対象)!),["削除","delete"],アイコン:"削除"),
-            new("新しいDB","新しいデータベース",対象=>対象.種類=="分類",_=>this.DB作成できるか,_=>{this.新規DB開始時();return Task.CompletedTask;},["作成","database","new"],アイコン:"DB"),
+            new("新しいDB","新しいデータベース",対象=>対象.種類=="分類"&&this.DB一括適用対応か,_=>this.DB作成できるか,_=>{this.新規DB開始時();return Task.CompletedTask;},["作成","database","new"],アイコン:"DB"),
             new("外部DB取り込み","外部DBから取り込む",対象=>対象.種類=="分類",_=>this.DB作成できるか&&this.外部取り込みできるか,_=>{this.外部取り込み開始時();return Task.CompletedTask;},["取り込み","import","sqlserver"],アイコン:"DB"),
             new("更新","一覧を更新",対象=>対象.種類 is not ("作成" or "表追加"),_=>this.認証有効か,_=>this.更新Async(),["再取得","refresh"],グループ:"表示",アイコン:"更新"),
             new("計画","実行計画を表示",対象=>対象.種類=="問い合わせ",対象=>this.対象文書(対象) is not null,対象=>{this.問い合わせ表示時(this.対象文書(対象)!,対象.表!);this.クエリ計画表示時();return Task.CompletedTask;},["plan","flinq","最適化"],グループ:"表示",アイコン:"計画"),
             new("保管","下書きを保管",対象=>対象.種類 is not ("作成" or "表追加")&&this.対象文書(対象) is not null,対象=>this.対象文書(対象) is{} 文書&&this.権限があるか(文書.DB.Name,ManagementPermission.Edit),対象=>this.下書きを保管Async(this.対象文書(対象)!),["保存","save","draft"],ショートカット:"",アイコン:"保存"),
             new("確認","変更を確認",対象=>対象.種類 is not ("作成" or "表追加")&&this.対象文書(対象) is not null,対象=>this.対象文書(対象) is{} 文書&&this.権限があるか(文書.DB.Name,ManagementPermission.Apply),対象=>this.メニューから変更を確認Async(this.対象文書(対象)!),["検証","プレビュー","適用","validate"],アイコン:"確認"),
-            new("左へ","タブを左へ移動",対象=>対象.種類=="文書",対象=>this.タブ移動先(対象.文書ID??対象.ID,-1) is not null,対象=>{this.タブを移動(対象.文書ID??対象.ID,-1);return Task.CompletedTask;},["並べ替え","移動"],グループ:"タブ",アイコン:"左"),
-            new("右へ","タブを右へ移動",対象=>対象.種類=="文書",対象=>this.タブ移動先(対象.文書ID??対象.ID,1) is not null,対象=>{this.タブを移動(対象.文書ID??対象.ID,1);return Task.CompletedTask;},["並べ替え","移動"],グループ:"タブ",アイコン:"右"),
-            new("閉じる","このタブを閉じる",対象=>対象.種類=="文書",_=>true,対象=>{this.作業文書を閉じる(対象.文書ID??対象.ID);return Task.CompletedTask;},["close","文書"],グループ:"タブ",アイコン:"閉じる"),
-            new("対象名前変更","名前の変更",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー名前変更をメニューから開始Async(対象),["名前","rename"],ショートカット:"F2",アイコン:"名前の変更"),
+            new("閉じる","この表示を閉じる",対象=>対象.種類=="文書",_=>true,対象=>{this.作業文書を閉じる(対象.文書ID??対象.ID);return Task.CompletedTask;},["close","文書"],グループ:"表示",アイコン:"閉じる"),
             new("対象コピー","コピー",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー操作をメニューから実行Async(対象,(操作,項目)=>操作.コピー(項目)),["copy","複製"],アイコン:"コピー"),
             new("スキーマ削除","削除",対象=>対象.種類=="スキーマ",対象=>this.作成できるか(対象),対象=>this.スキーマ削除をメニューから実行Async(対象),["delete","remove","schema"],アイコン:"削除"),
             new("対象削除","削除",対象=>対象.種類 is "表" or "問い合わせ",対象=>this.作成できるか(対象),対象=>this.ツリー操作をメニューから実行Async(対象,(操作,項目)=>操作.削除(項目)),["delete","remove"],アイコン:"削除"),
         }.Select(操作=>操作 with{表示するか=対象=>操作.表示するか(対象)&&this.公開メニュー操作か(対象,操作.ID)&&this.ツリーメニュー操作か(対象,操作.ID)}));
-        await this.処理Async(async()=>{var 情報=await this.管理操作.InfoAsync(this.寿命.Token);this.表示状態インスタンスID=情報.InstanceId;this.資源計測対応か=情報.Capabilities.Contains("ResourceHeatV1",StringComparer.Ordinal);this.ロール対応か=情報.Capabilities.Contains("DatabaseAuthorizationV1",StringComparer.Ordinal);this.設定対応か=情報.Capabilities.Contains("ServerSettingsV1",StringComparer.Ordinal);this.利用者管理対応か=情報.Capabilities.Contains("UserProfilesV1",StringComparer.Ordinal);this.監査対応か=情報.Capabilities.Contains("AuditSearchV1",StringComparer.Ordinal);this.DB名変更対応か=情報.Capabilities.Contains("DatabaseRenameV1",StringComparer.Ordinal);this.DB一括適用対応か=情報.Capabilities.Contains("DatabaseDraftV1",StringComparer.Ordinal);this.ソース構成できるか=情報.Capabilities.Contains("OwnerSourceConfigurationsV1",StringComparer.Ordinal);this.ソース競合できるか=情報.Capabilities.Contains("OwnerSourceConflictsV1",StringComparer.Ordinal);this.ソース操作できるか=情報.Capabilities.Contains("OwnerSourceProjectsV1",StringComparer.Ordinal);this.外部取り込みできるか=情報.Capabilities.Contains("OwnerExternalTransferV1",StringComparer.Ordinal)&&this.管理操作 is IManagementTransferOperations;this.ソース参照できるか=情報.Capabilities.Contains("OwnerSourceDirectoryV1",StringComparer.Ordinal);this.ソース下書きできるか=情報.Capabilities.Contains("OwnerSourceDraftsV1",StringComparer.Ordinal);this.ソース成果物できるか=情報.Capabilities.Contains("OwnerSourceBuildsV1",StringComparer.Ordinal);this.ソースSDKビルドできるか=情報.Capabilities.Contains("OwnerSourceSdkBuildV1",StringComparer.Ordinal);this.ソース成果物取込できるか=情報.Capabilities.Contains("OwnerSourceBuildImportsV1",StringComparer.Ordinal)&&情報.Capabilities.Contains("OwnerSourceBuildPublicationV1",StringComparer.Ordinal);await this.更新Async();var 最初=this.DB一覧.FirstOrDefault(DB=>!DB.IsSystem);if(最初 is not null){await this.DBを開くAsync(最初.Id);}});
+        await this.処理Async(async()=>{var 情報=await this.管理操作.InfoAsync(this.寿命.Token);this.表示状態インスタンスID=情報.InstanceId;this.資源計測対応か=情報.Capabilities.Contains("ResourceHeatV1",StringComparer.Ordinal);this.ロール対応か=情報.Capabilities.Contains("DatabaseAuthorizationV1",StringComparer.Ordinal);this.設定対応か=情報.Capabilities.Contains("ServerSettingsV1",StringComparer.Ordinal);this.利用者管理対応か=情報.Capabilities.Contains("UserProfilesV1",StringComparer.Ordinal);this.監査対応か=情報.Capabilities.Contains("AuditSearchV1",StringComparer.Ordinal);this.DB一括適用対応か=情報.Capabilities.Contains("DatabaseDraftV1",StringComparer.Ordinal);this.ソース構成できるか=情報.Capabilities.Contains("OwnerSourceConfigurationsV1",StringComparer.Ordinal);this.ソース競合できるか=情報.Capabilities.Contains("OwnerSourceConflictsV1",StringComparer.Ordinal);this.ソース操作できるか=情報.Capabilities.Contains("OwnerSourceProjectsV1",StringComparer.Ordinal);this.外部取り込みできるか=情報.Capabilities.Contains("OwnerExternalTransferV1",StringComparer.Ordinal)&&this.管理操作 is IManagementTransferOperations;this.ソース参照できるか=情報.Capabilities.Contains("OwnerSourceDirectoryV1",StringComparer.Ordinal);this.ソース下書きできるか=情報.Capabilities.Contains("OwnerSourceDraftsV1",StringComparer.Ordinal);this.ソース成果物できるか=情報.Capabilities.Contains("OwnerSourceBuildsV1",StringComparer.Ordinal);this.ソースSDKビルドできるか=情報.Capabilities.Contains("OwnerSourceSdkBuildV1",StringComparer.Ordinal);this.ソース成果物取込できるか=情報.Capabilities.Contains("OwnerSourceBuildImportsV1",StringComparer.Ordinal)&&情報.Capabilities.Contains("OwnerSourceBuildPublicationV1",StringComparer.Ordinal);await this.更新Async();var 最初=this.DB一覧.FirstOrDefault(DB=>!DB.IsSystem);if(最初 is not null){await this.DBを開くAsync(最初.Id);}});
         this.表示状態情報読込済みか=true;
     }
     protected override async Task OnAfterRenderAsync(bool firstRender){
@@ -226,7 +220,8 @@ public partial class 管理ワークスペース{
         await this.定義編集を同期Async(文書);
         var 保存定義=文書.定義;
         var 結果=await this.管理操作.SaveDraftAsync(new(保存定義,文書.下書き版,文書.基準版,文書.基準版){
-            DatabaseChange=文書.DB変更,ClearDatabaseChange=this.DB一括適用対応か&&保存定義.Kind==DefinitionKind.Database&&文書.DB変更 is null
+            DatabaseChange=文書.DB変更,ClearDatabaseChange=this.DB一括適用対応か&&保存定義.Kind==DefinitionKind.Database&&文書.DB変更 is null,
+            QueryRenames=文書.保管する問い合わせ改名
         },this.寿命.Token);
         文書.保管完了(保存定義,結果);return 結果;
     }
@@ -275,45 +270,16 @@ public partial class 管理ワークスペース{
         else if(結果.State is OperationState.Failed or OperationState.Cancelled){文書.未確定操作=null;this.案内+=" · "+結果.Error;}
     });
     private void 新規DB開始時(){
-        if(!this.DB作成できるか){this.案内=表示文言.取得("DB作成の権限が必要です。");return;}
-        if(this.新規作成入力 is not null){this.案内=表示文言.取得("入力中の定義を下書きへ反映してから、別の追加操作を開始してください。");this.エラーか=true;return;}
-        if(this.DB作成中か||this.DB名前変更中か){return;}
-        if(this.DB名前変更要求 is not null){this.案内=表示文言.取得("名前変更の結果を先に照会してください。");return;}
-        if(this.新DB未確定操作 is not null){this.案内=表示文言.取得("作成中の操作結果を照会してください。");return;}
-        this.作成入力を閉じる();this.DB名編集中か=true;this.新DB名="";
+        if(!this.DB一括適用対応か||!this.DB作成できるか){return;}
+        if(this.新規作成入力 is not null||this.DB名前変更ID is not null){
+            this.案内=表示文言.取得("入力中の定義を下書きへ反映してから、別の追加操作を開始してください。");this.エラーか=true;return;
+        }
+        if(this.処理中数>0||this.ソース下書き処理中か){return;}
+        this.作成入力を閉じる();this.DB名編集中か=true;
     }
-    private async Task DB名確定時Async(string 名前){
-        if(!this.DB名編集中か||this.DB作成中か||this.新DB未確定操作 is not null){return;}
-        if(string.IsNullOrWhiteSpace(名前)){this.DB名編集中か=false;return;}
-        if(this.DB一括適用対応か){await this.新規DBを下書きに追加Async(名前);return;}
-        this.新DB名=名前;
-        var 作成開始時の選択世代=this.対象選択世代;
-        this.DB作成中か=true;
-        await this.処理Async(async()=>{
-            var ID=Guid.NewGuid();var 定義=DatabaseDesigner.Empty("db-"+ID.ToString("N"),this.新DB名);
-            var 下書き=await this.管理操作.SaveDraftAsync(new(定義,0,0),this.寿命.Token);var キー=new DraftKey(定義.Id,下書き.Revision);
-            var 検証=await this.管理操作.CreateValidationDraftAsync(キー,this.寿命.Token);
-            try{
-                var 確認=await this.管理操作.PreviewAsync(キー,this.寿命.Token);
-                if(!確認.CanApply){throw new InvalidOperationException(string.Join("\n",確認.Diagnostics.Select(項目=>項目.Message)));}
-                this.新DB定義ID=定義.Id;this.新DB未確定操作=new(定義.Id,下書き.Revision,確認.Token,ID);
-                var 結果=await this.管理操作.ApplyAsync(this.新DB未確定操作,this.寿命.Token);
-                if(結果.State!=OperationState.Succeeded){if(結果.State is OperationState.Failed or OperationState.Cancelled){this.新DB未確定操作=null;}throw new InvalidOperationException(結果.Error);}
-                this.新DB未確定操作=null;
-                this.DB名編集中か=false;
-                await this.更新Async();
-                if(this.対象選択世代==作成開始時の選択世代){
-                    var DB=this.DB一覧.Single(項目=>項目.DefinitionId==定義.Id);
-                    await this.DBを開くAsync(DB.Id);
-                    if(this.対象選択世代==作成開始時の選択世代+1&&this.ソース操作できるか){
-                        this.DB保存先指定中か=true;this.保存先フォーカス待ちか=true;this.新プロジェクト保存先="";
-                        this.作成完了定義=定義;this.作成完了DB名=定義.Database;
-                    }
-                }
-                this.案内=表示文言.取得("データベース「{0}」を作成しました。",定義.Database);
-            }finally{await this.管理操作.DropValidationAsync(検証.Id);}
-        });
-        this.DB作成中か=false;
+    private Task DB名確定時Async(string 名前){
+        if(!this.DB名編集中か||!this.DB一括適用対応か||!this.DB作成できるか||this.操作中か){return Task.CompletedTask;}
+        return this.処理Async(()=>this.新規DBを下書きに追加Async(名前));
     }
     private async Task 保存先入力時Async(KeyboardEventArgs 引数){
         if(引数.Key=="Escape"){this.プロジェクト生成スキップ();return;}
@@ -347,12 +313,6 @@ public partial class 管理ワークスペース{
         this.作成完了定義=文書.定義;this.作成完了DB名=文書.DB.Name;this.新プロジェクト保存先="";
         this.DB保存先指定中か=true;this.保存先フォーカス待ちか=true;this.プロジェクト表示か=false;
     }
-    private Task DB作成結果照会時Async()=>this.処理Async(async()=>{
-        var 要求=this.新DB未確定操作??throw new InvalidOperationException("照会対象の操作がありません。");
-        var 結果=await this.管理操作.GetOperationAsync(要求.OperationId,this.寿命.Token);this.案内=表示文言.取得("DB作成 · ")+結果.State;
-        if(結果.State==OperationState.Succeeded){this.新DB未確定操作=null;this.DB名編集中か=false;await this.更新Async();await this.DBを開くAsync(this.DB一覧.Single(DB=>DB.DefinitionId==this.新DB定義ID).Id);}
-        else if(結果.State is OperationState.Failed or OperationState.Cancelled){this.新DB未確定操作=null;this.案内+=" · "+結果.Error;}
-    });
     private void 表データ表示時(string 表){if(this.選択DBID is{} ID&&this.公開情報表示か(ID)){var 公開項目=this.公開DB一覧[ID].オブジェクト.FirstOrDefault(項目=>項目.Kind is "Table" or "Set"&&項目.Id==表);if(公開項目 is not null){this.公開対象を開く(ID,公開項目);}return;}this.ツリー所属選択中か=false;this.選択表名=表;this.実行問い合わせ=null;this.計画対象=null;this.計画対象名=null;this.表示=表示種別.データ;if(this.現在文書?.オブジェクト.FirstOrDefault(項目=>項目.Id==表&&項目.Kind is "Table" or "Set") is{} 項目){this.対象を文書で開く(項目);}}
     private void 表作成開始時(文書状態 文書,string? 所属=null){var スキーマ=所属??this.選択スキーマ名;this.作成入力を閉じる();if(!this.作成場所を開く(文書.DB.Id,スキーマ,"Table")){return;}this.表示=表示種別.構造;this.編集前の表=null;this.表名="NewTable";this.スキーマ名=スキーマ;this.選択スキーマ名=this.スキーマ名;this.入力列.Clear();this.入力列.Add(new(){名前="Id",主キーか=true});this.入力列.Add(new(){名前="Name",型="string"});this.表入力中か=true;}
     private void 表編集開始時(文書状態 文書,string 表){
@@ -390,15 +350,6 @@ public partial class 管理ワークスペース{
     private async Task コマンド選択時Async(string ID){var 対象=this.メニュー対象;this.メニューを閉じる時();if(対象 is not null&&this.コマンド is not null){await this.処理Async(()=>this.コマンド.実行Async(ID,対象));}}
     private Task 文書のメニュー時Async()=>this.メニュー要求時Async(new("tab:"+this.選択DBID,this.文書操作起点,0,0));
     [JSInvokable]public Task パレットを開くAsync(){this.メニュー対象=new("分類","databases");if(this.現在文書 is not null){this.メニュー対象=new("文書",this.選択DBID!){文書ID=this.選択作業文書ID};}this.メニュー見出し=表示文言.取得("コマンド");this.メニュー起点=this.根;this.パレットか=true;this.メニュー世代++;return this.InvokeAsync(this.StateHasChanged);}
-    [JSInvokable]public Task ドラッグ開始Async(string ID){this.メニューを閉じる時();this.タブ順序.ドラッグ開始(ID[4..]);return Task.CompletedTask;}
-    [JSInvokable]public Task ドロップAsync(string ID,bool 前か){this.タブ順序.移動先を設定(ID[4..],前か);this.タブ順序.ドロップ();return this.InvokeAsync(this.StateHasChanged);}
-    [JSInvokable]public Task ドラッグ取消Async(){this.タブ順序.取消();return Task.CompletedTask;}
-    private string? タブ移動先(string ID,int 差){
-        var 表示タブ=this.表示文書タブ().ToArray();var 位置=Array.IndexOf(表示タブ,ID);var 次=位置+差;
-        if(位置<0||次<0||次>=表示タブ.Length){return null;}
-        return 表示タブ[次];
-    }
-    private void タブを移動(string ID,int 差){if(this.タブ移動先(ID,差) is not{} 次){return;}this.タブ順序.ドラッグ開始(ID);this.タブ順序.移動先を設定(次,差<0);this.タブ順序.ドロップ();}
     public async ValueTask DisposeAsync(){
         if(this.破棄済みか){return;}
         this.破棄済みか=true;

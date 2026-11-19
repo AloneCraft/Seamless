@@ -1,15 +1,19 @@
 @foreach(var 組 in 分類一覧()){
+    var 削除済み=削除項目.Where(項目=>分類(項目.Kind)==組.Key).ToArray();
     <div @key="組.Key" class="オブジェクト分類">
         <対象操作ホスト 追加ボタンを表示するか="false" メニュー要求時="メニュー要求時" ID="@("group:"+組.Key+":"+所属)" 名前="@表示文言.取得(表示名(組.Key))" 展開中か="展開状態.分類展開中か(所属,組.Key)" 展開変更時="展開=>展開状態.分類を開閉(所属,組.Key,展開)">
-            <span class="分類名">@表示文言.取得(表示名(組.Key))</span><span class="件数">@組.Count()</span>
+            <span class="分類名">@表示文言.取得(表示名(組.Key))</span><span class="件数">@(組.Count()+削除済み.Length)</span>
         </対象操作ホスト>
         <div data-tree-children class="オブジェクト子一覧" hidden="@(!展開状態.分類展開中か(所属,組.Key))">
             @foreach(var 項目 in 展開状態.表示順序.適用(組,所属,組.Key)){
+                var 公開項目=公開時の項目?.Invoke(項目);
                 <div @key="項目.Id" class="所属並び項目">
                 <対象操作ホスト 追加ボタンを表示するか="false" ID="@項目ID(項目)" 名前="@(項目.Schema+" "+項目.Name)" オブジェクト表示順グループ="@並びグループ(組.Key)" オブジェクト表示順可能か="表示順可能か" 展開中か="@表展開状態(項目)" 展開変更時="展開=>展開状態.テーブルを開閉(項目.Id,展開)" 選択中か="@(選択オブジェクト is{} 選択&&選択.Id==項目.Id&&選択.Kind==項目.Kind&&選択.Schema==項目.Schema)" 選択時="()=>選択時.InvokeAsync(項目)" メニュー要求時="メニュー要求時" 名前変更時="()=>名前変更を開始(項目)" 行操作="@行操作(項目)">
                     <span class="DBアイコン"><操作アイコン 種類="@アイコン(項目.Kind)"/></span>
                     @if(名前変更中ID==項目.Id){
                         <span class="ツリー名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="名前の変更" 初期値="@項目.Name" クラス="ツリー名前入力" 無効か="@(編集操作停止中か||処理中か)" 確定時="名前=>名前変更確定Async(項目,名前)" 取消時="名前変更を閉じる"/></span>
+                    }else if(公開項目 is{} 旧&& (旧.Name!=項目.Name||旧.Kind=="ScalarFunction"&&(旧.Kind!=項目.Kind||旧.RecordType!=項目.RecordType))){
+                        <span class="下書き二段"><del class="下書き変更前" title="@旧.Name">@旧.Name @if(旧.Kind=="ScalarFunction"){<small>@旧.RecordType</small>}</del><span class="対象名 下書き変更後" title="@項目.Name" @ondblclick="()=>名前変更を開始(項目)">@項目.Name</span></span>
                     }else{<span class="対象名" @ondblclick="()=>名前変更を開始(項目)">@項目.Name</span>}
                     @if(項目.Kind=="ScalarFunction"||戻り型の基準?.Object.Id==項目.Id){
                         <span class="ツリー関数戻り型" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
@@ -28,11 +32,18 @@
                     var 展開か=展開状態.テーブル展開中か(項目.Id);
                     <div data-tree-children hidden="@(!展開か)">
                         @if(項目.Kind is "ScalarFunction" or "TableFunction"){
-                            <ツリー列一覧 @ref="引数画面[項目.Id]" 定義="定義" 対象="項目" 引数か="true" 表示中か="展開か" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/>
+                            <ツリー列一覧 @ref="引数画面[項目.Id]" 定義="定義" 公開定義="公開定義" 公開対象="公開項目" 公開時の問い合わせ列="公開時の問い合わせ列" 対象="項目" 引数か="true" 表示中か="展開か" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/>
                         }
-                        <ツリー列一覧 @ref="列画面[項目.Id]" 定義="定義" 対象="項目" 表示中か="展開か" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/>
+                        <ツリー列一覧 @ref="列画面[項目.Id]" 定義="定義" 公開定義="公開定義" 公開対象="公開項目" 公開時の問い合わせ列="公開時の問い合わせ列" 対象="項目" 表示中か="展開か" 編集可能か="編集可能か" 編集操作停止中か="編集操作停止中か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/>
                     </div>
                 }
+                </div>
+            }
+            @foreach(var 項目 in 削除済み){
+                <div class="対象行 下書き削除行"><div class="対象内容"><span class="DBアイコン"><操作アイコン 種類="@アイコン(項目.Kind)"/></span><del class="対象名 下書き削除">@項目.Name</del></div>
+                    @if(編集可能か&&対象操作?.削除取消 is{} 戻す){
+                        <button type="button" class="行右ボタン" aria-label="@表示文言.取得("削除を取り消す")" title="@表示文言.取得("削除を取り消す")" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>操作Async(()=>戻す(項目.Id,項目.Kind))"><操作アイコン 種類="戻す"/></button>
+                    }
                 </div>
             }
             @if(追加できる分類か(組.Key)){
@@ -58,6 +69,10 @@
     [Parameter]public EventCallback<対象操作要求> 作成要求時{get;set;}
     [Parameter]public EventCallback<対象操作要求> メニュー要求時{get;set;}
     [Parameter]public Definition? 定義{get;set;}
+    [Parameter]public Definition? 公開定義{get;set;}
+    [Parameter]public Func<CatalogObject,CatalogObject?>? 公開時の項目{get;set;}
+    [Parameter]public Func<CatalogObject,bool,string,string?>? 公開時の問い合わせ列{get;set;}
+    [Parameter]public IEnumerable<CatalogObject> 削除項目{get;set;}=[];
     [Parameter]public IEnumerable<string> 型候補{get;set;}=[];
     [Parameter]public Func<ツリー列編集要求,Task<ObjectDefinitionEdit>>? 列確定時{get;set;}
     [Parameter]public EventCallback 未保存変更時{get;set;}
@@ -102,14 +117,12 @@
     // 編集できる場合は、まだ1件もない分類も「＋…を追加」の置き場所として表示する。
     private IEnumerable<IGrouping<string,CatalogObject>> 分類一覧(){
         var 組=this.オブジェクト.GroupBy(項目=>分類(項目.Kind)).ToList();
-        if(this.編集可能か&&this.対象操作 is not null){
-            foreach(var 種類 in 追加分類){
+        var 固定分類=this.編集可能か&&this.対象操作 is not null?追加分類:Array.Empty<string>();
+        foreach(var 種類 in 固定分類.Concat(this.削除項目.Select(項目=>分類(項目.Kind))).Distinct(StringComparer.Ordinal)){
                 if(!組.Any(既存=>既存.Key==種類)){
                     組.Add(new 空の分類(種類));
                 }else{
                 }
-            }
-        }else{
         }
         return 組.OrderBy(項目=>{var 位置=Array.IndexOf(分類の並び,項目.Key);if(位置<0){return 分類の並び.Length;}return 位置;});
     }
@@ -122,7 +135,10 @@
         // 取引を通さない表(Set<T>)は設計器が宣言を読まないので、名前の変更・コピー・削除は C# で行う。
         if(!this.編集可能か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return null;}
         return @<text>
-            <button type="button" class="行右ボタン" title="@表示文言.取得("名前の変更")" aria-label="@表示文言.取得("{0}の名前を変更",項目.Name)" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>名前変更を開始(項目)"><操作アイコン 種類="名前の変更"/></button>
+            @if(this.対象操作.変更取消 is{} 戻す&&this.公開時の項目?.Invoke(項目) is{} 旧&&
+                (旧.Name!=項目.Name||旧.Kind=="ScalarFunction"&&項目.Kind==旧.Kind&&旧.RecordType!=項目.RecordType)){
+                <button type="button" class="行右ボタン" aria-label="@表示文言.取得("変更を取り消す")" title="@表示文言.取得("変更を取り消す")" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>操作Async(()=>戻す(項目))"><操作アイコン 種類="戻す"/></button>
+            }
             <button type="button" class="行右ボタン" title="@表示文言.取得("コピー")" aria-label="@表示文言.取得("{0}をコピー",項目.Name)" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>操作Async(()=>this.対象操作!.コピー(項目))"><操作アイコン 種類="コピー"/></button>
             <button type="button" class="行右ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("{0}を削除",項目.Name)" disabled="@(編集操作停止中か||処理中か)" @onclick="()=>操作Async(()=>this.対象操作!.削除(項目))"><操作アイコン 種類="削除"/></button>
         </text>;

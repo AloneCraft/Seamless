@@ -84,12 +84,11 @@
   <data name="DOT グラフ" xml:space="preserve">
     <value>DOT グラフ</value>
   </data>
-  <data name="Enter・フォーカス移動で確定 · Escで取消" xml:space="preserve">
-    <value>Enter・フォーカス移動で確定 · Escで取消</value>
+  <data name="Enterで確定 · Escで取消" xml:space="preserve">
+    <value>Enterで確定 · Escで取消</value>
   </data>
-  <data name="Enter・フォーカス移動で作成 · Escで取消" xml:space="preserve">
-    <value>Enter・フォーカス移動で作成 · Escで取消</value>
-  </data>
+  <data name="変更を取り消す" xml:space="preserve"><value>変更を取り消す</value></data>
+  <data name="削除を取り消す" xml:space="preserve"><value>削除を取り消す</value></data>
   <data name="Enterで専用C#プロジェクトを生成 · Escでスキップ" xml:space="preserve">
     <value>Enterで専用C#プロジェクトを生成 · Escでスキップ</value>
   </data>
@@ -2424,7 +2423,7 @@
   <data name="この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。" xml:space="preserve">
     <value>この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。</value>
   </data>
-  <data name="ドット入力またはCtrl+Spaceで意味解析補完。外部参照DLLの補完は未対応です。" xml:space="preserve"><value>ドット入力またはCtrl+Spaceで意味解析補完。外部参照DLLの補完は未対応です。</value></data>
+  <data name="ドット・:: の入力または Ctrl+Space で意味解析補完。外部参照DLLの補完は未対応です。" xml:space="preserve"><value>ドット・:: の入力または Ctrl+Space で意味解析補完。外部参照DLLの補完は未対応です。</value></data>
   <data name="補完候補を解析中" xml:space="preserve"><value>補完候補を解析中</value></data>
   <data name="C#補完候補" xml:space="preserve"><value>C#補完候補</value></data>
   <data name="候補は先頭100件です。入力を絞って再取得してください。" xml:space="preserve"><value>候補は先頭100件です。入力を絞って再取得してください。</value></data>

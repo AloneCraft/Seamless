@@ -25,12 +25,23 @@ public sealed class TreeColumnEditing{
         await using var fixture=await Fixture.Create();var original=fixture.Latest;await fixture.Open();fixture.Set("列名","  ");await fixture.Invoke("確定Async");
         Assert.Same(original,fixture.Latest);Assert.False(fixture.Editor.未保存か);Assert.Equal(0,fixture.Writes);
     }
+    [Fact]public async Task EscapeDiscardsANewRowWithoutWritingTheDraft(){
+        await using var fixture=await Fixture.Create();var original=fixture.Latest;
+        await fixture.Open();
+        fixture.Set("列名","DiscardMe");
+        await fixture.Invoke("列編集キー時Async",new KeyboardEventArgs{Key="Escape"});
+        Assert.Same(original,fixture.Latest);Assert.False(fixture.Editor.未保存か);Assert.Equal(0,fixture.Writes);
+        Assert.DoesNotContain("data-column-editor",await fixture.Html());
+    }
     [Fact]public async Task EditingReplacesTheSelectedRowAndCancelRestoresIt(){
         await using var fixture=await Fixture.Create();
         var column=Designer.ReadObjectDefinition(fixture.Latest,Target()).Columns.Single(item=>item.Name=="Title");
-        await fixture.Edit(column);
+        await fixture.Invoke("列表示キー時Async",new KeyboardEventArgs{Key="Enter"},column);
+        Assert.DoesNotContain("data-column-editor",await fixture.Html());
+        await fixture.Invoke("列表示キー時Async",new KeyboardEventArgs{Key="F2"},column);
         var editing=await fixture.Html();Assert.Contains("data-column-editor",editing);Assert.DoesNotContain("data-列名=\"Title\"",editing);Assert.Contains("data-列名=\"Id\"",editing);
-        fixture.Set("列名","Changed");await fixture.Invoke("取消Async");
+        fixture.Set("列名","Changed");fixture.Set("列型","long");
+        await fixture.Invoke("列編集キー時Async",new KeyboardEventArgs{Key="Escape"});
         Assert.Contains("data-列名=\"Title\"",await fixture.Html());Assert.Equal(0,fixture.Writes);
     }
     [Fact]public async Task ReorderingOnlyChangesTheDisplayedOrder(){
@@ -51,7 +62,7 @@ public sealed class TreeColumnEditing{
         var message=fixture.Get<string>("案内");Assert.Contains("Item",message);Assert.Contains("Pending",message);Assert.Contains("int",message);Assert.Contains("Esc",message);
     }
     private static CatalogObject Target()=>new("Item","Item","","Table","global::Sample.Tables.Item");
-    private static Definition Definition()=>new("db","DB",DefinitionKind.Database,"Sample.Container","",new("1",[new("Definition.cs","namespace Sample{internal static partial class DatabaseGenerator;namespace Tables{public partial record struct Item(int Id,string Title);}}")],[]));
+    private static Definition Definition()=>new("db","DB",DefinitionKind.Database,"Sample.Container","",new("1",[new("Definition.cs","namespace Sample{internal static partial class DatabaseGenerator;public sealed partial class Container(global::Seamless.Database.DatabaseContainerOptions options):global::Seamless.Database.DatabaseContainer(options){} namespace Tables{public partial record struct Item(int Id,string Title);}}")],[]));
     private sealed class Fixture:IAsyncDisposable{
         private readonly ServiceProvider services;
         private readonly HtmlRenderer renderer;
@@ -64,10 +75,9 @@ public sealed class TreeColumnEditing{
             var fixture=new Fixture();await fixture.renderer.Dispatcher.InvokeAsync(async()=>{fixture.root=await fixture.renderer.RenderComponentAsync<Host>(ParameterView.FromDictionary(new Dictionary<string,object?>{{"Definition",fixture.Latest},{"Capture",(Action<ツリー列一覧>)(editor=>fixture.Editor=editor)},{"Commit",(Func<ツリー列編集要求,Task<ObjectDefinitionEdit>>)(request=>{fixture.Writes++;var result=Designer.ApplyObjectStructure(fixture.Latest,request.基準,request.列一覧,request.基準.Parameters,request.基準.ReturnType);if(result.Succeeded){fixture.Latest=result.Definition!;}return Task.FromResult(result);})},{"Changed",EventCallback.Factory.Create(fixture,()=>fixture.Notifications++)}}));});return fixture;
         }
         internal Task Open()=>this.renderer.Dispatcher.InvokeAsync(()=>this.Editor.追加開始Async());
-        internal Task Edit(ColumnDesign column)=>this.renderer.Dispatcher.InvokeAsync(async()=>{await(Task)typeof(ツリー列一覧).GetMethod("編集開始",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,[column])!;typeof(ComponentBase).GetMethod("StateHasChanged",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,null);});
         internal Task Move(string target)=>this.renderer.Dispatcher.InvokeAsync(()=>{typeof(ツリー列一覧).GetMethod("列を移動",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,[target]);typeof(ComponentBase).GetMethod("StateHasChanged",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,null);});
-        internal Task<string> Html()=>this.renderer.Dispatcher.InvokeAsync(()=>this.root.ToHtmlString());
-        internal Task Invoke(string name)=>this.renderer.Dispatcher.InvokeAsync(async()=>{await(Task)typeof(ツリー列一覧).GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,null)!;typeof(ComponentBase).GetMethod("StateHasChanged",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,null);});
+        internal Task<string> Html()=>this.renderer.Dispatcher.InvokeAsync(()=>System.Net.WebUtility.HtmlDecode(this.root.ToHtmlString()));
+        internal Task Invoke(string name,params object[] arguments)=>this.renderer.Dispatcher.InvokeAsync(async()=>{await(Task)typeof(ツリー列一覧).GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,arguments)!;typeof(ComponentBase).GetMethod("StateHasChanged",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(this.Editor,null);});
         internal void Set(string name,object value)=>typeof(ツリー列一覧).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(this.Editor,value);
         internal T Get<T>(string name)=>(T)typeof(ツリー列一覧).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(this.Editor)!;
         public async ValueTask DisposeAsync(){await this.renderer.DisposeAsync();await this.services.DisposeAsync();}
@@ -77,7 +87,12 @@ public sealed class TreeColumnEditing{
         [Parameter]public Action<ツリー列一覧> Capture{get;set;}=default!;
         [Parameter]public Func<ツリー列編集要求,Task<ObjectDefinitionEdit>> Commit{get;set;}=default!;
         [Parameter]public EventCallback Changed{get;set;}
-        protected override void BuildRenderTree(RenderTreeBuilder builder){builder.OpenComponent<ツリー列一覧>(0);builder.AddAttribute(1,"定義",this.Definition);builder.AddAttribute(2,"対象",Target());builder.AddAttribute(3,"表示中か",true);builder.AddAttribute(4,"編集可能か",true);builder.AddAttribute(5,"確定時",this.Commit);builder.AddAttribute(6,"未保存変更時",this.Changed);builder.AddComponentReferenceCapture(7,editor=>this.Capture((ツリー列一覧)editor));builder.CloseComponent();}
+        protected override void BuildRenderTree(RenderTreeBuilder builder){builder.OpenComponent<ツリー列一覧>(0);builder.AddAttribute(1,"定義",this.Definition);builder.AddAttribute(2,"対象",Target());builder.AddAttribute(3,"表示中か",true);builder.AddAttribute(4,"編集可能か",true);builder.AddAttribute(5,"確定時",(Func<ツリー列編集要求,Task<ObjectDefinitionEdit>>)this.CommitAndRefreshAsync);builder.AddAttribute(6,"未保存変更時",this.Changed);builder.AddComponentReferenceCapture(7,editor=>this.Capture((ツリー列一覧)editor));builder.CloseComponent();}
+        private async Task<ObjectDefinitionEdit> CommitAndRefreshAsync(ツリー列編集要求 request){
+            var result=await this.Commit(request);
+            if(result.Definition is{} updated){this.Definition=updated;this.StateHasChanged();}
+            return result;
+        }
     }
     private sealed class NoScripts:IJSRuntime{
         public NoScripts(){}

@@ -104,7 +104,14 @@ internal sealed partial class NativeRuntime:IDisposable{
     }
     private string Full(string relative){var root=System.IO.Path.GetFullPath(this.store.Root)+System.IO.Path.DirectorySeparatorChar;var path=System.IO.Path.GetFullPath(System.IO.Path.Combine(root,relative));if(!path.StartsWith(root,StringComparison.Ordinal)){throw new InvalidDataException("保存先が管理領域を外れています。");}return path;}
     private PreparedDefinition Save(Definition definition,CompiledSource compiled,long expectedVersion,string? databaseArtifact=null,bool auditWrites=true){
-        if(compiled.AssemblyBytes.Length==0){throw new ManagementException("Validation",string.Join("\n",compiled.Result.Diagnostics.Select(item=>item.Message)));}
+        if(compiled.AssemblyBytes.Length==0){
+            var errors=compiled.Result.Diagnostics.Where(item=>item.Severity=="Error").Select(item=>{
+                var location="";
+                if(item.Path is not null){location=item.Path+" ";}
+                return location+item.Code+": "+item.Message;
+            });
+            throw new ManagementException("Validation",string.Join("\n",errors));
+        }
         var relative=System.IO.Path.Combine("generations",Guid.NewGuid().ToString("N"));var directory=this.Full(relative);Directory.CreateDirectory(directory);
         if(compiled.ImportedBuild is{} imported){SourceBuildArtifactStore.WriteGeneration(imported,directory);}
         else{using var file=new FileStream(System.IO.Path.Combine(directory,"module.dll"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);file.Write(compiled.AssemblyBytes);file.Flush(true);}

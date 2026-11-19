@@ -10,6 +10,15 @@ using Designer=Seamless.Management.DatabaseDesigner;
 namespace Management.Tests;
 
 public sealed class ObjectDefinitionEditing{
+    [Fact]public void DatabaseAndNestedSchemaUseTheClassOfTheSelectedOwner(){
+        var definition=Designer.Apply(Designer.Empty("db","DB"),new("Items","Sales.Archive",[new("Id","int",true)],[]));
+        var database=Designer.ReadStructureClassParts(definition,null);
+        Assert.Contains(database,part=>part.Path=="Database.cs"&&part.Text.Contains("class ManagedDb",StringComparison.Ordinal));
+        var schema=Assert.Single(Designer.ReadStructureClassParts(definition,"Sales.Archive"));
+        Assert.Contains("class Schema_Sales_Archive",schema.Text);
+        Assert.Contains("Items",schema.Text);
+        Assert.DoesNotContain("class ManagedDb",schema.Text);
+    }
     [Fact]public void RecordStructureEditsPreserveUsingNamespacesCommentsMethodsAndOtherObjects(){
         var definition=Declared();var target=Target();
         var baseline=Designer.ReadObjectDefinition(definition,target);
@@ -59,18 +68,20 @@ public sealed class ObjectDefinitionEditing{
         Assert.True(result.Succeeded);Assert.Contains("Run(long id)",result.Definition!.Source.Files[0].Text);
     }
 
-    [Fact]public async Task InvalidSourceTabSyncRetainsInputAndDoesNotEmitAnUpdatedDefinition(){
+    [Fact]public async Task TableSourceTabIsReadOnlyAndDiscardsInputEvents(){
         var updates=new List<Definition>();var dirty=new List<bool>();var definition=Declared();
         using var provider=new ServiceCollection().AddLogging().AddSingleton<IJSRuntime,StaticRenderScripts>().BuildServiceProvider();
         await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async()=>{
             TestEditor? editor=null;
-            await renderer.RenderComponentAsync<TestEditor>(ParameterView.FromDictionary(new Dictionary<string,object?>{
+            var rendered=await renderer.RenderComponentAsync<TestEditor>(ParameterView.FromDictionary(new Dictionary<string,object?>{
                 {"定義",definition},{"対象",Target()},{"表示モード","Source"},{"Capture",(Action<TestEditor>)(value=>editor=value)},
                 {"定義変更時",EventCallback.Factory.Create<Definition>(updates,(Definition value)=>updates.Add(value))},{"未保存変更時",EventCallback.Factory.Create<bool>(dirty,(bool value)=>dirty.Add(value))}
             }));
-            await editor!.Change("public record struct Item(");Assert.False(await editor.同期Async());
-            Assert.Equal("public record struct Item(",editor.Code);Assert.Empty(updates);Assert.True(dirty[^1]);
+            Assert.Matches("<textarea[^>]*readonly",rendered.ToHtmlString());
+            var original=editor!.Code;
+            await editor.Change("public record struct Item(");Assert.True(await editor.同期Async());
+            Assert.Equal(original,editor.Code);Assert.Empty(updates);Assert.Empty(dirty);
         });
     }
     [Fact]public async Task ScalarColumnCommandKeepsTheDefinitionAndExplainsItsEditableShape(){
@@ -134,19 +145,27 @@ public sealed class ObjectDefinitionEditing{
         await using var renderer=new HtmlRenderer(provider,provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async()=>{
             TestEditor? editor=null;
-            await renderer.RenderComponentAsync<TestEditor>(ParameterView.FromDictionary(new Dictionary<string,object?>{
+            var rendered=await renderer.RenderComponentAsync<TestEditor>(ParameterView.FromDictionary(new Dictionary<string,object?>{
                 {"定義",definition},{"対象",target},{"表示モード","Source"},{"Capture",(Action<TestEditor>)(value=>editor=value)},
                 {"定義変更時",EventCallback.Factory.Create<Definition>(updates,(Definition value)=>updates.Add(value))}
             }));
             var originalPart=Designer.ReadObjectDefinition(definition,target).Parts.Single(part=>part.Role=="Member");
-            Assert.StartsWith("            public int @F(int @n){\n                return n;\n            }",editor!.Code);
+            var html=System.Net.WebUtility.HtmlDecode(rendered.ToHtmlString());
+            Assert.Matches("<pre class=\"固定コード行\"[^>]*><code>.*extension.*ManagedDb.*IReader.*q.*\\{",html);
+            Assert.Contains("@F(",html);
+            Assert.DoesNotContain("extension(",editor!.Code);
+            Assert.Equal("                return n;",editor.Code);
             Assert.Empty(updates);
             Assert.Equal(legacy,definition.Source.Files.Single(file=>file.Path==path).Text);
-            var replacement=editor.Code.Replace("return n;","return n+1;",StringComparison.Ordinal);
+            var frame=Designer.ReadQueryEditingFrame(definition.Source,originalPart,Designer.FormatObjectPart(definition.Source,originalPart))!;
+            await editor.Change("return n;} public int Extra(){return n;");
+            Assert.False(await editor.同期Async());
+            Assert.Empty(updates);
+            var replacement="                return n+1;";
             await editor.Change(replacement);
             Assert.True(await editor.同期Async());
             var edited=Assert.Single(updates).Source.Files.Single(file=>file.Path==path).Text;
-            Assert.Equal(legacy.Remove(originalPart.Start,originalPart.Length).Insert(originalPart.Start,replacement),edited);
+            Assert.Equal(legacy.Remove(originalPart.Start,originalPart.Length).Insert(originalPart.Start,frame.Prefix+replacement+frame.Suffix),edited);
         });
     }
     public sealed class TestEditor:対象定義エディター{

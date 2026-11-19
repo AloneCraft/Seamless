@@ -76,6 +76,48 @@ public static partial class DatabaseDesigner{
         if(Schemas(candidate).Contains(schema,StringComparer.Ordinal)){throw new ManagementException("Unsupported","スキーマの宣言が別の場所にも残っています。C#で編集してください: "+schema);}
         return candidate;
     }
+    // 公開定義から対象だけを消した差分を逆向きに当てる。共有ファイルの他の記述は残す。
+    internal static Definition RestoreRemoved(Definition draft,Definition published,string id,string kind){
+        if(kind=="Schema"?Schemas(draft).Contains(id,StringComparer.Ordinal):Objects(draft).Any(item=>item.Id==id)){
+            throw new ManagementException("Conflict","同じ名前の定義があるため復元できません: "+id);
+        }
+        var removed=kind switch{"Schema"=>RemoveSchema(published,id),"Table"=>Remove(published,id),_=>RemoveQuery(published,id)};
+        var remaining=removed.Source.Files.ToDictionary(file=>file.Path,StringComparer.Ordinal);
+        var files=draft.Source.Files.ToList();
+        foreach(var original in published.Source.Files){
+            remaining.TryGetValue(original.Path,out var after);
+            if(after==original){continue;}
+            var index=files.FindIndex(file=>file.Path.Equals(original.Path,StringComparison.OrdinalIgnoreCase));
+            if(index<0&&after is null){files.Add(original);continue;}
+            if(index<0||after is null){throw Conflict(original.Path);}
+            var current=files[index];
+            if(current.Text==after.Text){files[index]=current with{Text=original.Text};continue;}
+
+            var prefix=0;
+            while(prefix<after.Text.Length&&prefix<original.Text.Length&&after.Text[prefix]==original.Text[prefix]){prefix++;}
+            var suffix=0;
+            while(suffix<after.Text.Length-prefix&&suffix<original.Text.Length-prefix&&
+                after.Text[after.Text.Length-suffix-1]==original.Text[original.Text.Length-suffix-1]){suffix++;}
+            var start=Math.Max(0,prefix-48);
+            var end=Math.Min(after.Text.Length,after.Text.Length-suffix+48);
+            var anchor=after.Text[start..end];
+            var position=current.Text.IndexOf(anchor,StringComparison.Ordinal);
+            if(anchor.Length==0||position<0||current.Text.IndexOf(anchor,position+1,StringComparison.Ordinal)>=0){throw Conflict(original.Path);}
+            var edit=position+prefix-start;
+            files[index]=current with{Text=current.Text.Remove(edit,after.Text.Length-prefix-suffix)
+                .Insert(edit,original.Text[prefix..(original.Text.Length-suffix)])};
+        }
+        var candidate=draft with{Source=draft.Source with{Files=files.ToArray(),Revision=Guid.NewGuid().ToString("N")}};
+        if(kind=="Table"&&candidate.Migration is{} migration){
+            candidate=candidate with{Migration=migration with{DroppedTables=migration.DroppedTables.Where(path=>path!=id).ToArray()}};
+        }
+        if(kind=="Schema"? !Schemas(candidate).Contains(id,StringComparer.Ordinal): !Objects(candidate).Any(item=>item.Id==id&&item.Kind==kind)){
+            throw Conflict(id);
+        }
+        return candidate;
+
+        static ManagementException Conflict(string path)=>new("Conflict","別の変更と重なるため、入力を保持したまま復元を中止しました: "+path);
+    }
     private static bool IsSchemaType(INamedTypeSymbol type){
         for(var current=type;current is not null;current=current.BaseType){
             if(current.ToDisplayString()=="Seamless.Database.DatabaseSchema"){return true;}

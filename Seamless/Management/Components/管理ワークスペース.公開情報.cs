@@ -18,7 +18,7 @@ public partial class 管理ワークスペース{
     private bool 行変更権限があるか(string DB)=>this.権限があるか(DB,ManagementPermission.WriteRows)||this.権限があるか("*",ManagementPermission.View|ManagementPermission.Execute|ManagementPermission.Edit|ManagementPermission.Validate|ManagementPermission.Apply|ManagementPermission.Manage);
     private bool 公開メニュー操作か(管理対象 対象,string ID){
         if(!this.公開情報表示か(対象.ID)){return true;}
-        return ID is "DB表示上" or "DB表示下" or "DB表示既定" or "DB名変更" or "開く" or "更新" or "表データ" or "登録関数データ" or "前のタブ" or "次のタブ" or "閉じる" or "ロール" or "設定" or "利用者" or "監査";
+        return ID is "DB表示上" or "DB表示下" or "DB表示既定" or "開く" or "更新" or "表データ" or "登録関数データ" or "前のタブ" or "次のタブ" or "閉じる" or "ロール" or "設定" or "利用者" or "監査";
     }
     private void 公開対象を開く(string ID,CatalogObject 項目){
         var 関数=this.登録関数一覧.GetValueOrDefault(ID,[]).FirstOrDefault(関数=>"registered:"+関数.Target.DefinitionId==項目.Id);

@@ -67,15 +67,15 @@ public partial class 管理ワークスペース{
         if(!this.DB削除を下書きにできるか(DB)){return;}
         await this.DB文書を読み込むAsync(DB);
         var 文書=this.文書一覧[DB.Id];
-        if(文書.DB変更 is{Delete:true}){
-            文書.DB変更=null;
+        if(文書.DB変更 is{Delete:true} 削除){
+            文書.DB変更=削除.NameBeforeDeletion is{} 名前?new(DB.Name,名前):null;
             this.案内=表示文言.取得("DBの削除予定を取り消しました。");
         }else{
             this.ツリーの入力を確認(文書);
             if(this.対象文書一覧.Values.Any(項目=>項目.DBID==DB.Id&&項目.データ編集中か)){
                 throw new ManagementException("Validation",表示文言.取得("行の編集を保存するか取り消してからDBを削除してください。"));
             }
-            文書.DB変更=new(DB.Name,Delete:true);
+            文書.DB変更=new(DB.Name,Delete:true){NameBeforeDeletion=文書.DB変更?.NewName};
             this.案内=表示文言.取得("DBの削除を下書きに追加しました。");
         }
         文書.プレビュー=null;

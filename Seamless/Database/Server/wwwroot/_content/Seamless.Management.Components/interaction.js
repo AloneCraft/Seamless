@@ -502,53 +502,16 @@ export function 初期化(根, 参照) {
     const ツリー = ツリーを初期化(根, IME);
     const 列フォーカス = 列編集フォーカスを初期化(根);
     const DBドラッグ = DB表示順ドラッグを初期化(根, 参照, IME);
-    let 移動 = null, 幽霊 = null, 指示 = null, クリック抑止か = false;
-    const 掃除 = () => { 幽霊?.remove(); 指示?.remove(); 幽霊 = 指示 = null; 移動 = null; 根.classList.remove('移動中'); };
-    const 取消 = () => { if (移動?.開始済みか) 参照.invokeMethodAsync('ドラッグ取消Async'); 掃除(); };
-    const 押下 = (引数) => {
-        const ハンドル = 引数.target.closest('[data-ドラッグ-id]');
-        if (!ハンドル || 引数.button !== 0) return;
-        移動 = { ID: ハンドル.getAttribute('data-ドラッグ-id'), X: 引数.clientX, Y: 引数.clientY, ハンドル, 開始済みか: false, 対象: null };
-    };
-    const 位置変更 = (引数) => {
-        if (!移動) return;
-        if (!移動.開始済みか && Math.hypot(引数.clientX - 移動.X, 引数.clientY - 移動.Y) < 5) return;
-        if (!移動.開始済みか) {
-            移動.開始済みか = true; 根.classList.add('移動中');
-            移動.受付 = 参照.invokeMethodAsync('ドラッグ開始Async', 移動.ID);
-            幽霊 = document.createElement('div'); 幽霊.className = '移動プレビュー'; 幽霊.textContent = 移動.ハンドル.closest('[data-文書-id]')?.textContent ?? '文書'; document.body.append(幽霊);
-            指示 = document.createElement('div'); 指示.className = '挿入位置'; document.body.append(指示);
-        }
-        引数.preventDefault(); 幽霊.style.left = `${引数.clientX + 14}px`; 幽霊.style.top = `${引数.clientY + 14}px`;
-        const 対象 = document.elementFromPoint(引数.clientX, 引数.clientY)?.closest('[data-文書-id]');
-        移動.対象 = null; 指示.style.display = 'none';
-        if (!対象 || !根.contains(対象) || 対象.getAttribute('data-文書-id') === 移動.ID) return;
-        const 枠 = 対象.getBoundingClientRect(), 前か = 引数.clientX < 枠.left + 枠.width / 2;
-        移動.対象 = 対象.getAttribute('data-文書-id'); 移動.前か = 前か;
-        指示.style.cssText = `display:block;left:${前か ? 枠.left : 枠.right}px;top:${枠.top}px;height:${枠.height}px`;
-    };
-    const 解放 = async () => {
-        if (!移動) return;
-        const 現在 = 移動;
-        if (現在.開始済みか) {
-            クリック抑止か = true; await 現在.受付;
-            if (現在.対象) await 参照.invokeMethodAsync('ドロップAsync', 現在.対象, 現在.前か);
-            else await 参照.invokeMethodAsync('ドラッグ取消Async');
-        }
-        掃除();
-    };
-    const クリック = (引数) => { if (クリック抑止か) { 引数.preventDefault(); 引数.stopPropagation(); クリック抑止か = false; } };
     const キー = (引数) => {
         if (IME.変換中か(引数)) return;
-        if (引数.key === 'Escape' && 移動) { 引数.preventDefault(); 取消(); }
-        else if ((引数.ctrlKey || 引数.metaKey) && 引数.key.toLowerCase() === 'k') { 引数.preventDefault(); 参照.invokeMethodAsync('パレットを開くAsync'); }
+        if ((引数.ctrlKey || 引数.metaKey) && 引数.key.toLowerCase() === 'k') { 引数.preventDefault(); 参照.invokeMethodAsync('パレットを開くAsync'); }
         else if (引数.key === 'F10' && 引数.shiftKey && !引数.target.closest('input,textarea,select,[contenteditable="true"]')) { const 行 = 引数.target.closest('[data-対象-id]'); if (行) { 引数.preventDefault(); 引数.stopPropagation(); 行.querySelector('[data-メニュー起点]')?.click(); } }
         else if ((引数.key === 'Enter' || 引数.key === ' ') && 引数.target.hasAttribute('data-対象-id')) { 引数.preventDefault(); 引数.target.click(); }
     };
     const 離脱 = (引数) => { if (根.dataset.未保管 === 'true') { 引数.preventDefault(); 引数.returnValue = ''; } };
     window.addEventListener('beforeunload', 離脱);
-    根.addEventListener('pointerdown', 押下); document.addEventListener('pointermove', 位置変更, { passive: false }); document.addEventListener('pointerup', 解放); document.addEventListener('pointercancel', 取消); 根.addEventListener('click', クリック, true); 根.addEventListener('keydown', キー);
-    return { dispose() { DBドラッグ.dispose(); 列フォーカス.dispose(); ツリー.dispose(); IME.dispose(); 取消(); window.removeEventListener('beforeunload', 離脱); 根.removeEventListener('pointerdown', 押下); document.removeEventListener('pointermove', 位置変更); document.removeEventListener('pointerup', 解放); document.removeEventListener('pointercancel', 取消); 根.removeEventListener('click', クリック, true); 根.removeEventListener('keydown', キー); } };
+    根.addEventListener('keydown', キー);
+    return { dispose() { DBドラッグ.dispose(); 列フォーカス.dispose(); ツリー.dispose(); IME.dispose(); window.removeEventListener('beforeunload', 離脱); 根.removeEventListener('keydown', キー); } };
 }
 export function コード位置へ移動(入力,開始,長さ){
     if(!入力?.isConnected){return;}

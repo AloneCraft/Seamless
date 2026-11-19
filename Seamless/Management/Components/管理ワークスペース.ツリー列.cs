@@ -9,7 +9,7 @@ public partial class 管理ワークスペース{
         状態.分類を開閉(対象.Schema,分類,true);状態.テーブルを開閉(対象.Id,true);
     }
     private void ツリーの入力を確認(文書状態 文書){
-        if(文書.定義.Kind==DefinitionKind.Database&&this.DBツリー画面.GetValueOrDefault(文書.DB.Id)?.未保存か is true){
+        if(文書.定義.Kind==DefinitionKind.Database&&(this.DB名前変更ID==文書.DB.Id||this.DBツリー画面.GetValueOrDefault(文書.DB.Id)?.未保存か is true)){
             throw new ManagementException("Validation",表示文言.取得("左のツリーに確定していない入力があります。入力を確定するか、Esc で取り消してから、もう一度操作してください。"));
         }
     }
@@ -38,7 +38,15 @@ public partial class 管理ワークスペース{
         var 結果=形を変更するか?DatabaseDesigner.ChangeFunctionResultShape(文書.定義,基準,列一覧):
             DatabaseDesigner.ApplyObjectStructure(文書.定義,基準,列一覧,要求.引数一覧??基準.Parameters,要求.戻り型??基準.ReturnType);
         if(結果.Succeeded){
+            if(種類=="Table"&&要求.復元する表の列 is{} 復元列&&結果.Definition is{Migration:{} 移行} 定義){
+                var 表一覧=移行.Tables.Select(表=>表.Target!=基準.Object.Id?表:表 with{
+                    Columns=表.Columns.Select(列=>列.Target!=復元列?列:列 with{Source=復元列,Expression=null}).ToArray(),
+                    DroppedColumns=表.DroppedColumns.Where(列=>列!=復元列).ToArray()
+                }).ToArray();
+                結果=結果 with{Definition=定義 with{Migration=移行 with{Tables=表一覧}}};
+            }
             文書.定義=結果.Definition!;文書.プレビュー=null;
+            if(種類!="Table"&&要求.名前編集 is{} 名前){文書.問い合わせ列の改名を記録(基準.Object,要求.引数一覧 is not null,名前.元,名前.次);}
             if(形を変更するか){
                 var 次=文書.オブジェクト.Single(項目=>項目.Id==要求.基準.Object.Id);
                 foreach(var 開いた文書 in this.対象文書一覧.Values.Where(対象=>対象.DBID==DBID&&対象.対象?.Id==次.Id&&対象.対象.Kind==種類)){開いた文書.対象=次;}

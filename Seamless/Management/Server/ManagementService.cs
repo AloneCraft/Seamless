@@ -96,9 +96,28 @@ public sealed partial class ManagementService:IDisposable{
             if(request.ClearDatabaseChange&&request.DatabaseChange is not null){throw new ManagementException("InvalidRequest","DBの変更指定が重複しています。");}
             var change=request.ClearDatabaseChange?null:request.DatabaseChange??previous?.DatabaseChange;
             this.CheckDatabaseDraft(actor,definition,change,active);
-            var draft=new Draft(definition,user.Name,checked(request.ExpectedRevision+1),request.BaseVersion,DateTimeOffset.UtcNow){DatabaseChange=change};
+            var renames=request.QueryRenames;
+            if(renames is null&&previous?.QueryRenames is not null&&previous.BaseVersion==request.BaseVersion&&previous.Definition.Hash()==definition.Hash()){
+                renames=previous.QueryRenames;
+            }
+            var draft=new Draft(definition,user.Name,checked(request.ExpectedRevision+1),request.BaseVersion,DateTimeOffset.UtcNow){
+                DatabaseChange=change,QueryRenames=CheckedQueryRenames(definition,request.BaseVersion,renames)
+            };
             this.store.Write(()=>{this.store.Put("draft",key,draft);this.store.AddHistory(user.Name,this.store.CurrentDatabase(definition),"DraftSaved",definition.Id,draft.Revision);});return draft;
         }
+    }
+    private static QueryDraftRename[]? CheckedQueryRenames(Definition definition,long baseVersion,QueryDraftRename[]? renames){
+        if(renames is null||renames.Length==0){return null;}
+        if(definition.Kind!=DefinitionKind.Database||baseVersion<=0||renames.Length>16384||
+            renames.Any(row=>row is null||!Enum.IsDefined(row.Part)||!ValidName(row.Query)||!ValidName(row.Before)||!ValidName(row.After)||
+                row.Before==row.After||row.Part==QueryDraftRenamePart.Query&&row.Query!=row.After)||
+            renames.Select(row=>(row.Query,row.Part,row.After)).Distinct().Count()!=renames.Length||
+            renames.Select(row=>(row.Query,row.Part,row.Before)).Distinct().Count()!=renames.Length){
+            throw new ManagementException("InvalidRequest","下書きのビュー・関数の改名記録が不正です。");
+        }
+        return renames.ToArray();
+
+        static bool ValidName(string text)=>!string.IsNullOrWhiteSpace(text)&&text.Length<=2048&&!text.Any(char.IsControl);
     }
     public Draft? FindDraft(UserAccount user,string id){
         var draft=this.store.Read<Draft>("draft",DraftSubject(user.Name,id));
@@ -226,8 +245,8 @@ public sealed partial class ManagementService:IDisposable{
                             var remaining=draft with{Definition=plan.RemainingDraft,BaseVersion=version.Version,Revision=checked(draft.Revision+1),SavedAt=version.CreatedAt};
                             this.store.Put("draft",DraftSubject(user.Name,request.Id),remaining);
                         }
-                        else if(draft.DatabaseChange is not null){
-                            this.store.Put("draft",DraftSubject(user.Name,request.Id),draft with{BaseVersion=version.Version,SavedAt=version.CreatedAt,DatabaseChange=null});
+                        else if(draft.DatabaseChange is not null||draft.QueryRenames is not null){
+                            this.store.Put("draft",DraftSubject(user.Name,request.Id),draft with{BaseVersion=version.Version,SavedAt=version.CreatedAt,DatabaseChange=null,QueryRenames=null});
                         }
                     });
                     operation=finished;
