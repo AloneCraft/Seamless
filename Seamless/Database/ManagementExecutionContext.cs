@@ -1,5 +1,3 @@
-using Seamless.Collections.Tsavorite;
-using Tsavorite.core;
 namespace Seamless.Management.Server;
 
 /// <summary>
@@ -9,7 +7,7 @@ namespace Seamless.Management.Server;
 /// 設計：Document/refactoring-designs/20261115-Managerの設計と実装の照合.md の段階7(3)。
 /// </summary>
 public sealed class ManagementExecutionContext{
-    private readonly global::Seamless.Database.DatabaseContainer database;
+    private global::Seamless.Database.DatabaseContainer? database;
     private readonly global::System.Func<global::System.Exception> mismatch;
     public ManagementExecutionContext(global::Seamless.Database.DatabaseContainer database,global::System.Threading.CancellationToken cancellationToken)
         :this(database,cancellationToken,static()=>new global::System.InvalidOperationException("DB型が実行環境と一致しません。")){}
@@ -19,6 +17,9 @@ public sealed class ManagementExecutionContext{
     }
     public global::System.Threading.CancellationToken CancellationToken{get;}
     public T GetDatabase<T>() where T:global::Seamless.Database.DatabaseContainer{
-        this.CancellationToken.ThrowIfCancellationRequested();return this.database as T??throw this.mismatch();
+        var active=global::System.Threading.Volatile.Read(ref this.database);
+        global::System.ObjectDisposedException.ThrowIf(active is null,this);
+        this.CancellationToken.ThrowIfCancellationRequested();return active as T??throw this.mismatch();
     }
+    internal void End()=>global::System.Threading.Interlocked.Exchange(ref this.database,null);
 }

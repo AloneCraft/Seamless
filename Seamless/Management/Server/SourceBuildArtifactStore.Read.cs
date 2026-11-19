@@ -9,31 +9,36 @@ internal sealed partial class SourceBuildArtifactStore{
     internal CapturedSourceBuild Read(SourceProjectBuild build,CancellationToken cancellationToken=default){
         lock(gate){return ReadDirectory(build,this.PathFor(build),"manifest.json",cancellationToken);}
     }
-    internal static CapturedSourceBuild ReadGeneration(SourceProjectBuild build,string path,CancellationToken cancellationToken=default)=>
-        ReadDirectory(build,path,"source-build.json",cancellationToken);
+    internal static CapturedSourceBuild ReadGeneration(SourceProjectBuild build,string path,string? assemblyName=null)=>
+        ReadDirectory(build,path,assemblyName is null?"source-build.json":null,CancellationToken.None,assemblyName??"module.dll");
 
-    private static CapturedSourceBuild ReadDirectory(SourceProjectBuild build,string path,string manifestName,CancellationToken cancellationToken){
+    private static CapturedSourceBuild ReadDirectory(SourceProjectBuild build,string path,string? manifestName,CancellationToken cancellationToken,string moduleName="module.dll"){
         var capture=SourceBuildArtifactInspector.CaptureFiles(cancellationToken);
         try{
             if(build.BundleHash!=BundleHash(build)){throw new ManagementException("BuildMismatch","保管済み成果物の識別情報が一致しません。");}
-            var manifest=capture.Read(Path.Combine(path,manifestName));
-            if(!manifest.AsSpan().SequenceEqual(ManifestBytes(build))){throw new ManagementException("BuildMismatch","保管済み成果物のマニフェストが異なります。");}
+            if(manifestName is not null){
+                var manifest=capture.Read(Path.Combine(path,manifestName));
+                if(!manifest.AsSpan().SequenceEqual(ManifestBytes(build))){throw new ManagementException("BuildMismatch","保管済み成果物のマニフェストが異なります。");}
+            }
             var files=Files(build);var hostShared=ManifestFormat(build)==2;
             foreach(var file in files){
-                var filePath=FilePath(build,file,path);
+                var filePath=file.File=="module.dll"?Path.Combine(path,moduleName):FilePath(build,file,path);
                 if(hostShared&&file.Shared){
                     if(capture.HashFile(filePath)!=file.Sha256){throw new ManagementException("BuildMismatch","現在のホストの共有依存DLLが成果物のビルド時と一致しません: "+file.Name);}
                 }else{
                     if(Convert.ToHexString(SHA256.HashData(capture.Read(filePath)))!=file.Sha256){throw new ManagementException("BuildMismatch","保管済み成果物が変更されています: "+file.File);}
                 }
             }
-            var module=Path.Combine(path,"module.dll");
+            var module=Path.Combine(path,moduleName);
             using(var pe=new PEReader(new MemoryStream(capture.Read(module),false))){
                 if(!pe.HasMetadata||pe.GetMetadataReader().GetGuid(pe.GetMetadataReader().GetModuleDefinition().Mvid)!=build.ModuleVersionId){
                     throw new ManagementException("BuildMismatch","保管済みDLLのモジュール識別情報が異なります。");
                 }
+                if(build.PdbSha256.Length==0&&!pe.ReadDebugDirectory().Any(entry=>entry.Type==DebugDirectoryEntryType.EmbeddedPortablePdb)){
+                    throw new ManagementException("BuildMismatch","DLLに埋め込みPDBがありません。");
+                }
             }
-            var dependencyPaths=files.Skip(2).ToDictionary(file=>file.Name,file=>FilePath(build,file,path),StringComparer.OrdinalIgnoreCase);
+            var dependencyPaths=files.Where(file=>file.Name.Length>0).ToDictionary(file=>file.Name,file=>FilePath(build,file,path),StringComparer.OrdinalIgnoreCase);
             var dependencies=SourceBuildArtifactInspector.CheckDependencies(module,capture.Read(module),capture,dependencyPaths);
             if(dependencies.Length!=build.Dependencies.Length||dependencies.Any(actual=>!build.Dependencies.Any(expected=>
                 expected.Name==actual.Name&&expected.Version==actual.Version&&expected.Sha256==actual.Sha256&&expected.Shared==actual.Shared))){
@@ -45,16 +50,17 @@ internal sealed partial class SourceBuildArtifactStore{
         catch(ResourceLimitException error){capture.Dispose();throw new ManagementException("Limit","成果物の読み出し予算を超えています。 "+error.Message);}
         catch{capture.Dispose();throw;}
     }
-    internal static void WriteGeneration(CapturedSourceBuild captured,string directory){
+    internal static void WriteGeneration(CapturedSourceBuild captured,string directory,string? moduleName=null){
         var build=captured.Build;var files=StoredFiles(build);
-        var paths=new[]{build.AssemblyPath,Path.ChangeExtension(build.AssemblyPath,".pdb")}
-            .Concat(StoredDependencies(build).Select(item=>item.Path)).ToArray();
+        var paths=StoredPaths(build).ToArray();
         for(var index=0;index<files.Length;index++){
             var bytes=captured.Bytes(paths[index]);
             if(Convert.ToHexString(SHA256.HashData(bytes))!=files[index].Sha256){throw new ManagementException("BuildMismatch","捕捉済み成果物が変更されています。");}
-            Write(Path.Combine(directory,files[index].File),bytes,CancellationToken.None);
+            var name=files[index].File;
+            if(moduleName is not null&&name=="module.dll"){name=moduleName;}
+            Write(Path.Combine(directory,name),bytes,CancellationToken.None);
         }
-        Write(Path.Combine(directory,"source-build.json"),ManifestBytes(build),CancellationToken.None);
+        if(moduleName is null){Write(Path.Combine(directory,"source-build.json"),ManifestBytes(build),CancellationToken.None);}
     }
 }
 

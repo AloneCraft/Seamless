@@ -12,6 +12,7 @@ public sealed record CompiledSource(byte[] AssemblyBytes,BuildResult Result):IDi
     public byte[] AssemblyBytes{get=>this.ImportedBuild?.AssemblyBytes??this.image;init=>this.image=value;}
     internal CapturedSourceBuild? ImportedBuild{get;init;}
     internal QueryAuditMetadata? AuditMetadata{get;init;}
+    internal GeneratedSourceFile[] GeneratedSources{get;init;}=[];
     internal CompiledSource Retain(){
         if(this.ImportedBuild is null){return this;}
         return new([],this.Result){ImportedBuild=this.ImportedBuild.Retain(),AuditMetadata=this.AuditMetadata};
@@ -47,7 +48,7 @@ public sealed class RuntimeCompiler{
         return (CSharpCompilation)RunSchemaGenerators(prepared.Compilation,prepared.Parse,out _);
     }
     private sealed record PreparedCompilation(SourceSnapshot Source,string Hash,CSharpParseOptions Parse,CSharpCompilation Compilation,SyntaxTree[] Trees,DiagnosticInfo[] Policy);
-    private PreparedCompilation Prepare(SourceSnapshot source,IReadOnlyList<byte[]>? dependencies,string? generation){
+    private PreparedCompilation Prepare(SourceSnapshot source,IReadOnlyList<byte[]>? dependencies,string? generation,bool checkPolicy=true){
         source=source.Freeze();SourceEditor.Validate(source);var hash=source.Hash();var name="Seamless.Managed_"+hash[..24];
         if(generation is not null){name+="_g"+generation;}
         var references=SourceEditor.PlatformReferences().ToList();
@@ -61,7 +62,7 @@ public sealed class RuntimeCompiler{
         var parse=new CSharpParseOptions(LanguageVersion.CSharp14,preprocessorSymbols:source.Defines??[]).WithFeatures([new("InterceptorsNamespaces","Intercept"),new("InterceptorsPreviewNamespaces","Intercept")]);
         var trees=source.Files.Select(file=>CSharpSyntaxTree.ParseText(file.Text,parse,file.Path)).ToArray();
         var compilation=CSharpCompilation.Create(name,trees,references,new(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,allowUnsafe:true,nullableContextOptions:NullableContextOptions.Enable,deterministic:true));
-        var policy=ValidatePolicy(compilation,trees);if(policy.Length>0){return new(source,hash,parse,compilation,trees,policy);}
+        if(checkPolicy){var policy=ValidatePolicy(compilation,trees);if(policy.Length>0){return new(source,hash,parse,compilation,trees,policy);}}
         var companion=new System.Text.StringBuilder();
         foreach(var tree in trees){var model=compilation.GetSemanticModel(tree);foreach(var declaration in tree.GetRoot().DescendantNodes().OfType<TypeDeclarationSyntax>().Where(node=>node.Identifier.ValueText=="DatabaseGenerator")){
             if(model.GetDeclaredSymbol(declaration) is not INamedTypeSymbol marker||marker.GetMembers("Collectible").Length>0){continue;}
@@ -83,10 +84,11 @@ public sealed class RuntimeCompiler{
         return output;
     }
     private CompiledSource CompileCore(SourceSnapshot source,IReadOnlyList<byte[]>? dependencies,string? entryType,string? entryMember,string? generation){
-        var prepared=this.Prepare(source,dependencies,generation);var hash=prepared.Hash;var parse=prepared.Parse;
-        if(prepared.Policy.Length>0){return new([],new(hash,"",prepared.Policy,[]));}
+        var prepared=this.Prepare(source,dependencies,generation,checkPolicy:false);var hash=prepared.Hash;var parse=prepared.Parse;
         Compilation compilation=prepared.Compilation;
         var schemaCompilation=RunSchemaGenerators(prepared.Compilation,parse,out var schemaDiagnostics);
+        var policy=ValidatePolicy((CSharpCompilation)schemaCompilation,prepared.Trees);
+        if(policy.Length>0){return new([],new(hash,"",policy,[]));}
         IMethodSymbol? auditEntry=null;if(entryType is not null){
             var methods=schemaCompilation.GetTypeByMetadataName(entryType)?.GetMembers(entryMember??"").OfType<IMethodSymbol>().Where(method=>method.IsStatic&&method.DeclaredAccessibility==Accessibility.Public&&!method.IsGenericMethod&&method.Parameters.All(parameter=>parameter.RefKind==RefKind.None)).ToArray()??[];
             if(methods.Length!=1){return new([],new(hash,"",[new("ManagementEntry","公開された一意のstatic入口を指定してください。")],[]));}

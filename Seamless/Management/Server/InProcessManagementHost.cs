@@ -4,7 +4,10 @@ using System.Threading.Channels;
 namespace Seamless.Management.Server;
 
 /// <summary>組み込み試作で管理領域と管理操作を、同じプロセスの専用DB実行スレッドで所有する。</summary>
-public sealed partial class InProcessManagementHost:IDisposable,IManagementOperations{
+public sealed partial class InProcessManagementHost:IDisposable,IManagementOperations,IManagedDatabaseSourceOperations{
+    bool IManagedDatabaseSourceOperations.CanOpenManagedDatabaseSource=>true;
+    Task<string> IManagedDatabaseSourceOperations.OpenManagedDatabaseSourceAsync(string id,CancellationToken cancellationToken)=>
+        this.InvokeAsync((service,user)=>service.OpenManagedDatabaseSource(user,id),cancellationToken).AsTask();
     private ManagementStore? store;
     private ManagementService? service;
     private readonly ExecutionThread execution;

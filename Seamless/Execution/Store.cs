@@ -167,6 +167,10 @@ public sealed class Store:IDisposable{
             if(this.directoryPath is null){
                 throw new InvalidOperationException("A memory store has no directory.");
             }
+            if(this.Options.ComponentDirectories?.TryGetValue(name,out var external)==true){
+                if(!Directory.Exists(external)){throw new DirectoryNotFoundException($"The storage directory for table '{name}' is missing: {external}");}
+                return external;
+            }
             var path=Path.Combine(this.directoryPath,DataDirectoryName,name);
             Directory.CreateDirectory(path);
             return path;

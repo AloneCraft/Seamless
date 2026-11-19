@@ -61,7 +61,7 @@ public sealed partial class ManagementService{
                 CheckCurrent();
                 queries=this.Records<DefinitionVersion>("active").Where(item=>item.Definition.Kind==DefinitionKind.Query&&item.Database==baseline.Database).OrderBy(item=>item.Definition.Id,StringComparer.Ordinal).ToArray();
             }
-            var backup=operation.BackupPath!;
+            var backup=Path.Combine(ManagementPlacement.DirectoryPath(Path.Combine(this.store.Root,"backups"),allowShortcut:true),operation.Id.ToString("N"));
             if(Directory.Exists(backup)||File.Exists(backup)){throw new IOException("バックアップ先は未使用の場所を指定してください。");}
             SourceWorkspace.CheckLinks(backup);Directory.CreateDirectory(backup);
             this.runtime.BackupGeneration(baseline,Path.Combine(backup,"database"),cancellation);
@@ -81,6 +81,7 @@ public sealed partial class ManagementService{
                     }
                     foreach(var definition in queries.Prepend(baseline)){this.store.Put<DefinitionVersion?>("active",definition.Definition.Id,null);}
                     this.store.Put("retiredDatabase",baseline.Definition.Id,operation.Id.ToString("N"));
+                    this.store.RetireDatabasePlacement(baseline);
                     this.store.Put<Draft?>("draft",DraftSubject(draft.Owner,draft.Definition.Id),null);
                     this.store.Put("deletedDatabase",operation.Id.ToString("N"),deleted);
                     this.store.Put("operation",operation.Id.ToString("N"),finished);

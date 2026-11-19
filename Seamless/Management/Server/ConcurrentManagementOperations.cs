@@ -1,7 +1,10 @@
 namespace Seamless.Management.Server;
 
 /// <summary>同居サーバーの管理処理を、同じServiceへ有界に配送する。</summary>
-public sealed partial class ConcurrentManagementOperations:IManagementOperations,IManagementSourceOperations,IAsyncDisposable{
+public sealed partial class ConcurrentManagementOperations:IManagementOperations,IManagementSourceOperations,IManagedDatabaseSourceOperations,IAsyncDisposable{
+    bool IManagedDatabaseSourceOperations.CanOpenManagedDatabaseSource=>true;
+    Task<string> IManagedDatabaseSourceOperations.OpenManagedDatabaseSourceAsync(string id,CancellationToken cancellationToken)=>
+        this.InvokeAsync(()=>this.service.OpenManagedDatabaseSource(this.owner,id),cancellationToken);
     public Task<QueryExecutionHistoryPage> QueryExecutionHistoryAsync(QueryExecutionHistoryQuery query,CancellationToken cancellationToken=default)=>this.InvokeTaskAsync(()=>this.service.QueryExecutionHistoryAsync(this.owner,query,cancellationToken),cancellationToken);
     public Task<AuthorizationScopeInfo> AuthorizationScopeAsync(AuthorizationScopeQuery query,CancellationToken cancellationToken=default)=>this.InvokeTaskAsync(()=>this.service.ManageAuthorizationAsync<AuthorizationScopeInfo>(this.owner,"authorizationScope",query,cancellationToken),cancellationToken);
     public Task<AuthorizationChangeResult> ChangeAuthorizationScopeAsync(AuthorizationScopeEdit edit,CancellationToken cancellationToken=default){var frozen=edit.Freeze();return this.InvokeTaskAsync(()=>this.service.ManageAuthorizationAsync<AuthorizationChangeResult>(this.owner,"authorizationScopeChange",frozen,cancellationToken),cancellationToken);}

@@ -155,6 +155,9 @@ public sealed class DatabaseDraftPublication{
             Assert.Equal(deleted,service.Apply(refreshedUser,request));
             Assert.Equal(deleted,service.GetOperation(refreshedUser,deletion));
             Assert.True(File.Exists(Path.Combine(deleted.BackupPath!,"database","definition-version.json")));
+            var backup=Assert.Single(service.RecoveryGuide(admin,RecoveryScenario.RestoreFromBackup).Backups);
+            Assert.Equal(new RecoveryBackupLocation("Native",deleted.StartedAt,deleted.BackupPath!),backup);
+            Assert.Throws<ManagementException>(()=>service.RecoveryGuide(refreshedUser,RecoveryScenario.RestoreFromBackup));
             Assert.DoesNotContain(service.Databases(user).Items,item=>!item.IsSystem);
             Assert.Empty(service.UnpublishedDatabases(user).Items);
         }
@@ -162,6 +165,7 @@ public sealed class DatabaseDraftPublication{
         Assert.Equal(definition.Id,restored.Definition.Id);Assert.Equal(2,restored.Version);
         using(var store=new ManagementStore(root))
         using(var service=new HostService(store)){
+            Assert.Single(service.RecoveryGuide(Admin(service),RecoveryScenario.RestoreFromBackup).Backups);
             var user=service.Authenticate(service.Login(new("operator","TestPassword-123")).Token);
             var page=await service.ReadRowsAsync(user,new("Native","Rows"));
             Assert.Equal(81,Assert.Single(page.Rows).Values.GetProperty("value").GetInt32());

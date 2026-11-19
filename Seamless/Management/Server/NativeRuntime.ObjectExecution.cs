@@ -58,7 +58,7 @@ internal sealed partial class NativeRuntime{
             trace?.Bound(version.Version,version.ArtifactHash);
             var database=this.Open(version).Database;
             var descriptor=NativeCatalog.Read(database.GetType(),version).SingleOrDefault(item=>item.Details.Object.Id==request.ObjectId)?.Details;
-            if(descriptor is null||descriptor.Object.Kind is not ("View" or "ScalarFunction" or "TableFunction")){
+            if(descriptor is null||descriptor.Object.Kind is not ("View" or "ScalarFunction" or "TableFunction" or "Property")){
                 throw new ManagementException("NotFound","公開された問い合わせがありません: "+request.ObjectId);
             }
             // ビュー・関数は IReader への拡張メンバー。DB生成器が作る入口(Queries)を名前で選び、読み込み専用の入口を開いて呼ぶ。
@@ -69,11 +69,12 @@ internal sealed partial class NativeRuntime{
             trace?.Invoking();
             using var invocation=query.Execute(database,arguments);
             var result=invocation.Value;
-            if(descriptor.Object.Kind=="ScalarFunction"){
+            if(descriptor.Object.Kind is "ScalarFunction" or "Property"){
                 var output=result;measurement?.ObservedOutput();trace?.Output();
                 var value=RuntimeValueJson.Serialize(output);
                 if(Encoding.UTF8.GetByteCount(value.GetRawText())>responseBytes){throw new ManagementException("Limit","戻り値が応答上限を超えています。");}
-                response=new(version.Version,false,value,[],[],false);
+                var columns=descriptor.Object.Kind=="Property"&&output is not null?RuntimeValueJson.Columns(output.GetType()):[];
+                response=columns.Length==0?new(version.Version,false,value,[],[],false):new(version.Version,true,null,[value],columns,false);
             }else{
                 if(result is not IEnumerable sequence){throw new ManagementException("Validation","問い合わせの戻り値を列挙できません。");}
                 var rows=new List<JsonElement>();var bytes=0;var more=false;

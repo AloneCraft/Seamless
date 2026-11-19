@@ -45,7 +45,7 @@ internal static class NativeCatalog{
                 var memberName=property?method.Name["get_".Length..]:method.Name;
                 var set=method.ReturnType.IsGenericType&&method.ReturnType.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.ISet<>);
                 string kind;
-                if(property){if(!set){continue;}kind="View";}
+                if(property){kind=set?"View":"Property";}
                 else if(method.IsSpecialName||method.Name.StartsWith("get_",StringComparison.Ordinal)||method.Name.StartsWith("set_",StringComparison.Ordinal)){continue;}
                 else{kind=set?"TableFunction":"ScalarFunction";}
                 var record=set?method.ReturnType.GetGenericArguments()[0]:method.ReturnType;

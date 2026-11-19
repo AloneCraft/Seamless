@@ -1,12 +1,14 @@
 @implements IAsyncDisposable
 @inject IJSRuntime スクリプト
 <div class="@枠クラス">
-    <table @ref="根" class="@表クラス" role="grid" aria-label="@表示文言.取得(名前)" aria-describedby="@案内ID">
+    <table @ref="根" class="@表クラス" role="grid" aria-label="@表示文言.取得(名前)" aria-describedby="@(読み取り専用か?null:案内ID)">
         <thead><tr>@見出し</tr></thead>
         <tbody>@行</tbody>
     </table>
 </div>
-<p class="グリッド操作案内" id="@案内ID">@(表示文言.取得(データ入力か ? "末尾の＊に入力して行追加 · 矢印で移動 · Enterで下 · Tabで次 · F2で文字編集 · Escでセル取消 · Ctrl+Sで保存" : "全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消"))</p>
+@if(!読み取り専用か){
+    <p class="グリッド操作案内" id="@案内ID">@(表示文言.取得(データ入力か ? "末尾の＊に入力して行追加 · 矢印で移動 · Enterで下 · Tabで次 · F2で文字編集 · Escでセル取消 · Ctrl+Sで保存" : "全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消"))</p>
+}
 @code{
     [Parameter,EditorRequired]public string 名前{get;set;}="";
     [Parameter]public RenderFragment? 見出し{get;set;}
@@ -14,6 +16,7 @@
     [Parameter]public string 表クラス{get;set;}="設計表 編集グリッド";
     [Parameter]public string 枠クラス{get;set;}="編集グリッド枠";
     [Parameter]public bool データ入力か{get;set;}
+    [Parameter]public bool 読み取り専用か{get;set;}
     private readonly string 案内ID="grid-help-"+Guid.NewGuid().ToString("N");
     private ElementReference 根;
     private IJSObjectReference? モジュール,操作;

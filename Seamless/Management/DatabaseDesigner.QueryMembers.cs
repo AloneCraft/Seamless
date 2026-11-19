@@ -25,12 +25,15 @@ public static partial class DatabaseDesigner{
                 if(model.GetDeclaredSymbol(declaration) is not{IsStatic:true} type||type.ContainingType is not null){continue;}
                 foreach(var extension in type.GetTypeMembers().Where(static item=>item.IsExtension&&item.Arity==0)){
                     if(extension.ExtensionParameter?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not ParameterSyntax{Type:QualifiedNameSyntax receiver} parameter
-                        ||receiver.SyntaxTree!=tree
+                        ||receiver.SyntaxTree!=tree||!declaration.Span.Contains(parameter.Span)
                         ||!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(receiver.Left).Symbol,container)
                         ||!interfaces.TryGetValue(receiver.Right.Identifier.ValueText,out var schema)){continue;}
                     foreach(var member in extension.GetMembers().Where(static member=>!member.IsStatic&&member.DeclaredAccessibility==Accessibility.Public)){
                         if(member.DeclaringSyntaxReferences.Where(reference=>reference.SyntaxTree==tree).Select(reference=>reference.GetSyntax()).FirstOrDefault() is not MemberDeclarationSyntax syntax){continue;}
-                        if(member is IPropertySymbol{IsIndexer:false,GetMethod:not null} property&&SetElement(property.Type) is{} row){members.Add(new(member,schema,"View",row,syntax,parameter.Identifier.ValueText));}
+                        if(member is IPropertySymbol{IsIndexer:false,GetMethod:not null,SetMethod:null} property){
+                            var element=SetElement(property.Type);
+                            members.Add(new(member,schema,element is null?"Property":"View",element??property.Type,syntax,parameter.Identifier.ValueText));
+                        }
                         else if(member is IMethodSymbol{MethodKind:MethodKind.Ordinary,IsGenericMethod:false,ReturnsVoid:false} method){
                             if(SetElement(method.ReturnType) is{} element){members.Add(new(member,schema,"TableFunction",element,syntax,parameter.Identifier.ValueText));}
                             else{members.Add(new(member,schema,"ScalarFunction",method.ReturnType,syntax,parameter.Identifier.ValueText));}

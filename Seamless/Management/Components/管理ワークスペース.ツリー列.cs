@@ -18,7 +18,7 @@ public partial class 管理ワークスペース{
         if(!this.権限があるか(文書.DB.Name,ManagementPermission.Edit)){throw new ManagementException("Permission",表示文言.取得("権限がありません。"));}
         if(this.操作中か||文書.未確定操作 is not null){throw new ManagementException("Busy",表示文言.取得("処理が完了してから再度操作してください。"));}
         var 基準=要求.基準;
-        if(基準.DefinitionId!=文書.定義.Id||基準.Object.Kind is not ("Table" or "View" or "ScalarFunction" or "TableFunction")){throw new ManagementException("Conflict",表示文言.取得("編集対象が一致しません。"));}
+        if(基準.DefinitionId!=文書.定義.Id||基準.Object.Kind is not ("Table" or "View" or "ScalarFunction" or "TableFunction" or "Property")){throw new ManagementException("Conflict",表示文言.取得("編集対象が一致しません。"));}
         foreach(var 対象 in this.対象文書一覧.Values.Where(対象=>対象.DBID==DBID&&対象.対象?.Id==要求.基準.Object.Id&&対象.編集中か)){
             if(!this.対象画面.TryGetValue(対象.ID,out var 画面)||!await 画面.同期Async()){throw new ManagementException("Validation",表示文言.取得("C#の入力を確認してください。"));}
         }

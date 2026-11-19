@@ -17,10 +17,10 @@ public sealed class DatabaseQuery{
         Func<DatabaseContainer,object?[],DatabaseQueryResult> execute){
         ArgumentException.ThrowIfNullOrWhiteSpace(name);ArgumentNullException.ThrowIfNull(resultType);
         ArgumentNullException.ThrowIfNull(parameters);ArgumentNullException.ThrowIfNull(execute);
-        if(kind is not(global::Seamless.Database.System.DatabaseObjectKind.View or global::Seamless.Database.System.DatabaseObjectKind.TableFunction or global::Seamless.Database.System.DatabaseObjectKind.ScalarFunction)){
-            throw new ArgumentOutOfRangeException(nameof(kind),kind,"A query is a view, a table function or a scalar function.");
+        if(kind is not(global::Seamless.Database.System.DatabaseObjectKind.View or global::Seamless.Database.System.DatabaseObjectKind.TableFunction or global::Seamless.Database.System.DatabaseObjectKind.ScalarFunction or global::Seamless.Database.System.DatabaseObjectKind.Property)){
+            throw new ArgumentOutOfRangeException(nameof(kind),kind,"A query is a view, a function or a property.");
         }
-        if(kind==global::Seamless.Database.System.DatabaseObjectKind.View&&parameters.Length!=0){throw new ArgumentException("A view has no parameters.",nameof(parameters));}
+        if((kind is global::Seamless.Database.System.DatabaseObjectKind.View or global::Seamless.Database.System.DatabaseObjectKind.Property)&&parameters.Length!=0){throw new ArgumentException("A view or property has no parameters.",nameof(parameters));}
         this.Name=name;this.Kind=kind;this.ResultType=resultType;this.Parameters=parameters;this.execute=execute;
     }
 

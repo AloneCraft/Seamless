@@ -362,3 +362,7 @@ button.テキストボタン.ツリー追加行:hover{color:#405b49}
 .外部DB差の一覧>li{border-top:1px solid #e6e6df;padding-top:6px}
 .外部DB回避策{margin-left:16px}
 .外部DB下書き{white-space:pre-wrap;font-size:12px;background:#f6f6f2;padding:6px;border-radius:4px;max-height:240px;overflow:auto}
+.backup-location { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem; margin-block: .5rem; }
+.backup-location label { flex: 1 1 22rem; min-width: 0; }
+.backup-location input { display: block; width: 100%; font-family: monospace; }
+.backup-location p { flex-basis: 100%; margin: 0; }

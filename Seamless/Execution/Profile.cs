@@ -167,6 +167,7 @@ public static class ProfileResolver{
 }
 
 public sealed record StoreOptions{
+    internal IReadOnlyDictionary<string,string>? ComponentDirectories{get;init;}
     private Growth.Policy? growth;
     public Profile Profile{get;init;}=Profile.Minimum;
     public ProfileCatalog? Profiles{get;init;}

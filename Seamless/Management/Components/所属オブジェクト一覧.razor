@@ -15,7 +15,7 @@
                     }else if(公開項目 is{} 旧&& (旧.Name!=項目.Name||旧.Kind=="ScalarFunction"&&(旧.Kind!=項目.Kind||旧.RecordType!=項目.RecordType))){
                         <span class="下書き二段"><del class="下書き変更前" title="@旧.Name">@旧.Name @if(旧.Kind=="ScalarFunction"){<small>@旧.RecordType</small>}</del><span class="対象名 下書き変更後" title="@項目.Name" @ondblclick="()=>名前変更を開始(項目)">@項目.Name</span></span>
                     }else{<span class="対象名" @ondblclick="()=>名前変更を開始(項目)">@項目.Name</span>}
-                    @if(項目.Kind=="ScalarFunction"||戻り型の基準?.Object.Id==項目.Id){
+                    @if((項目.Kind is "ScalarFunction" or "Property")||戻り型の基準?.Object.Id==項目.Id){
                         <span class="ツリー関数戻り型" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                             @if(戻り型の基準?.Object.Id==項目.Id){
                                 <型入力 ラベル="戻り型" 値="@戻り型の入力" 候補="型候補" 値変更時="型=>戻り型の入力=型"/>
@@ -28,7 +28,7 @@
                     }
                     @if(公開済みか is not null&&!公開済みか(項目)){<span class="未適用印" title="@表示文言.取得("下書きの定義 · 稼働DBへ未適用")">@(表示文言.取得("未適用"))</span>}
                 </対象操作ホスト>
-                @if(項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction"){
+                @if(項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction" or "Property"){
                     var 展開か=展開状態.テーブル展開中か(項目.Id);
                     <div data-tree-children hidden="@(!展開か)">
                         @if(項目.Kind is "ScalarFunction" or "TableFunction"){
@@ -111,8 +111,8 @@
     private bool 処理中か,未対応案内か;
     private string 案内クラス{get{if(this.未対応案内か){return "ツリー列未対応";}return "ツリー列診断";}}
     // 固定の見出しの並び：テーブル・(取引を通さない表)・ビュー・関数。スキーマの見出しは DB の木が最後に置く。
-    private static readonly string[] 追加分類=["Table","View","Function"];
-    private static readonly string[] 分類の並び=["Table","Set","View","Function"];
+    private static readonly string[] 追加分類=["Table","View","Function","Property"];
+    private static readonly string[] 分類の並び=["Table","Set","View","Function","Property","SystemView"];
     private bool 追加できる分類か(string 分類)=>this.編集可能か&&this.対象操作 is not null&&追加分類.Contains(分類,StringComparer.Ordinal);
     // 編集できる場合は、まだ1件もない分類も「＋…を追加」の置き場所として表示する。
     private IEnumerable<IGrouping<string,CatalogObject>> 分類一覧(){
@@ -133,7 +133,7 @@
     }
     private RenderFragment? 行操作(CatalogObject 項目){
         // 取引を通さない表(Set<T>)は設計器が宣言を読まないので、名前の変更・コピー・削除は C# で行う。
-        if(!this.編集可能か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return null;}
+        if(!this.編集可能か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set" or "SystemView" or "SystemProperty"){return null;}
         return @<text>
             @if(this.対象操作.変更取消 is{} 戻す&&this.公開時の項目?.Invoke(項目) is{} 旧&&
                 (旧.Name!=項目.Name||旧.Kind=="ScalarFunction"&&項目.Kind==旧.Kind&&旧.RecordType!=項目.RecordType)){
@@ -145,7 +145,7 @@
     }
     private void 作成を開始(string 分類){this.名前変更中ID=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類,true);this.作成中分類=分類;}
     private void 作成を閉じる(){this.作成中分類=null;}
-    public void 名前変更を開始(CatalogObject 項目){if(!this.編集可能か||this.編集操作停止中か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set"){return;}this.作成中分類=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類(項目.Kind),true);this.名前変更中ID=項目.Id;this.StateHasChanged();}
+    public void 名前変更を開始(CatalogObject 項目){if(!this.編集可能か||this.編集操作停止中か||this.対象操作 is null||項目.Kind is "RegisteredFunction" or "Set" or "SystemView" or "SystemProperty"){return;}this.作成中分類=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類(項目.Kind),true);this.名前変更中ID=項目.Id;this.StateHasChanged();}
     private void 名前変更を閉じる(){this.名前変更中ID=null;}
     private async Task 作成確定Async(string 分類,string 名前){
         await this.操作Async(()=>this.対象操作!.作成(this.所属,分類,名前));
@@ -163,12 +163,12 @@
         catch(ManagementException 例外){this.案内=例外.Message;}
         finally{this.処理中か=false;await this.InvokeAsync(this.StateHasChanged);}
     }
-    private bool? 表展開状態(CatalogObject 項目)=>項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction"?this.展開状態.テーブル展開中か(項目.Id):null;
+    private bool? 表展開状態(CatalogObject 項目)=>項目.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction" or "Property"?this.展開状態.テーブル展開中か(項目.Id):null;
     public async Task 列追加を開始Async(string ID){this.展開状態.分類を開閉(this.所属,"Table",true);this.展開状態.テーブルを開閉(ID,true);if(this.列画面.TryGetValue(ID,out var 画面)){await 画面.追加開始Async();}await this.InvokeAsync(this.StateHasChanged);}
-    private static string 分類(string 種類){if(種類 is "ScalarFunction" or "TableFunction" or "RegisteredFunction"){return "Function";}return 種類;}
-    private static string 表示名(string 種類)=>種類 switch{"Table"=>"テーブル","Set"=>"取引を通さない表","View"=>"ビュー","Function"=>"関数",_=>"その他"};
-    private static string 追加文言(string 種類)=>種類 switch{"Table"=>"テーブルを追加","View"=>"ビューを追加",_=>"関数を追加"};
-    private static string 新しい名前の説明(string 種類)=>種類 switch{"Table"=>"新しいテーブル名","View"=>"新しいビュー名",_=>"新しい関数名"};
-    private static string アイコン(string 種類)=>種類 switch{"Table" or "Set"=>"テーブル","View"=>"ビュー",_=>"関数"};
+    private static string 分類(string 種類)=>オブジェクト表示順序.分類(種類);
+    private static string 表示名(string 種類)=>種類 switch{"Table"=>"テーブル","Set"=>"取引を通さない表","View"=>"ビュー","Function"=>"関数","Property"=>"プロパティ","SystemView"=>"システムビュー",_=>"その他"};
+    private static string 追加文言(string 種類)=>種類 switch{"Table"=>"テーブルを追加","View"=>"ビューを追加","Property"=>"プロパティを追加",_=>"関数を追加"};
+    private static string 新しい名前の説明(string 種類)=>種類 switch{"Table"=>"新しいテーブル名","View"=>"新しいビュー名","Property"=>"新しいプロパティ名",_=>"新しい関数名"};
+    private static string アイコン(string 種類)=>種類 switch{"Table" or "Set"=>"テーブル","View" or "SystemView" or "Property"=>"ビュー",_=>"関数"};
     private static string 項目ID(CatalogObject 項目){if(項目.Kind=="Table"){return "table:"+項目.Id;}if(項目.Kind=="Set"){return "set:"+項目.Id;}return "query:"+項目.Id;}
 }

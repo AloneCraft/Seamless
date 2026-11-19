@@ -24,6 +24,7 @@ public partial class 管理ワークスペース{
     private Task ツリー項目選択時(string ID,CatalogObject 項目){
         this.ツリー文書を選ぶ(ID);
         if(this.公開情報表示か(ID)){this.公開対象を開く(ID,項目);return Task.CompletedTask;}
+        if(項目.Kind is "SystemView" or "SystemProperty"){this.対象を文書で開く(項目);return Task.CompletedTask;}
         if(項目.Kind=="RegisteredFunction"){return this.処理Async(()=>this.登録関数を開くAsync(ID,項目));}
         this.オブジェクトを選ぶ時(項目);return Task.CompletedTask;
     }

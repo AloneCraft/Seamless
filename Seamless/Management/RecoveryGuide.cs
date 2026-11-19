@@ -15,7 +15,10 @@ public sealed record RecoveryGuideRequest(RecoveryScenario Scenario);
 public sealed record RecoveryStep(string Text,string? Command=null,string? Folder=null);
 
 /// <summary>手順と、チャットAI に貼る問い合わせ文・エージェントに渡す自動復元の指示文。</summary>
-public sealed record RecoveryGuideDocument(RecoveryScenario Scenario,string Title,RecoveryStep[] Steps,string ChatPrompt,string AgentPrompt);
+public sealed record RecoveryGuideDocument(RecoveryScenario Scenario,string Title,RecoveryStep[] Steps,string ChatPrompt,string AgentPrompt){
+    public RecoveryBackupLocation[] Backups{get;init;}=[];
+}
+public sealed record RecoveryBackupLocation(string Database,DateTimeOffset StartedAt,string Path);
 
 /// <summary>
 /// 手順とプロンプトを作るときの材料。資格情報(パスワード・トークン)は持たない(2026-11-16 の利用者の決定：場所と版とエラー文まで)。

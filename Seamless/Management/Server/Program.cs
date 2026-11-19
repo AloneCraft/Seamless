@@ -25,6 +25,7 @@ public static partial class Program{
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("既存DBへ更新監査を導入: enable-update-audit --root <停止中の管理領域> --database <DB名> --backup <空の退避先> [--operation-id <GUID>] / 結果照会: get-operation --root <停止中の管理領域> --operation-id <GUID>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("空DBの公開版を復旧: rebuild-empty-database --root <停止中の管理領域> --database-id <定義ID> --version <公開版> --artifact <成果物SHA-256> --backup <空の退避先> --verification-copy <空の検証先> --verifier <旧依存DLLで動かす検証用実行ファイル>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("主キー付き表の行を保持してDBを現ホスト向けに復旧: rebuild-database-host。引数は rebuild-empty-database と同じです。");}
+            if(args.Length==0||args[0]=="--help"){Console.WriteLine("DB配置の移行: migrate-database-placement --root <停止中の管理領域> --backup <空の退避先>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("削除したDBをバックアップから復元: restore-deleted-database --root <停止中の管理領域> --operation-id <削除の操作ID>。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("通常読み取りの集計: 形式5では既定で1分単位・5秒ごとに保存。--read-audit-window-seconds <秒数>と--read-audit-save-seconds <秒数>で変更、--no-read-auditで停止。旧形式の自動更新は行いません。");}
             if(args.Length==0||args[0]=="--help"){Console.WriteLine("分割WALへの明示移行は upgrade-prepared-wal --root <停止中の形式5管理領域> --backup <空の退避先>。中断時の明示取消は rollback-prepared-wal-upgrade --root <管理領域>。");}
@@ -65,6 +66,10 @@ public static partial class Program{
                 try{Console.WriteLine(JsonSerializer.Serialize(new{operationId=id,phase="Requested"},ManagementJson.Options));var result=UpdateAuditUpgrade.Enable(Required("--root"),Required("--database"),Required("--backup"),id,cancellation.Token);Console.WriteLine(JsonSerializer.Serialize(result,ManagementJson.Options));if(result.State==OperationState.Succeeded){return 0;}return 1;}finally{Console.CancelKeyPress-=commandCancel;}
             }
             if(args[0]=="get-operation"){var result=UpdateAuditUpgrade.GetOperation(Required("--root"),Guid.Parse(Required("--operation-id")));Console.WriteLine(JsonSerializer.Serialize(result,ManagementJson.Options));return 0;}
+            if(args[0]=="migrate-database-placement"){
+                var count=DatabasePlacementMigration.Run(Required("--root"),Required("--backup"),CancellationToken.None);
+                Console.WriteLine($"公開DBの配置を {count} 件移行しました。");return 0;
+            }
             if(args[0]=="restore-deleted-database"){
                 using var cancellation=new CancellationTokenSource();ConsoleCancelEventHandler commandCancel=(_,eventArgs)=>{eventArgs.Cancel=true;cancellation.Cancel();};Console.CancelKeyPress+=commandCancel;
                 try{
@@ -110,7 +115,7 @@ public static partial class Program{
             if(args[0]!="serve"){throw new ArgumentException("未対応のコマンドです。");}
             var configPath=Optional("--config");if(configPath is null&&Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_ROOT") is null&&args.Contains("--workspace-config")){configPath=ManagementLaunchConfiguration.WorkspacePath();}
             ManagementLaunchConfiguration? config=null;if(configPath is not null){config=ManagementLaunchConfiguration.Read(configPath);}
-            var root=Optional("--root")??config?.Root??Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_ROOT")??throw new ArgumentException("管理領域が未設定です。--root、SEAMLESS_MANAGEMENT_ROOT、または--configを指定してください。");
+            var root=Optional("--root")??config?.Root??Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_ROOT")??AppContext.BaseDirectory;
             var certificatePath=Optional("--certificate")??config?.Certificate??Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_CERTIFICATE")??throw new ArgumentException("サーバー証明書が未設定です。--certificate、SEAMLESS_MANAGEMENT_CERTIFICATE、または--configを指定してください。");
             using var store=new ManagementStore(root);
             var bootstrap=new ManagementServerSettings{Address=config?.Address??"127.0.0.1",Port=config?.Port??14336,
@@ -193,12 +198,34 @@ public static partial class Program{
         if(!File.Exists(Path.Combine(source,"management.format"))){throw new InvalidDataException("管理領域ではありません。");}
         if(destination.StartsWith(source+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||source.StartsWith(destination+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||string.Equals(source,destination,StringComparison.OrdinalIgnoreCase)){throw new ArgumentException("コピー元と先は独立した領域にしてください。");}
         if(Directory.Exists(destination)&&Directory.EnumerateFileSystemEntries(destination).Any()){throw new IOException("コピー先は空の専用領域にしてください。");}
-        Directory.CreateDirectory(destination);var directories=new Queue<string>();directories.Enqueue(source);
-        while(directories.TryDequeue(out var current)){cancellation.ThrowIfCancellationRequested();foreach(var entry in Directory.EnumerateFileSystemEntries(current)){
+        SourceWorkspace.CheckLinks(source);SourceWorkspace.CheckLinks(destination);
+        Directory.CreateDirectory(destination);var directories=new Queue<(string Path,string Relative)>();directories.Enqueue((source,""));var tableGenerations=new List<(string From,string To)>();
+        while(directories.TryDequeue(out var directory)){cancellation.ThrowIfCancellationRequested();foreach(var entry in Directory.EnumerateFileSystemEntries(directory.Path)){
             cancellation.ThrowIfCancellationRequested();
-            var attributes=File.GetAttributes(entry);if((attributes&FileAttributes.ReparsePoint)!=0){throw new IOException("リンクを含む管理領域は明示的に解決してください。");}
-            var relative=Path.GetRelativePath(source,entry);var target=Path.Combine(destination,relative);
-            if((attributes&FileAttributes.Directory)!=0){Directory.CreateDirectory(target);directories.Enqueue(entry);}else if(relative!="management.lock"){File.Copy(entry,target,overwrite:false);}
-        }}cancellation.ThrowIfCancellationRequested();
+            var name=Path.GetFileName(entry);
+            var shortcut=OperatingSystem.IsWindows()&&name.EndsWith(".lnk",StringComparison.OrdinalIgnoreCase)&&
+                (directory.Relative=="generations"||directory.Relative==""&&name.Equals("backups.lnk",StringComparison.OrdinalIgnoreCase));
+            if(shortcut){name=Path.GetFileNameWithoutExtension(name);}
+            var relative=Path.Combine(directory.Relative,name);
+            var parts=relative.Split(Path.DirectorySeparatorChar);
+            var topPlacement=directory.Relative=="generations"||relative=="backups";
+            var dataPlacement=parts is ["generations",_,"data"] or ["generations",_,_,"data"] or
+                ["generations",_,"data","store-v2" or "wal-v2"] or ["generations",_,_,"data","store-v2" or "wal-v2"];
+            var actual=topPlacement||dataPlacement?ManagementPlacement.DirectoryPath(Path.Combine(directory.Path,name),topPlacement):entry;
+            var attributes=File.GetAttributes(actual);
+            if((attributes&FileAttributes.ReparsePoint)!=0){throw new IOException("バックアップ対象に未対応のリンクがあります。"+entry);}
+            var target=Path.Combine(destination,relative);
+            if((attributes&FileAttributes.Directory)!=0){
+                if(ManagementPlacement.Overlaps(actual,destination)){throw new IOException("コピー元と先は独立した領域にしてください。"+actual);}
+                Directory.CreateDirectory(target);directories.Enqueue((actual,relative));
+            }else if(relative!="management.lock"){
+                File.Copy(actual,target,overwrite:false);
+                if(relative.StartsWith("generations"+Path.DirectorySeparatorChar,StringComparison.Ordinal)&&name=="manifest.json"){
+                    tableGenerations.Add((directory.Path,Path.GetDirectoryName(target)!));
+                }
+            }
+        }}
+        foreach(var (from,to) in tableGenerations){TableStorage.Bundle(from,to,cancellation);}
+        cancellation.ThrowIfCancellationRequested();
     }
 }

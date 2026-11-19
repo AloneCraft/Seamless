@@ -56,7 +56,7 @@ internal static class EmptyDatabaseRebuild{
             var candidate=publication.Primary;
             var next=new DefinitionVersion(active.Definition,nextVersion,operation.Owner,DateTimeOffset.UtcNow,candidate.ArtifactHash,candidate.StoragePath){Database=active.Database};
             var complete=operation with{State=OperationState.Succeeded,PublishedVersion=nextVersion};
-            store.Write(()=>{
+            store.WritePublication(candidate,()=>{
                 if(candidate.AuditOrigin is{} origin){store.Put("auditOrigin",origin.WalId.ToString("N"),origin);}
                 store.Put("version",id+":"+nextVersion,next);store.Put("active",id,next);
                 foreach(var draft in drafts){store.Put("draft",ManagementStore.Normalize(draft.Owner)+":"+id,draft);}

@@ -1,0 +1,22 @@
+@inject Microsoft.JSInterop.IJSRuntime スクリプト
+
+<div class="backup-location">
+    <label>@表示文言.取得("バックアップの保存先")
+        <input readonly value="@パス" aria-label="@表示文言.取得("バックアップの保存先")"/>
+    </label>
+    <button type="button" class="控えめボタン" @onclick="コピーAsync">@表示文言.取得("保存先をコピー")</button>
+    @if(案内 is not null){<p role="status">@表示文言.取得(案内)</p>}
+</div>
+
+@code{
+    [Parameter,EditorRequired]public string パス{get;set;}="";
+    private string? 案内;
+    private async Task コピーAsync(){
+        try{
+            await this.スクリプト.InvokeVoidAsync("navigator.clipboard.writeText",this.パス);
+            this.案内="クリップボードへ写しました。";
+        }catch(Microsoft.JSInterop.JSException){
+            this.案内="クリップボードへ写せませんでした。文を選んで写してください。";
+        }
+    }
+}

@@ -53,17 +53,30 @@ public sealed class ManagedDatabaseCodePolicyAnalyzer:DiagnosticAnalyzer{
         if(node is UnsafeStatementSyntax or PointerTypeSyntax or FunctionPointerTypeSyntax or StackAllocArrayCreationExpressionSyntax or ImplicitStackAllocArrayCreationExpressionSyntax or TypeOfExpressionSyntax){reason="unsafe/ポインター/stackalloc/typeofは対応範囲外です。";}
         if(node is MethodDeclarationSyntax method&&(method.Modifiers.Any(SyntaxKind.ExternKeyword)||method.Modifiers.Any(SyntaxKind.AsyncKeyword)||method.Modifiers.Any(SyntaxKind.UnsafeKeyword))){reason="extern・async・unsafeは対応範囲外です。";}
         if(node is IdentifierNameSyntax identifier&&identifier.Identifier.ValueText=="dynamic"){reason="dynamicは対応範囲外です。";}
-        if(node is InvocationExpressionSyntax or ObjectCreationExpressionSyntax or MemberAccessExpressionSyntax or AttributeSyntax){
+        if(node is InvocationExpressionSyntax or ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax or MemberAccessExpressionSyntax or AttributeSyntax){
             var symbol=model.GetSymbolInfo(node).Symbol;var type=symbol?.ContainingType;var ns=type?.ContainingNamespace.ToDisplayString()??"";
             if(type is not null&&!AllowedSystemType(type)){reason="DB処理・計算の対応範囲外のAPIです: "+symbol?.ToDisplayString();}
             if(ns.StartsWith("Seamless.Management",StringComparison.Ordinal)&&type?.ToDisplayString()!="Seamless.Management.Server.ManagementExecutionContext"){reason="管理用APIは問い合わせコードから利用できません。";}
             if(ns.StartsWith("Seamless.Execution",StringComparison.Ordinal)||type?.ToDisplayString()=="Seamless.Database.DatabaseContainerOptions"&&node is not IdentifierNameSyntax){reason="保存先・実行環境は管理サーバーが設定します。";}
-            if(ns.StartsWith("Seamless.Transactions",StringComparison.Ordinal)||ns.StartsWith("Seamless.Collections.Tsavorite",StringComparison.Ordinal)||symbol?.ContainingType?.ToDisplayString()=="Seamless.Database.DatabaseContainer"&&symbol.Name is "Dispose" or "BeginTransaction" or "BeginReadSession" or "BeginRelationImport" or "BeginUnpublishedSnapshot" or "Options"||symbol?.Name.Contains("Gateway")==true&&ns.StartsWith("Seamless.Database",StringComparison.Ordinal)){reason="取引・永続化・DBの寿命は管理サーバーが制御します。";}
-            if(node is ObjectCreationExpressionSyntax&&type is not null){for(var parent=type;parent is not null;parent=parent.BaseType){if(parent.ToDisplayString()=="Seamless.Database.DatabaseContainer"){reason="DBはManagementExecutionContextから取得してください。";break;}}}
+            if(ns.StartsWith("Seamless.Transactions",StringComparison.Ordinal)||ns.StartsWith("Seamless.Collections.Tsavorite",StringComparison.Ordinal)||ControlsDatabaseTransaction(symbol)||symbol?.Name.Contains("Gateway")==true&&ns.StartsWith("Seamless.Database",StringComparison.Ordinal)){reason="取引・永続化・DBの寿命は管理サーバーが制御します。";}
+            if(node is BaseObjectCreationExpressionSyntax&&type is not null&&(IsDatabaseType(type)||type.ToDisplayString()=="Seamless.Management.Server.ManagementExecutionContext")){
+                reason="DBと取引の実行の文脈は管理サーバーから受け取ってください。";
+            }
             if(ns.StartsWith("System.IO",StringComparison.Ordinal)||ns.StartsWith("System.Net",StringComparison.Ordinal)||ns.StartsWith("System.Reflection",StringComparison.Ordinal)||ns.StartsWith("System.Runtime.InteropServices",StringComparison.Ordinal)||ns.StartsWith("System.Runtime.Loader",StringComparison.Ordinal)||ns.StartsWith("System.Threading",StringComparison.Ordinal)&&type?.ToDisplayString()!="System.Threading.CancellationToken"||ns.StartsWith("Microsoft",StringComparison.Ordinal)
                 ||ns.StartsWith("System.Linq.Expressions",StringComparison.Ordinal)||type?.ToDisplayString() is "System.AppDomain" or "System.Environment" or "System.GC" or "System.Console" or "System.Diagnostics.Process" or "System.Type" or "System.Activator" or "System.Delegate"||symbol?.Name=="GetType"){reason="DB処理・計算から利用できないAPIです: "+symbol?.ToDisplayString();}
         }
         return reason;
+    }
+    private static bool ControlsDatabaseTransaction(ISymbol? symbol){
+        if(symbol?.ContainingType is not{} type){return false;}
+        if(type.ToDisplayString()=="Seamless.Database.DatabaseQuery"&&symbol.Name=="Execute"){return true;}
+        if(type.ContainingType is{} owner&&IsDatabaseType(owner)&&type.IsImplicitlyDeclared==false&&
+            type.Name is "TypedTransaction" or "Reader"&&symbol.Name is "BeginTransaction" or "BeginTransactionAsync" or "Commit" or "CommitAsync" or "Rollback" or "RollbackAsync" or "Dispose" or "DisposeAsync" or "ImportTablesAsync"){
+            return true;
+        }
+        return IsDatabaseType(type)&&symbol.Name is "Dispose" or "Options" or "Queries" or
+            "BeginTransaction" or "BeginTransactionAsync" or "BeginReadOnlyTransactionAsync" or "BeginRead" or "BeginReadAsync" or "BeginReadSession" or
+            "BeginTransactionScopeAsync" or "BeginReadOnlyTransactionScopeAsync" or "BeginRelationImport" or "BeginUnpublishedSnapshot" or "ImportTablesAsync";
     }
     private static bool PassesOptions(SeparatedSyntaxList<ArgumentSyntax> arguments,SemanticModel model)=>arguments.Count==1&&arguments[0].Expression is IdentifierNameSyntax&&model.GetSymbolInfo(arguments[0].Expression).Symbol is IParameterSymbol parameter&&parameter.Type.Name=="DatabaseContainerOptions"&&parameter.Type.ContainingNamespace.ToDisplayString()=="Seamless.Database";
     private static bool IsDatabaseType(INamedTypeSymbol type){for(var parent=type.BaseType;parent is not null;parent=parent.BaseType){if(parent.ToDisplayString()=="Seamless.Database.DatabaseContainer"){return true;}}return type.ToDisplayString()=="Seamless.Database.DatabaseContainer";}

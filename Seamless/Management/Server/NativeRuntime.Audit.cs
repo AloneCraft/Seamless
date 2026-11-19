@@ -85,9 +85,15 @@ internal sealed partial class NativeRuntime{
         }finally{gate.Release();}
     }
     private string AuditOriginPath(AuditOrigin origin){
-        var parts=origin.StoragePath.Split(['\\','/'],StringSplitOptions.RemoveEmptyEntries);if(parts.Length!=2||parts[0]!="generations"||!Guid.TryParseExact(parts[1],"N",out _)){throw new InvalidDataException("Invalid audit generation path.");}
-        var root=this.Full(origin.StoragePath);var wal=System.IO.Path.Combine(root,"data","wal-v2");
-        var path=this.store.Root;foreach(var component in new[]{parts[0],parts[1],"data","wal-v2"}){path=System.IO.Path.Combine(path,component);if(!Directory.Exists(path)||(File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0){throw new InvalidDataException("Audit generation is missing or contains a link.");}}
+        var parts=origin.StoragePath.Split(['\\','/'],StringSplitOptions.RemoveEmptyEntries);
+        var legacy=parts is ["generations",var id]&&Guid.TryParseExact(id,"N",out _);
+        var named=parts is ["generations",var name,var version]&&ManagementPlacement.IsEntryName(name)&&
+            global::System.Text.RegularExpressions.Regex.IsMatch(version,@"\Av[0-9]{6,19}(-[0-9a-f]{32})?\z");
+        if(!legacy&&!named){throw new InvalidDataException("Invalid audit generation path.");}
+        var root=this.Full(origin.StoragePath);
+        ManagementPlacement.CheckData(root);
+        var data=ManagementPlacement.DirectoryPath(System.IO.Path.Combine(root,"data"));
+        var wal=ManagementPlacement.DirectoryPath(System.IO.Path.Combine(data,"wal-v2"));
         if(!Directory.EnumerateFiles(wal,"segment-*.wal").Any()){throw new InvalidDataException("Audit WAL is missing.");}
         var manifestPath=System.IO.Path.Combine(root,"manifest.json");if((File.GetAttributes(manifestPath)&FileAttributes.ReparsePoint)!=0){throw new InvalidDataException("Audit manifest contains a link.");}
         using var file=File.OpenRead(manifestPath);if(file.Length>64L<<20){throw new InvalidDataException("Audit manifest exceeds its bound.");}var manifest=JsonSerializer.Deserialize<ArtifactManifest>(file,ManagementJson.Options)??throw new InvalidDataException("Audit manifest is missing.");

@@ -38,7 +38,7 @@ public sealed partial class ManagementService{
             var (database,definition)=this.ResolveFunction(user,target,false);
             if(target.Origin==FunctionOrigin.RegisteredEntry){return this.runtime.RegisteredFunctionDetails(definition,database,target);}
             var details=this.ObjectDetails(user,new(target.DatabaseId,ObjectId:target.ObjectId));
-            if(details.Object.Kind is not("ScalarFunction" or "TableFunction")){throw new ManagementException("NotFound","関数がありません。");}
+            if(details.Object.Kind is not("ScalarFunction" or "TableFunction" or "Property")){throw new ManagementException("NotFound","関数がありません。");}
             string? element=null;if(details.Object.Kind=="TableFunction"){element=details.Object.RecordType;}
             return new(new(target,details.Object.Name,details.Object.Schema,database.Version,database.ArtifactHash,false),details.Parameters,details.ReturnType??details.Object.RecordType,details.Object.Kind=="TableFunction",details.Columns,details.Source){ElementType=element};
         }

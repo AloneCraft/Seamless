@@ -182,7 +182,10 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             if(!prefixes.TryGetValue(receiver.InterfaceName,out var prefix)){continue;}
             foreach(var member in receiver.Extension.GetMembers().Where(static member=>!member.IsStatic&&member.DeclaredAccessibility==Accessibility.Public)){
                 string kind;ITypeSymbol result;IParameterSymbol[] parameters=[];
-                if(member is IPropertySymbol{IsIndexer:false,GetMethod:not null} property&&TryGetRecordType(property.Type,"ISet",out var viewRecord)){kind="View";result=viewRecord;}
+                if(member is IPropertySymbol{IsIndexer:false,GetMethod:not null,SetMethod:null} property){
+                    if(TryGetRecordType(property.Type,"ISet",out var viewRecord)){kind="View";result=viewRecord;}
+                    else{kind="Property";result=property.Type;}
+                }
                 else if(member is IMethodSymbol{MethodKind:MethodKind.Ordinary,IsGenericMethod:false,ReturnsVoid:false} method){
                     parameters=[..method.Parameters];
                     if(TryGetRecordType(method.ReturnType,"ISet",out var functionRecord)){kind="TableFunction";result=functionRecord;}

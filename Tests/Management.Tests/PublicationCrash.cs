@@ -50,6 +50,7 @@ public static class CrashProbe{
             return ManagementTransport.RunTlsProbeAsync(count).GetAwaiter().GetResult();
         }
         if(args.Length==3&&args[0]=="--authorization-policy-probe"){return AuthorizationPolicyStorage.RunProbe(args[1],args[2]);}
+        if(args.Length==2&&args[0]=="--external-table-storage-crash"){return ExternalTableStorage.CrashAfterCommit(args[1]).GetAwaiter().GetResult();}
         if(args.Length>0&&args[0]=="--management-cli"){return Seamless.Management.Server.Program.Main(args[1..]).GetAwaiter().GetResult();}
         if(args.Length>0&&args[0]=="--gateway-cli"){Seamless.Database.Server.Program.Main(args[1..]).GetAwaiter().GetResult();return Environment.ExitCode;}
         if(args.Length==4&&args[0]=="--update-audit-upgrade-probe"){return UpdateAuditUpgrade.RunStopProbe(args[1],args[2],Guid.Parse(args[3]));}
@@ -59,6 +60,21 @@ public static class CrashProbe{
         if(args.Length==4&&args[0]=="--audit-upgrade-probe"){return AuditUpgradeProbe.Run(args[1..]);}
         if(args.Length==4&&args[0]=="--prepared-wal-upgrade-probe"){return AuditUpgradeProbe.Run(args[1..],preparedWal:true);}
         if(args.Length==4&&args[0]=="--managed-types-upgrade-probe"){return AuditUpgradeProbe.Run(args[1..],managedTypes:true);}
+        if(args is ["--placement-publication-probe",var placementRoot,var placementPhase,var placementMarker]){
+            using var placementStore=new ManagementStore(placementRoot);
+            using var placementService=new Seamless.Management.Server.ManagementService(placementStore);
+            var admin=placementService.Authenticate(placementService.Login(new("admin","TestPassword-123")).Token);
+            placementService.PublicationCheckpoint=(current,id)=>{
+                if(current!=placementPhase){return;}
+                File.WriteAllText(placementMarker+".tmp",id.ToString("D"));
+                File.Move(placementMarker+".tmp",placementMarker);
+                Thread.Sleep(Timeout.Infinite);
+            };
+            var draft=placementService.GetDraft(admin,"db");
+            var preview=placementService.Preview(admin,new("db",draft.Revision));
+            if(!preview.CanApply){throw new InvalidOperationException(string.Join("\n",preview.Diagnostics.Select(item=>item.Message)));}
+            return placementService.Apply(admin,new("db",draft.Revision,preview.Token,Guid.NewGuid())).State==OperationState.Succeeded?0:1;
+        }
         if(args.Length!=4||args[0]!="--publication-probe"){return 2;}var root=args[1];var phase=args[2];var marker=args[3];
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");using var service=new Seamless.Management.Server.ManagementService(store);var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
         service.PublicationCheckpoint=(current,id)=>{if(current!=phase){return;}using var process=Process.GetCurrentProcess();var temporary=marker+".tmp";File.WriteAllText(temporary,JsonSerializer.Serialize(new{Id=id,Pid=process.Id,Created=process.StartTime.ToUniversalTime(),Phase=current,OwnerHandleFlags=RecoveryLockDiagnostic.OwnerHandleFlags(store)}));File.Move(temporary,marker);Thread.Sleep(Timeout.Infinite);};

@@ -18,9 +18,9 @@ public sealed class NativeCatalog{
         text+="\nnamespace Model{public sealed class EmptySchema(DatabaseContainer db):DatabaseSchema(db,\"Empty\");public sealed class SalesSchema(DatabaseContainer db):DatabaseSchema(db,\"Sales\"){public Table<Keys.Row,Tables.Row> Orders=>throw new System.InvalidOperationException();}}";
         NativeWorkflow.Publish(service,user,definition with{Source=definition.Source with{Files=[new("schema.cs",text)]}});
         var databases=service.Databases(user);Assert.Equal(2,databases.Items.Length);var db=databases.Items.Single(item=>!item.IsSystem);var request=new CatalogRequest(db.Id,databases.VersionToken);
-        Assert.Equal(new[]{"","Empty","Imported.Schema","Sales"},service.Schemas(user,request).Items.Select(item=>item.Name));
+        Assert.Equal(new[]{"","Empty","Imported.Schema","Sales","System"},service.Schemas(user,request).Items.Select(item=>item.Name));
         var objects=service.Objects(user,request).Items;Assert.Contains(objects,item=>item.Name=="Orders"&&item.Schema=="Sales");Assert.Contains(objects,item=>item.Name=="OriginalRows"&&item.Schema=="Imported.Schema"&&item.Id=="Rows");
-        Assert.All(new[]{"Table","View","ScalarFunction","TableFunction","StoredProcedure","SystemTable"},kind=>Assert.Contains(objects,item=>item.Kind==kind));
+        Assert.All(new[]{"Table","View","ScalarFunction","TableFunction","StoredProcedure","SystemView"},kind=>Assert.Contains(objects,item=>item.Kind==kind));
         var details=service.ObjectDetails(user,request with{ObjectId="Sales.Orders"});Assert.Contains(details.Columns,item=>item.Name=="Value"&&item.Type=="System.Int32");Assert.Equal("Id",Assert.Single(details.KeyMembers).Name);
         var source=service.ObjectSource(user,request with{ObjectId="Sales.Orders"});Assert.True(source.Location.Available);Assert.Equal(db.ArtifactHash,source.Location.ArtifactHash);Assert.Equal("Orders",source.Definition!.Definition.Source.Files[0].Text.Substring(source.Location.Start,source.Location.Length));
         Assert.Equal("minimum",Assert.Single(service.ObjectDetails(user,request with{ObjectId="Total"}).Parameters).Name);
@@ -28,6 +28,33 @@ public sealed class NativeCatalog{
         service.ChangeUser(user,new("viewer","ViewerPassword-123",[new("Native",ManagementPermission.View)]));var viewer=service.Authenticate(service.Login(new("viewer","ViewerPassword-123")).Token);
         Assert.Single(service.Databases(viewer).Items);Assert.Throws<ManagementException>(()=>service.Objects(viewer,new("system")));Assert.Throws<ManagementException>(()=>service.Objects(viewer,new("db:unknown")));
         Assert.Equal("CatalogChanged",Assert.Throws<ManagementException>(()=>service.Objects(user,request)).Code);
+    }
+
+    [Fact]public async Task DatabaseSystemSchemaFiltersPrivilegedMetadata(){
+        using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");
+        using var service=new Seamless.Management.Server.ManagementService(store);
+        var admin=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
+        NativeWorkflow.Publish(service,admin,NativeWorkflow.Database());
+        service.ChangeUser(admin,new("viewer","ViewerPassword-123",[new("Native",ManagementPermission.View)]));
+        service.ChangeUser(admin,new("manager","ManagerPassword-123",[new("Native",ManagementPermission.View|ManagementPermission.Manage)]));
+        var viewer=service.Authenticate(service.Login(new("viewer","ViewerPassword-123")).Token);
+        var manager=service.Authenticate(service.Login(new("manager","ManagerPassword-123")).Token);
+        var db=service.Databases(admin).Items.Single(item=>!item.IsSystem);
+        var metadata=new CatalogRequest(db.Id,Schema:"System");
+        Assert.Equal(4,service.Objects(admin,metadata).Items.Length);
+        Assert.Equal(2,service.Objects(viewer,metadata).Items.Length);
+        Assert.Equal(3,service.Objects(manager,metadata).Items.Length);
+        Assert.Equal("SystemProperty",service.ObjectDetails(viewer,metadata with{ObjectId="System.DatabaseInfo"}).Object.Kind);
+        Assert.Equal("System.DatabaseObjects",service.ObjectDetails(viewer,metadata with{ObjectId="DatabaseObjects"}).Object.Id);
+        var info=Assert.Single((await service.ReadRowsAsync(viewer,new("Native","System.DatabaseInfo"))).Rows).Values;
+        Assert.Equal("Native",info.GetProperty("name").GetString());
+        Assert.Equal(1,info.GetProperty("publishedVersion").GetInt64());
+        Assert.NotEmpty((await service.ReadRowsAsync(viewer,new("Native","System.DatabaseObjects"))).Rows);
+        Assert.Equal("Permission",(await Assert.ThrowsAsync<ManagementException>(async()=>await service.ReadRowsAsync(viewer,new("Native","System.Permissions")))).Code);
+        Assert.Equal("Permission",(await Assert.ThrowsAsync<ManagementException>(async()=>await service.ReadRowsAsync(manager,new("Native","System.StorageLocation")))).Code);
+        var permissions=await service.ReadRowsAsync(manager,new("Native","System.Permissions"));
+        Assert.Contains(permissions.Rows,row=>row.Values.GetProperty("user").GetString()=="viewer");
+        Assert.DoesNotContain(permissions.Columns!,column=>column.Name.Contains("password",StringComparison.OrdinalIgnoreCase));
     }
     [Fact]public void PagesAndPublishedIdentity(){
         using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");using var service=new Seamless.Management.Server.ManagementService(store);var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);

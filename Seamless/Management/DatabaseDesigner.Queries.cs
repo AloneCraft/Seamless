@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Seamless.Management;
 
-public enum DatabaseQueryKind{View,ScalarFunction,TableFunction}
+public enum DatabaseQueryKind{View,ScalarFunction,TableFunction,Property}
 public sealed record ParameterDesign(string Name,string Type);
 /// <summary>ビュー・関数の設計。<see cref="Body"/> は本体の文で、受け手(入口)は <c>q</c> で読む(例: <c>return q.Database.Orders.Where(o=&gt;o.Active).Select(o=&gt;new Views.Active(o.Id));</c>)。本体は return 文1つ(式1つ)。</summary>
 public sealed record QueryDesign(string Name,string Schema,DatabaseQueryKind Kind,ColumnDesign[] Columns,ParameterDesign[] Parameters,string ReturnType,string Body,string? OriginalPath=null){
@@ -63,7 +63,7 @@ public static partial class DatabaseDesigner{
         var compilation=Compilation(definition);
         var query=FindQueryMember(compilation,definition,path)??throw new ManagementException("NotFound","問い合わせがありません: "+path);
         var body=QueryBody(query);
-        var kind=query.Kind switch{"View"=>DatabaseQueryKind.View,"TableFunction"=>DatabaseQueryKind.TableFunction,_=>DatabaseQueryKind.ScalarFunction};
+        var kind=query.Kind switch{"View"=>DatabaseQueryKind.View,"TableFunction"=>DatabaseQueryKind.TableFunction,"Property"=>DatabaseQueryKind.Property,_=>DatabaseQueryKind.ScalarFunction};
         var columns=Array.Empty<ColumnDesign>();
         if(kind!=DatabaseQueryKind.ScalarFunction){columns=ReadEditableColumns(query.Result as INamedTypeSymbol,null,false);}
         var parameters=(query.Member as IMethodSymbol)?.Parameters.Select(parameter=>new ParameterDesign(parameter.Name,TypeName(parameter.Type))).ToArray()??[];
@@ -101,13 +101,25 @@ public static partial class DatabaseDesigner{
         var sourcePath=removal.SyntaxTree.FilePath;
         var sourceFile=definition.Source.Files.Single(file=>file.Path==sourcePath);
         var updatedText=sourceFile.Text.Remove(removal.SpanStart,removal.Span.Length);
+        if(ManagedFilePath(definition)==sourcePath&&query.Result is INamedTypeSymbol managedRow&&
+            managedRow.DeclaringSyntaxReferences is [var managedReference]&&managedReference.GetSyntax() is RecordDeclarationSyntax managedRecord&&
+            managedRecord.SyntaxTree==removal.SyntaxTree&&
+            managedRecord.Parent is NamespaceDeclarationSyntax{Members.Count:1} block&&
+            !UsesResultType(compilation,managedRow,managedRecord.SyntaxTree,removal,searchDeclarationFile:true)){
+            var obsolete=(MemberDeclarationSyntax)block;
+            while(obsolete.Parent is NamespaceDeclarationSyntax{Members.Count:1} outer){obsolete=outer;}
+            updatedText=sourceFile.Text;
+            foreach(var node in new[]{removal,obsolete}.OrderByDescending(node=>node.SpanStart)){
+                updatedText=updatedText.Remove(node.SpanStart,node.Span.Length);
+            }
+        }
         var removeFile=IsGeneratedQueryFile(path,sourcePath)&&IsEmptyQueryFile(updatedText);
         definition=definition with{Source=definition.Source with{Files=definition.Source.Files
             .Where(file=>!removeFile||file.Path!=sourcePath)
             .Select(file=>file.Path==sourcePath?file with{Text=updatedText}:file).ToArray(),Revision=Guid.NewGuid().ToString("N")}};
         // 専用の結果型ファイルは、他のソースで参照されていない場合だけ片付ける。
-        if(query.Kind is "View" or "TableFunction"&&query.Result is INamedTypeSymbol row&&row.DeclaringSyntaxReferences is [var reference]&&reference.GetSyntax() is RecordDeclarationSyntax record){
-            var folder=query.Kind=="View"?"Views/":"Functions/";
+        if(query.Kind is "View" or "TableFunction" or "Property"&&query.Result is INamedTypeSymbol row&&row.DeclaringSyntaxReferences is [var reference]&&reference.GetSyntax() is RecordDeclarationSyntax record){
+            var folder=query.Kind switch{"View"=>"Views/","Property"=>"Properties/",_=>"Functions/"};
             var rowPath=folder+(query.Schema.Length==0?"":query.Schema.Replace('.','/')+"/")+row.Name+".cs";
             if(record.SyntaxTree.FilePath==rowPath&&IsDedicatedResultFile(record)&&
                 !UsesResultType(compilation,row,record.SyntaxTree,removal)){
@@ -137,8 +149,8 @@ public static partial class DatabaseDesigner{
         }
         if(design.Parameters.Select(parameter=>parameter.Name).Distinct(StringComparer.Ordinal).Count()!=design.Parameters.Length){throw new ManagementException("Validation","引数名が重複しています。");}
         foreach(var parameter in design.Parameters){Identifier(parameter.Name);if(parameter.Name==QueryReceiver||SyntaxFactory.ParseTypeName(parameter.Type).ContainsDiagnostics){throw new ManagementException("Validation","引数の名前または型を確認してください。");}}
-        if(design.Kind==DatabaseQueryKind.View&&design.Parameters.Length>0){throw new ManagementException("Validation","ビューには引数を指定できません。");}
-        if(design.Kind!=DatabaseQueryKind.ScalarFunction){
+        if((design.Kind is DatabaseQueryKind.View or DatabaseQueryKind.Property)&&design.Parameters.Length>0){throw new ManagementException("Validation","ビューには引数を指定できません。");}
+        if(design.Kind is DatabaseQueryKind.View or DatabaseQueryKind.TableFunction||design.Kind==DatabaseQueryKind.Property&&design.Columns.Length>0){
             if(design.Columns.Length==0||design.Columns.Select(column=>column.Name).Distinct(StringComparer.Ordinal).Count()!=design.Columns.Length){throw new ManagementException("Validation","重複しない結果列を指定してください。");}
             foreach(var column in design.Columns){Identifier(column.Name);if(SyntaxFactory.ParseTypeName(column.Type).ContainsDiagnostics){throw new ManagementException("Validation","結果列の名前または型を確認してください。");}}
         }else if(SyntaxFactory.ParseTypeName(design.ReturnType).ContainsDiagnostics||FunctionElementType(design.ReturnType) is not null){throw new ManagementException("Validation","戻り型を確認してください。");}
@@ -155,9 +167,9 @@ public static partial class DatabaseDesigner{
         }
         var ns=container.ContainingNamespace.ToDisplayString();
         // 結果の行型: ビューは <ルート>.Views、テーブル関数は <ルート>.Functions(スキーマはその下の名前空間)。
-        var rowNamespace=ns+(design.Kind==DatabaseQueryKind.TableFunction?".Functions":".Views");
+        var rowNamespace=ns+(design.Kind switch{DatabaseQueryKind.TableFunction=>".Functions",DatabaseQueryKind.Property=>".Properties",_=>".Views"});
         if(design.Schema.Length>0){rowNamespace+="."+design.Schema;}
-        var folder=design.Kind==DatabaseQueryKind.TableFunction?"Functions/":"Views/";if(design.Schema.Length>0){folder+=design.Schema+"/";}
+        var folder=design.Kind switch{DatabaseQueryKind.TableFunction=>"Functions/",DatabaseQueryKind.Property=>"Properties/",_=>"Views/"};if(design.Schema.Length>0){folder+=design.Schema+"/";}
         var queryFile=QueryFileStem(design.Path)+".cs";
         if(starterBody is not null){
             if(definition.Source.Files.FirstOrDefault(file=>file.Path.Equals(queryFile,StringComparison.OrdinalIgnoreCase)) is{} existing){
@@ -173,7 +185,7 @@ public static partial class DatabaseDesigner{
         var queryBody=design.Body;
         // 本体と戻り型から結果の行型を名前だけで書けるよう、行型の名前空間を読み込む(型の名前の探索はプロパティ名と衝突しない)。
         string[] usings=["global::System.Linq","global::Seamless.Linq"];
-        if(design.Kind!=DatabaseQueryKind.ScalarFunction){
+        if(design.Kind is DatabaseQueryKind.View or DatabaseQueryKind.TableFunction||design.Kind==DatabaseQueryKind.Property&&design.Columns.Length>0){
             usings=[..usings,"global::"+rowNamespace];
             var rowName=design.Name;
             if(starterBody is not null){
@@ -186,7 +198,8 @@ public static partial class DatabaseDesigner{
             }
             var row="public readonly record struct @"+rowName+"("+string.Join(",",design.Columns.Select(column=>column.Type+" @"+column.Name))+");";
             definition=WriteNewFile(definition,folder+rowName+".cs",["System.Linq"],rowNamespace,row);
-            resultType=SetTypePrefix+"global::"+rowNamespace+".@"+rowName+">";
+            var qualified="global::"+rowNamespace+".@"+rowName;
+            resultType=design.Kind==DatabaseQueryKind.Property?qualified:SetTypePrefix+qualified+">";
         }
         // 本体: 生成される入口(IReader・I<スキーマ>Reader)への拡張メンバー。<コンテナ名>Queries という静的クラスへ、ビュー・関数ごとのファイルで足す。
         var receiver="global::"+container.ToDisplayString()+"."+ReaderInterfaceName(design.Schema);
@@ -194,7 +207,7 @@ public static partial class DatabaseDesigner{
         const string bodyMarker="__SeamlessQueryBody__();";
         var body=formatBody?queryBody:bodyMarker;
         string member;
-        if(design.Kind==DatabaseQueryKind.View){member="public "+resultType+" @"+design.Name+"{get{"+newLine+body+newLine+"}}";}
+        if(design.Kind is DatabaseQueryKind.View or DatabaseQueryKind.Property){member="public "+resultType+" @"+design.Name+"{get{"+newLine+body+newLine+"}}";}
         else{member="public "+resultType+" @"+design.Name+"("+string.Join(",",design.Parameters.Select(parameter=>parameter.Type+" @"+parameter.Name))+"){"+newLine+body+newLine+"}";}
         // スキーマごとに静的クラスを分ける(同じクラスに同名の関数が並ぶと、生成コードの名前を区別できない)。
         var queriesClass=container.Name+(design.Schema.Length==0?"":"_"+design.Schema.Replace('.','_'))+"Queries";
@@ -227,9 +240,9 @@ public static partial class DatabaseDesigner{
         }
         return WithoutSourceFile(definition,path);
     }
-    private static bool UsesResultType(CSharpCompilation compilation,INamedTypeSymbol row,SyntaxTree declaration,MemberDeclarationSyntax? removal){
+    private static bool UsesResultType(CSharpCompilation compilation,INamedTypeSymbol row,SyntaxTree declaration,MemberDeclarationSyntax? removal,bool searchDeclarationFile=false){
         foreach(var tree in compilation.SyntaxTrees){
-            if(tree==declaration){continue;}
+            if(tree==declaration&&!searchDeclarationFile){continue;}
             var model=compilation.GetSemanticModel(tree);
             foreach(var name in tree.GetRoot().DescendantNodes().OfType<SimpleNameSyntax>()){
                 if(name.Identifier.ValueText!=row.Name||tree==removal?.SyntaxTree&&removal.Span.Contains(name.Span)){continue;}
@@ -285,12 +298,15 @@ public static partial class DatabaseDesigner{
         if(definition.Source.Files.Any(file=>file.Path==path)){throw new ManagementException("Conflict","ソースファイルが既にあります: "+path);}
         var newLine=SourceNewLine.Default;
         var builder=new System.Text.StringBuilder();
-        foreach(var item in usings){builder.Append("using ").Append(item).Append(';').Append(newLine);}
+        var managed=ManagedFilePath(definition);
+        if(managed is null){foreach(var item in usings){builder.Append("using ").Append(item).Append(';').Append(newLine);}}
         var parts=ns.Split('.',StringSplitOptions.RemoveEmptyEntries);
         foreach(var part in parts){builder.Append("namespace @").Append(part).Append('{').Append(newLine);}
+        if(managed is not null){foreach(var item in usings){builder.Append("using ").Append(item).Append(';').Append(newLine);}}
         builder.Append(text).Append(newLine);foreach(var _ in parts){builder.Append('}').Append(newLine);}
         var source=FormatCompactSource(builder.ToString());
         if(body is{} replacement){source=source.Replace(replacement.Marker,replacement.Body,StringComparison.Ordinal);}
+        if(managed is not null){return AppendManagedSource(definition,managed,source);}
         return definition with{Source=definition.Source with{Files=[..definition.Source.Files,new(path,source)]}};
     }
 }

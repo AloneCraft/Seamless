@@ -15,7 +15,7 @@ public sealed class DraftSdkBuilds{
         using var service=new Seamless.Management.Server.ManagementService(store){UseSdkBuilds=true};
         Assert.True(service.UseSdkBuilds);
         var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
-        var definition=Seamless.Management.DatabaseDesigner.Empty("sdkdraft","SdkDraft");
+        var definition=Seamless.Management.DatabaseDesigner.EmptyManagedDatabase("sdkdraft","SdkDraft");
         definition=Seamless.Management.DatabaseDesigner.Apply(definition,new("Rows","",[new("Id","int",true),new("Value","int",false)],[]));
         // 旧版はソースだけで決めた場所にある DLL を、ホストが更新されても再利用する。
         var sourceHash=definition.Source.Hash();
@@ -23,10 +23,27 @@ public sealed class DraftSdkBuilds{
         Directory.CreateDirectory(previousBin);
         var previousModule=Path.Combine(previousBin,"Seamless.Managed_"+sourceHash[..24]+".dll");
         File.WriteAllBytes(previousModule,[1,2,3]);
-        NativeWorkflow.Publish(service,user,definition);
+        var saved=service.SaveDraft(user,new(definition,0,0){DatabaseChange=new(null)});
+        Assert.DoesNotContain(Directory.EnumerateDirectories(Path.Combine(root,"sdk-drafts")),path=>Path.GetFileName(path).StartsWith("build-",StringComparison.Ordinal));
+        var confirmation=service.Preview(user,new(definition.Id,saved.Revision));
+        Assert.True(confirmation.CanApply,string.Join("\n",confirmation.Diagnostics.Select(item=>item.Message)));
+        Assert.NotNull(confirmation.BundleHash);
+        Assert.Contains(confirmation.GeneratedSources,file=>file.Kind=="Database"&&file.Text.Contains("Rows",StringComparison.Ordinal));
+        Assert.DoesNotContain(Directory.EnumerateDirectories(Path.Combine(root,"sdk-drafts")),path=>Path.GetFileName(path).StartsWith("build-",StringComparison.Ordinal));
+        var applied=service.Apply(user,new(definition.Id,saved.Revision,confirmation.Token,Guid.NewGuid()){BundleHash=confirmation.BundleHash});
+        Assert.True(applied.State==OperationState.Succeeded,applied.Error);
         Assert.Equal(new byte[]{1,2,3},File.ReadAllBytes(previousModule));
         // 公開した成果物は SDK のビルドを検査・保管したもの(保管の場所に同じハッシュの包みがある)。
         var published=service.GetDefinition(user,definition.Id);
+        Assert.Equal(Path.Combine("generations","SdkDraft","v000001"),published.StoragePath);
+        var generation=Path.Combine(root,published.StoragePath);
+        Assert.Equal(new[]{".seamless-generation","SdkDraft.cs","SdkDraft.dll","manifest.json"},
+            Directory.GetFiles(generation).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(definition.Source.Files[0].Text,File.ReadAllText(Path.Combine(generation,"SdkDraft.cs")));
+        using(var assembly=File.OpenRead(Path.Combine(generation,"SdkDraft.dll")))
+        using(var pe=new System.Reflection.PortableExecutable.PEReader(assembly)){
+            Assert.Contains(pe.ReadDebugDirectory(),entry=>entry.Type==System.Reflection.PortableExecutable.DebugDirectoryEntryType.EmbeddedPortablePdb);
+        }
         Assert.Equal(64,published.ArtifactHash.Length);
         Assert.True(Directory.Exists(Path.Combine(root,"source-builds",published.ArtifactHash)),"SDK のビルドの成果物が保管されていません。");
         Assert.True(Directory.Exists(Path.Combine(root,"sdk-drafts")));
@@ -45,11 +62,54 @@ public sealed class DraftSdkBuilds{
         Assert.Contains(preview.Diagnostics,item=>item.Code=="CS0029"&&item.Path=="Broken.cs"&&item.Severity=="Error");
 
         // 使用制限は SDK のビルドの中で DB 生成器の解析器が誤りにする(プロジェクトの印 SeamlessManagedDatabase)。
-        var forbidden=definition with{Source=definition.Source with{Revision="forbidden",Files=[..definition.Source.Files,new("Forbidden.cs","namespace UserCode;public static class Forbidden{public static string Read()=>System.IO.File.ReadAllText(\"x\");}")]}};
+        var forbidden=definition with{Source=definition.Source with{Revision="forbidden",Files=[..definition.Source.Files,new("Forbidden.cs","namespace UserCode;public static class Forbidden{public static string Read()=>System.IO.File.ReadAllText(\"x\");}"),new("Child.cs","public static class Child{public static void Run(global::SdkDraft.Database db){using var tx=db.BeginTransaction();}}") ]}};
         draft=service.SaveDraft(user,new(forbidden,draft.Revision,published.Version));
         preview=service.Preview(user,new(forbidden.Id,draft.Revision));
         Assert.False(preview.CanApply);
         Assert.Contains(preview.Diagnostics,item=>item.Code==Seamless.Database.Generator.ManagedDatabaseCodePolicyAnalyzer.DiagnosticId&&item.Path=="Forbidden.cs");
+        Assert.Contains(preview.Diagnostics,item=>item.Code==Seamless.Database.Generator.ManagedDatabaseCodePolicyAnalyzer.DiagnosticId&&item.Path=="Child.cs");
+    }
+
+    [Fact]
+    public async Task ManagedSourceSaveStaysDraftAndCannotReferenceAnotherDatabase(){
+        var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"managed-source-"+Guid.NewGuid().ToString("N"));
+        var user=LocalOwnerIdentity.Capture().Account();
+        var firstId="db-"+Guid.NewGuid().ToString("N");
+        var secondId="db-"+Guid.NewGuid().ToString("N");
+        using(var store=ManagementStore.Initialize(root,"admin","TestPassword-123"))
+        using(var service=new Seamless.Management.Server.ManagementService(store){UseSdkBuilds=true}){
+            Publish(firstId,"db1");Publish(secondId,"db2");
+            var first=service.GetDefinition(user,firstId);
+            var path=service.ManagedSourcePath(user,firstId);
+            Assert.Equal("db1.cs",Path.GetFileName(path));
+            Assert.Single(Directory.GetFiles(Path.GetDirectoryName(path)!,"*.cs"));
+            Assert.Equal("db2.cs",Path.GetFileName(service.ManagedSourcePath(user,secondId)));
+            var previous=service.GetDraft(user,firstId);
+            File.AppendAllText(path,"\nnamespace db1{internal static class Other{internal static global::db2.Database? Value=>null;}}\n");
+            Assert.Equal(first.Definition.Hash(),service.GetDefinition(user,firstId).Definition.Hash());
+            var saved=service.GetDraft(user,firstId);
+            Assert.Equal(previous.Revision+1,saved.Revision);
+            Assert.Equal(first.Version,saved.BaseVersion);
+            Assert.Contains("global::db2.Database",Assert.Single(saved.Definition.Source.Files).Text);
+            var rejected=service.Preview(user,new(firstId,saved.Revision));
+            Assert.False(rejected.CanApply);
+            Assert.Contains(rejected.Diagnostics,item=>item.Code=="CS0400"&&item.Path=="db1.cs");
+            Assert.Equal(1,service.GetDefinition(user,firstId).Version);
+
+            void Publish(string id,string name){
+                var definition=Seamless.Management.DatabaseDesigner.Apply(Seamless.Management.DatabaseDesigner.EmptyManagedDatabase(id,name),new("Rows","",[new("Id","int",true)],[]));
+                var draft=service.SaveDraft(user,new(definition,0,0){DatabaseChange=new(null)});
+                var preview=service.Preview(user,new(id,draft.Revision));
+                Assert.True(preview.CanApply,string.Join("\n",preview.Diagnostics.Select(item=>item.Message)));
+                var result=service.Apply(user,new(id,draft.Revision,preview.Token,Guid.NewGuid()){BundleHash=preview.BundleHash});
+                Assert.True(result.State==OperationState.Succeeded,result.Error);
+            }
+        }
+        using var reopenedStore=new ManagementStore(root);
+        using var reopened=new Seamless.Management.Server.ManagementService(reopenedStore);
+        Assert.Empty((await reopened.ReadRowsAsync(user,new("db1","Rows"))).Rows);
+        Assert.Empty((await reopened.ReadRowsAsync(user,new("db2","Rows"))).Rows);
+        Assert.Contains("global::db2.Database",reopened.GetDraft(user,firstId).Definition.Source.Files[0].Text);
     }
 
     // 段階7(3)：登録クエリも、公開済みの DB の成果物を参照して SDK でビルドする。入口 QueryEntry は DB 生成器がプロジェクトの設定から作り、

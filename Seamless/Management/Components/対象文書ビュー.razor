@@ -1,4 +1,4 @@
-﻿<section class="文書領域 対象文書" aria-label="@状態.名前" data-文書対象="@状態.名前">
+<section class="文書領域 対象文書" aria-label="@状態.名前" data-文書対象="@状態.名前">
     <div class="文書見出し"><div><div class="種類ラベル">@表示文言.取得(状態.アイコン)</div><h1>@状態.名前</h1>@if(状態.対象 is{Schema.Length:>0} 対象){<p class="文書説明">@対象.Schema</p>}</div><div class="文書操作"><span class="版ラベル">@表示文言.取得("公開版 v{0}",公開版)</span><span class="下書き状態">@表示文言.取得(保存状態)</span></div></div>
     <nav class="表示切替" aria-label="@表示文言.取得("文書の表示")">
         @foreach(var 項目 in 表示項目){<button role="tab" aria-selected="@((状態.表示==項目).ToString().ToLowerInvariant())" data-選択中="@((状態.表示==項目).ToString().ToLowerInvariant())" @onclick="()=>表示変更時Async(項目)"><操作アイコン 種類="@表示アイコン(項目)"/>@表示文言.取得(項目)</button>}
@@ -7,8 +7,8 @@
         <div hidden="@(状態.表示!="データ")">
         @if(!公開済みか){
             <section class="未適用テーブル"><h3>@状態.名前 <span class="未適用印">@表示文言.取得("未適用")</span></h3><p>@表示文言.取得("この定義は下書きにあります。変更を確認して稼働DBへ適用してください。")</p><button class="控えめボタン" @onclick="定義編集時Async"><操作アイコン 種類="編集"/>@表示文言.取得("定義を編集")</button><button class="主要ボタン" @onclick="DBを開く時"><操作アイコン 種類="DB"/>@表示文言.取得("DBを開く")</button></section>
-        }else if(状態.対象?.Kind is "Table" or "Set"){
-            <結果グリッド DB名="@DB名" テーブル名="@状態.対象.Id" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 編集可能か="データ編集可能か" 未保存変更時="データ未保存時"/>
+        }else if(状態.対象?.Kind is "Table" or "Set" or "SystemView" or "SystemProperty"){
+            <結果グリッド DB名="@DB名" テーブル名="@状態.対象.Id" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 編集可能か="@(データ編集可能か&&状態.対象.Kind is not ("SystemView" or "SystemProperty"))" 未保存変更時="データ未保存時"/>
         }else{
             <関数データ DB名="@DB名" 対象="状態.対象!" 関数="関数対象" ビュー="ビュー定義" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 実行可能か="実行可能か" 資源計測可能か="資源計測可能か" ノード実測可能か="編集可能か" ノード実測時="ノード実測時" 実測完了時="実測時" トレース実行時="トレース時" 資源記録時="資源記録時"/>
         }
@@ -57,11 +57,11 @@
     private bool 計画を表示できるか=>!this.未保管か&&!this.状態.編集中か;
     // 取引を通さない表(Set<T>)は、設計器が宣言を読まないので構造・C# の編集は出さない(データだけ)。
     private bool テーブルか=>this.状態.対象?.Kind=="Table";
-    private bool 左の構造か=>this.状態.対象?.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction";
-    private string[] 表示項目{get{if(this.テーブルか){return ["データ","C#","アクセス履歴"];}if(this.状態.対象?.Kind=="Set"){return ["データ"];}if(this.左の構造か){return ["データ","C#","実行計画","実行履歴"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
+    private bool 左の構造か=>this.状態.対象?.Kind is "Table" or "View" or "ScalarFunction" or "TableFunction" or "Property";
+    private string[] 表示項目{get{if(this.テーブルか){return ["データ","C#","アクセス履歴"];}if(this.状態.対象?.Kind is "Set" or "SystemView" or "SystemProperty"){return ["データ"];}if(this.左の構造か){return ["データ","C#","実行計画","実行履歴"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
     private string 編集表示{get{if(this.状態.表示=="C#"){return "Source";}return "Structure";}}
     private string 実行対象ID{get{if(this.状態.関数?.Target.Origin==FunctionOrigin.RegisteredEntry){return this.状態.関数.Target.ObjectId;}return this.状態.対象!.Id;}}
-    private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction"){return new(FunctionOrigin.DatabaseMember,this.状態.DBID,this.状態.定義ID,this.状態.対象.Id);}return null;}}
+    private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction" or "Property"){return new(FunctionOrigin.DatabaseMember,this.状態.DBID,this.状態.定義ID,this.状態.対象.Id);}return null;}}
     private QueryDesign? ビュー定義=>this.読取ビュー;
     private QueryPlanRequest 計画要求=>this.状態.履歴計画??new(this.状態.定義ID,this.実行対象ID,this.公開版,this.下書き版,this.成果物ハッシュ);
     protected override void OnParametersSet(){

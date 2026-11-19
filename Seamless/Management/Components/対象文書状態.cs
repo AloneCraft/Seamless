@@ -24,7 +24,7 @@ public sealed class 対象文書状態{
     public bool スキーマか=>this.対象 is null&&this.スキーマ is not null;
     public bool 登録関数か=>this.関数?.Target.Origin==FunctionOrigin.RegisteredEntry;
     public string 名前{get{if(this.登録関数か){return this.関数!.Name;}return this.対象?.Id??this.スキーマ??"";}}
-    public string アイコン{get{if(this.DBか){return "DB";}if(this.スキーマか){return "スキーマ";}if(this.対象?.Kind is "Table" or "Set"){return "テーブル";}if(this.対象?.Kind=="View"){return "ビュー";}return "関数";}}
+    public string アイコン{get{if(this.DBか){return "DB";}if(this.スキーマか){return "スキーマ";}if(this.対象?.Kind is "Table" or "Set"){return "テーブル";}if(this.対象?.Kind is "View" or "SystemView"){return "ビュー";}if(this.対象?.Kind is "Property" or "SystemProperty"){return "プロパティ";}return "関数";}}
     public 対象文書状態(string DBID,string 定義ID,CatalogObject? 対象=null,string? スキーマ=null,string? ID=null){
         this.ID=ID??Guid.NewGuid().ToString("N");this.DBID=DBID;this.定義ID=定義ID;this.対象=対象;this.スキーマ=スキーマ;
     }

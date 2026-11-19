@@ -1,5 +1,8 @@
 namespace Seamless.Management.Server;
 
+internal sealed record ConfirmedQueryBuild(string Id,long Version,SourceProjectBuild Build,QueryAuditMetadata? Audit);
+internal sealed record ConfirmedDatabaseBuild(SourceProjectBuild Build,ConfirmedQueryBuild[] Queries);
+
 public sealed partial class ManagementStore{
     internal object SourceBuildFileGate{get;}=new();
     private SourceBuildArtifactStore? sourceBuilds;
@@ -23,6 +26,24 @@ public sealed partial class ManagementService{
             build=imported.Build;
         }
         return NativeRuntime.FromImported(this.SourceBuilds.Read(build));
+    }
+
+    private void BindConfirmedDatabaseBuild(UserAccount user,Draft draft,ConfirmedDatabaseBuild build){
+        lock(this.store.Gate){
+            var latest=this.GetDraft(user,draft.Definition.Id,draft.Revision);
+            if(latest.Definition.Hash()!=draft.Definition.Hash()||latest.DatabaseChange!=draft.DatabaseChange||
+                (this.store.Read<DefinitionVersion>("active",draft.Definition.Id)?.Version??0)!=draft.BaseVersion){
+                throw new ManagementException("Conflict","ビルド中に下書きまたは公開版が変更されました。");
+            }
+            this.store.Write(()=>this.store.Put("confirmedDatabaseBuild",DraftSubject(user.Name,draft.Definition.Id),build));
+        }
+    }
+
+    private ConfirmedDatabaseBuild? FindConfirmedDatabaseBuild(UserAccount user,Draft draft,Definition candidate){
+        var confirmed=this.store.Read<ConfirmedDatabaseBuild>("confirmedDatabaseBuild",DraftSubject(user.Name,draft.Definition.Id));
+        if(confirmed?.Build is not{} build||build.DraftRevision!=draft.Revision||build.BaseVersion!=draft.BaseVersion||
+            build.DefinitionHash!=candidate.Hash()||build.SourceHash!=candidate.Source.Hash()){return null;}
+        return confirmed;
     }
 
     internal ImportedSourceBuild BindImportedSourceBuild(UserAccount user,SourceProjectBuild build){

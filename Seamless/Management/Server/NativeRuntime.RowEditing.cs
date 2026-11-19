@@ -128,7 +128,8 @@ internal sealed partial class NativeRuntime{
         return ReadRows(set,static record=>record,keyed,typeof(TRecord),request,version,cancellation) with{ValueComparisonOnly=true};
     }
 
-    private static TableRows ReadRows<TRecord>(IEnumerable<TRecord> source,Func<TRecord,object?> recordKey,TRecord[]? keyed,Type keyType,TableRowsRequest request,long version,CancellationToken cancellation){
+    internal static TableRows ReadRows<TRecord>(IEnumerable<TRecord> source,Func<TRecord,object?> recordKey,TRecord[]? keyed,Type keyType,TableRowsRequest request,long version,CancellationToken cancellation,Func<TRecord,string>? stamp=null){
+        stamp??=RowStamp;
         var rows=new List<TableRowSnapshot>();
         var columns=RuntimeValueJson.Columns(typeof(TRecord));
         var keyMembers=RuntimeValueJson.Columns(keyType);
@@ -145,7 +146,7 @@ internal sealed partial class NativeRuntime{
         foreach(var record in source){
             cancellation.ThrowIfCancellationRequested();
             if(request.Cursor is{} continuation&&offset<continuation.Offset){
-                prefix.AppendData(Encoding.ASCII.GetBytes(RowStamp(record)));offset++;
+                prefix.AppendData(Encoding.ASCII.GetBytes(stamp(record)));offset++;
                 if(offset==continuation.Offset&&Convert.ToHexString(prefix.GetCurrentHash())!=continuation.PrefixHash){
                     throw new ManagementException("RowConflict","読み込み済みの行が変更されています。編集内容を確認して再読込してください。");
                 }
@@ -170,7 +171,7 @@ internal sealed partial class NativeRuntime{
                 if(rows.Count==0){throw new ManagementException("Limit","1行の表示データが応答上限を超えています。");}
                 return false;
             }
-            rows.Add(new(key,values,RowStamp(record)));
+            rows.Add(new(key,values,stamp(record)));
             bytes+=(int)size;
             return true;
         }

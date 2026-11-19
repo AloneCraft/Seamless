@@ -6,6 +6,36 @@ namespace Management.Tests;
 // ビュー・関数の本体は return 文1つ(式1つ)。新しく作るときの仮の本体(throw 文1つ)は認める。
 // 設計：Document/refactoring-designs/20261115-Managerの設計と実装の照合.md の M5・M6。
 public sealed partial class DatabaseDesigner{
+    [Fact]
+    public void ManagedDatabasesKeepTheirDeclarationsInOneNamedFile(){
+        foreach(var name in new[]{"db1","db2"}){
+            var definition=Seamless.Management.DatabaseDesigner.EmptyManagedDatabase(name,name);
+            definition=Seamless.Management.DatabaseDesigner.Apply(definition,new("Items","Catalog",[new("Id","int",true)],[]));
+            definition=Seamless.Management.DatabaseDesigner.CreateStarterView(definition,"ItemsView","",row=>"return global::Seamless.Linq.Set.Empty<"+row+">();");
+            definition=Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Find","",DatabaseQueryKind.ScalarFunction,[],[],"int","return 1;"));
+            var file=Assert.Single(definition.Source.Files);
+            Assert.Equal(name+".cs",file.Path);
+            Assert.Equal(name+".Database",definition.EntryType);
+            Assert.Contains("Catalog.Items",Seamless.Management.DatabaseDesigner.Tables(definition));
+            using var compiled=new Seamless.Management.Server.RuntimeCompiler().Compile(definition.Source);
+            Assert.DoesNotContain(compiled.Result.Diagnostics,diagnostic=>diagnostic.Severity=="Error");
+            var renamed=Seamless.Management.DatabaseDesigner.PrepareManagedDatabase(definition,"Renamed");
+            Assert.Equal("Renamed.cs",Assert.Single(renamed.Source.Files).Path);
+            using var renamedBuild=new Seamless.Management.Server.RuntimeCompiler().Compile(renamed.Source);
+            Assert.DoesNotContain(renamedBuild.Result.Diagnostics,diagnostic=>diagnostic.Severity=="Error");
+            var recreated=Seamless.Management.DatabaseDesigner.RemoveQuery(definition,"ItemsView");
+            recreated=Seamless.Management.DatabaseDesigner.CreateStarterView(recreated,"ItemsView","",row=>"return global::Seamless.Linq.Set.Empty<"+row+">();");
+            Assert.Equal(name+".cs",Assert.Single(recreated.Source.Files).Path);
+        }
+        var legacy=Seamless.Management.DatabaseDesigner.Empty("legacy","222");
+        legacy=Seamless.Management.DatabaseDesigner.Apply(legacy,new("Rows","",[new("Id","int",true)],[]));
+        var converted=Seamless.Management.DatabaseDesigner.PrepareManagedDatabase(legacy,"Migrated");
+        Assert.Equal("Migrated.cs",Assert.Single(converted.Source.Files).Path);
+        Assert.Equal(new[]{"Rows"},Seamless.Management.DatabaseDesigner.Tables(converted));
+        Assert.False(Seamless.Management.DatabaseDesigner.IsManagedDatabaseName("222"));
+        Assert.False(Seamless.Management.DatabaseDesigner.IsManagedDatabaseName("CON"));
+        Assert.False(Seamless.Management.DatabaseDesigner.IsManagedDatabaseName("class"));
+    }
     [Fact]public void TheNameDatabaseIsRejectedForTablesSchemasViewsAndFunctions(){
         var definition=Seamless.Management.DatabaseDesigner.Empty("names","Names");
         Assert.Equal("Validation",Assert.Throws<ManagementException>(()=>Seamless.Management.DatabaseDesigner.Apply(definition,new("Database","",[new("Id","int",true)],[]))).Code);

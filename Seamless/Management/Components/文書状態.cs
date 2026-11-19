@@ -127,8 +127,15 @@ internal sealed class 文書状態{
         this.保存済みDB変更=結果.DatabaseChange;
         this.プレビュー=null;
     }
-    public bool プレビューを設定(Definition 検証対象,ChangePreview 結果){
-        if(!ReferenceEquals(this.定義,検証対象)||結果.BundleHash!=this.検証キー.BundleHash){return false;}
+    internal void 管理ソースの下書きを反映(Draft 下書き){
+        this.保管完了(this.定義,下書き);
+        this.基準版=下書き.BaseVersion;
+        this.DB変更=下書き.DatabaseChange;
+        this.問い合わせ改名=下書き.QueryRenames??[];
+        if(!this.定義.Source.Files.Any(ファイル=>ファイル.Path==this.選択ファイル)){this.選択ファイル=this.定義.Source.Files[0].Path;}
+    }
+    public bool プレビューを設定(Definition 検証対象,ChangePreview 結果,bool 確認時ビルドか=false){
+        if(!ReferenceEquals(this.定義,検証対象)||!確認時ビルドか&&結果.BundleHash!=this.検証キー.BundleHash){return false;}
         this.プレビュー=結果;
         return true;
     }

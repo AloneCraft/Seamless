@@ -11,28 +11,30 @@ namespace Seamless.Management.Server;
 /// <summary>
 /// DB 定義の下書きを dotnet SDK でビルドし、ソースプロジェクトの成果物と同じ検査・保管を通して読み込む。
 /// 11/12 の決定：利用者の DB 定義には内蔵のコンパイル(RuntimeCompiler)を使わず、VS・VS Code と同じ SDK のビルドで作る。
-/// ソース、参照DLLと生成器が同じビルドを作業用のフォルダーに残し、再利用時も成果物を検査する。
+/// ビルド単位の一時フォルダーに対象のソースだけを書き出し、検査・保管後に回収する。
 /// 設計：Document/refactoring-designs/20261115-Managerの設計と実装の照合.md の段階7。
 /// </summary>
 internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactStore artifacts){
+    internal const string PdbRoot="/_/seamless-draft";
+    private readonly string workspaceRoot=BuildWorkspace.Recover(root);
     private static readonly string[] AnalyzerAssemblies=["Seamless.Database.Generator","Seamless.FLinq.Generator"];
     // 参照の根：DB の部品・Seamless.Linq と、取り込んだ DB が使う SQL Server の組み込み関数と bit の型(使わない DB の成果物には入らない)。
     private static readonly Assembly[] ReferenceRoots=[typeof(DatabaseContainer).Assembly,typeof(global::Seamless.Linq.Enumerable).Assembly,typeof(global::Seamless.Database.SqlServer.Types.Bit).Assembly];
     private readonly Lock gate=new();
 
-    internal CompiledSource Build(Definition definition,CancellationToken cancellationToken=default){
+    internal CompiledSource Build(Definition definition,CancellationToken cancellationToken=default,long draftRevision=0,long baseVersion=0,bool includeGenerated=false){
         if(definition.Kind!=DefinitionKind.Database){throw new InvalidOperationException("SDK のビルドは DB 定義だけに使います。");}
         SourceEditor.Validate(definition.Source);
         lock(this.gate){
-            var draft=this.Prepare(definition.Source,cancellationToken);
-            if(!File.Exists(draft.Assembly)){
-                var failure=Run(draft.Project,cancellationToken);
-                if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,draft.Directory,definition.Source),[]));}
-            }
-            var context=new SourceBuildInspectionContext("server-draft",new(definition,0,0),new(draft.Project,draft.Files));
+            using var workspace=new BuildWorkspace(this.workspaceRoot);
+            var draft=Prepare(workspace.Directory,definition.Source,cancellationToken);
+            var failure=Run(workspace,draft.Project,cancellationToken);
+            if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,draft.Directory,definition.Source),[])){GeneratedSources=includeGenerated?ReadGenerated(draft.Directory):[]};}
+            var context=new SourceBuildInspectionContext("server-draft",new(definition,baseVersion,draftRevision),new(draft.Project,draft.Files));
             SourceProjectBuild? inspected=null;
             SourceBuildArtifactInspector.Inspect(context,draft.Assembly,cancellationToken,(build,captured)=>{artifacts.Store(build,captured,cancellationToken);inspected=build;});
-            return NativeRuntime.FromImported(artifacts.Read(inspected!,cancellationToken));
+            var generated=includeGenerated?ReadGenerated(draft.Directory):[];
+            return NativeRuntime.FromImported(artifacts.Read(inspected!,cancellationToken)) with{GeneratedSources=generated};
         }
     }
 
@@ -45,11 +47,10 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
         SourceEditor.Validate(definition.Source);
         lock(this.gate){
             var query=new QueryBinding(database,DatabaseName(database),definition.EntryType,definition.EntryMember);
-            var draft=this.Prepare(definition.Source,cancellationToken,query);
-            if(!File.Exists(draft.Assembly)){
-                var failure=Run(draft.Project,cancellationToken);
-                if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,draft.Directory,definition.Source),[]));}
-            }
+            using var workspace=new BuildWorkspace(this.workspaceRoot);
+            var draft=Prepare(workspace.Directory,definition.Source,cancellationToken,query);
+            var failure=Run(workspace,draft.Project,cancellationToken);
+            if(failure is not null){return new([],new(definition.Source.Hash(),"",Diagnostics(failure,draft.Directory,definition.Source),[]));}
             var context=new SourceBuildInspectionContext("server-draft",new(definition,0,0),new(draft.Project,draft.Files));
             SourceProjectBuild? inspected=null;
             SourceBuildArtifactInspector.Inspect(context,draft.Assembly,cancellationToken,(build,captured)=>{artifacts.Store(build,captured,cancellationToken);inspected=build;});
@@ -61,16 +62,21 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
 
     /// <summary>
     /// 生成コードの表示：SDK のビルドが書き出した生成ファイル(DB 生成器・FLinq 生成器)と利用者のファイルを返す(11/15 の決定：表示とビルドの結果を一致させる)。
-    /// 同じソースのビルドがあれば使い回す。ビルドが誤りで終わっても、生成器が書き出したファイルは返す。
+    /// ビルドが誤りで終わっても、生成器が書き出したファイルは返す。
     /// </summary>
     internal GeneratedSourceFile[] GenerateSources(SourceSnapshot source,CancellationToken cancellationToken=default){
         SourceEditor.Validate(source);
         lock(this.gate){
-            var draft=this.Prepare(source,cancellationToken);
-            var generated=Path.Combine(draft.Directory,"generated");
-            if(!File.Exists(draft.Assembly)||!Directory.Exists(generated)){_=Run(draft.Project,cancellationToken);}
-            var files=source.Files.Select(static file=>new GeneratedSourceFile("User",file.Path,file.Text)).ToList();
-            if(!Directory.Exists(generated)){return files.ToArray();}
+            using var workspace=new BuildWorkspace(this.workspaceRoot);
+            var draft=Prepare(workspace.Directory,source,cancellationToken);
+            _=Run(workspace,draft.Project,cancellationToken);
+            return [..source.Files.Select(static file=>new GeneratedSourceFile("User",file.Path,file.Text)),..ReadGenerated(draft.Directory)];
+        }
+    }
+    private static GeneratedSourceFile[] ReadGenerated(string directory){
+            var generated=Path.Combine(directory,"generated");
+            if(!Directory.Exists(generated)){return [];}
+            var files=new List<GeneratedSourceFile>();
             foreach(var path in Directory.EnumerateFiles(generated,"*.cs",SearchOption.AllDirectories).Order(StringComparer.Ordinal)){
                 var parts=Path.GetRelativePath(generated,path).Split(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
                 var kind=parts[0] switch{"Seamless.Database.Generator"=>"Database","Seamless.FLinq.Generator"=>"FLinq",_=>null};
@@ -78,7 +84,6 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
                 files.Add(new(kind,Path.GetFileName(path),File.ReadAllText(path,Encoding.UTF8)));
             }
             return files.ToArray();
-        }
     }
 
     // 参照する DB の成果物の名前(プロジェクトの参照名と出力の依存の名前)。
@@ -112,21 +117,64 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
 
     private sealed record DraftDirectory(string Directory,string Project,string Assembly,SourceProjectFile[] Files);
     // 登録クエリが参照する DB の成果物と入口。
-    private sealed record QueryBinding(byte[] Database,string DatabaseName,string EntryType,string EntryMember){
-        internal string Key=>Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(this.Database))+"\n"+this.EntryType+"\n"+this.EntryMember;
+    private sealed record QueryBinding(byte[] Database,string DatabaseName,string EntryType,string EntryMember);
+    private sealed class BuildWorkspace:IDisposable{
+        private const string OwnerFile="workspace-owner.json";
+        private sealed record ProcessIdentity(int Id,long StartedUtc){
+            internal static ProcessIdentity Read(Process process)=>new(process.Id,process.StartTime.ToUniversalTime().Ticks);
+            internal bool IsRunning(){
+                try{using var process=Process.GetProcessById(this.Id);return !process.HasExited&&Read(process)==this;}
+                catch(ArgumentException){return false;}
+            }
+        }
+        private sealed record Owner(ProcessIdentity Host,bool Launching,ProcessIdentity? Sdk);
+        private Owner owner;
+        internal string Directory{get;}
+        internal BuildWorkspace(string root){
+            using var host=Process.GetCurrentProcess();
+            this.owner=new(ProcessIdentity.Read(host),false,null);
+            this.Directory=Path.Combine(root,"build-"+Guid.NewGuid().ToString("N"));
+            SourceWorkspace.CheckLinks(this.Directory);
+            System.IO.Directory.CreateDirectory(this.Directory);
+            this.WriteOwner(this.owner);
+        }
+        internal void Launching()=>this.WriteOwner(this.owner with{Launching=true});
+        internal void Started(Process process)=>this.WriteOwner(this.owner with{Launching=false,Sdk=ProcessIdentity.Read(process)});
+        private void WriteOwner(Owner value){
+            var path=Path.Combine(this.Directory,OwnerFile);
+            File.WriteAllText(path+".tmp",System.Text.Json.JsonSerializer.Serialize(value));
+            File.Move(path+".tmp",path,overwrite:true);
+            this.owner=value;
+        }
+        public void Dispose(){
+            SourceWorkspace.CheckLinks(this.Directory);
+            System.IO.Directory.Delete(this.Directory,recursive:true);
+        }
+        internal static string Recover(string root){
+            root=Path.GetFullPath(root);
+            if(!System.IO.Directory.Exists(root)){return root;}
+            SourceWorkspace.CheckLinks(root);
+            foreach(var path in System.IO.Directory.EnumerateDirectories(root,"build-*",SearchOption.TopDirectoryOnly)){
+                if(!Guid.TryParseExact(Path.GetFileName(path).AsSpan(6),"N",out _)){continue;}
+                try{
+                    var marker=Path.Combine(path,OwnerFile);
+                    SourceWorkspace.CheckLinks(marker);
+                    if(!File.Exists(marker)||new FileInfo(marker).Length>4096){continue;}
+                    var saved=System.Text.Json.JsonSerializer.Deserialize<Owner>(File.ReadAllText(marker));
+                    if(saved?.Host is null||saved.Launching||saved.Host.IsRunning()||saved.Sdk?.IsRunning()==true){continue;}
+                    System.IO.Directory.Delete(path,recursive:true);
+                }catch(Exception error)when(error is IOException or System.Text.Json.JsonException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException){
+                    System.Diagnostics.Trace.TraceWarning("SDKの一時ディレクトリを確認できません: {0}",error.Message);
+                }
+            }
+            return root;
+        }
     }
-    private DraftDirectory Prepare(SourceSnapshot source,CancellationToken cancellationToken,QueryBinding? query=null){
+    private static DraftDirectory Prepare(string directory,SourceSnapshot source,CancellationToken cancellationToken,QueryBinding? query=null){
         var references=new ItemsFor().Closure(ReferenceRoots);
         var analyzers=AnalyzerAssemblies.Select(item=>global::Seamless.Execution.CompilationReferences.PathFor(Assembly.Load(item))).ToArray();
         var sourceHash=source.Hash();
-        var inputs=new StringBuilder(sourceHash).Append('\n').Append(query?.Key).Append('\n');
-        foreach(var path in references.Concat(analyzers)){
-            cancellationToken.ThrowIfCancellationRequested();
-            using var file=File.OpenRead(path);
-            inputs.Append(path).Append('\n').Append(Convert.ToHexString(SHA256.HashData(file))).Append('\n');
-        }
-        var key="v2-"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(inputs.ToString())))[..32];
-        var directory=Path.Combine(root,key);
+        cancellationToken.ThrowIfCancellationRequested();
         var name="Seamless.Managed_"+sourceHash[..24];
         var project=Path.Combine(directory,name+".csproj");
         Directory.CreateDirectory(directory);SourceWorkspace.CheckLinks(directory);
@@ -155,7 +203,8 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
             new XElement("PropertyGroup",
                 new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),
                 new XElement("AssemblyName",name),new XElement("RootNamespace",name),new XElement("OutDir","$(MSBuildProjectDirectory)\\bin\\"),
-                new XElement("EnableDefaultCompileItems","false"),new XElement("DebugType","portable"),new XElement("Deterministic","true"),
+                new XElement("EnableDefaultCompileItems","false"),new XElement("DebugType","embedded"),new XElement("Deterministic","true"),
+                new XElement("PathMap","$(MSBuildProjectDirectory)="+PdbRoot),
                 new XElement("EnableNETAnalyzers","false"),new XElement("NuGetAudit","false"),new XElement("GenerateDocumentationFile","false"),
                 new XElement("InterceptorsNamespaces","$(InterceptorsNamespaces);Intercept"),new XElement("SeamlessManagedDatabase","true"),
                 new XElement("EmitCompilerGeneratedFiles","true"),new XElement("CompilerGeneratedFilesOutputPath","generated"),
@@ -195,16 +244,18 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     }
 
     // 失敗したらビルドの出力を返す。成功なら null。
-    private static string? Run(string project,CancellationToken cancellationToken){
+    private static string? Run(BuildWorkspace workspace,string project,CancellationToken cancellationToken){
         var executable=SourceProjectService.DotnetHost();
         using var process=new Process{StartInfo=new(executable){
             UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=Path.GetDirectoryName(project)!,
             RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8
         }};
         foreach(var argument in new[]{"build",project,"-nologo","-v:minimal","-m:1","-nodeReuse:false","-p:UseSharedCompilation=false","-p:Configuration=Release"}){process.StartInfo.ArgumentList.Add(argument);}
+        workspace.Launching();
         if(!process.Start()){throw new ManagementException("Unavailable","SDKを起動できません。");}
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);deadline.CancelAfter(TimeSpan.FromMinutes(10));
         try{
+            workspace.Started(process);
             var output=process.StandardOutput.ReadToEndAsync(deadline.Token);var error=process.StandardError.ReadToEndAsync(deadline.Token);
             process.WaitForExitAsync(deadline.Token).GetAwaiter().GetResult();
             if(process.ExitCode==0){return null;}

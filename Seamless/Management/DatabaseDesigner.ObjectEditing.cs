@@ -32,10 +32,11 @@ public static partial class DatabaseDesigner{
         var parameters=(selected.Member as IMethodSymbol)?.Parameters.Where(parameter=>!parameter.IsThis&&!InjectedObjectParameter(parameter)).Select(parameter=>new ParameterDesign(parameter.Name,TypeName(parameter.Type))).ToArray()??[];
         var returnType="";
         if(selected.Member is IMethodSymbol method){returnType=TypeName(method.ReturnType);}
+        else if(target.Kind=="Property"&&selected.Member is IPropertySymbol property){returnType=TypeName(property.Type);}
         else if(selected.Row is{} row){returnType=TypeName(row);}
         var available=true;string? reason=null;
         if(selected.Key is not null&&SymbolEqualityComparer.Default.Equals(selected.Key,selected.Row)){available=false;reason="キー型と行型を共有する定義はC#で編集してください。";}
-        if(selected.Row is null&&selected.Member is not IMethodSymbol){available=false;reason="構造を編集できる列または引数がありません。C#で編集してください。";}
+        if(selected.Row is null&&selected.Member is not IMethodSymbol&&target.Kind!="Property"){available=false;reason="構造を編集できる列または引数がありません。C#で編集してください。";}
         if(selected.Row is{} type&&type.DeclaringSyntaxReferences.Any(reference=>reference.GetSyntax() is TypeDeclarationSyntax syntax&&syntax.Members.OfType<PropertyDeclarationSyntax>().Any(property=>property.ExpressionBody is not null||property.AccessorList?.Accessors.Any(accessor=>accessor.Body is not null||accessor.ExpressionBody is not null)==true))){available=false;reason="カスタムプロパティの処理はC#で編集してください。";}
         var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n",parts.OrderBy(part=>part.Id,StringComparer.Ordinal).Select(part=>part.Id+"\n"+part.Text)))));
         return new(definition.Id,target,fingerprint,parts.ToArray(),columns,parameters,returnType,available,reason);
@@ -106,6 +107,12 @@ public static partial class DatabaseDesigner{
             }
         }
         // 明示Tableのキー抽出式も、既存の受け手・属性・本文の外側を保持して列だけ更新する。
+        if(selected.Member is IPropertySymbol scalar&&baseline.Object.Kind=="Property"&&returnType!=current.ReturnType){
+            ValidateObjectType(returnType);
+            if(FunctionElementType(returnType) is not null){throw new ManagementException("Validation","プロパティの戻り型には1件の値の型を指定してください。");}
+            var declaration=(PropertyDeclarationSyntax)scalar.DeclaringSyntaxReferences.Single().GetSyntax();
+            edits.Add((declaration.SyntaxTree.FilePath,declaration.Type.SpanStart,declaration.Type.Span.Length,returnType));
+        }
         if(selected.Member is IPropertySymbol property&&selected.Key is not null){
             var syntax=property.DeclaringSyntaxReferences.Single().GetSyntax();
             var lambda=syntax.DescendantNodes().OfType<SimpleLambdaExpressionSyntax>().SingleOrDefault();
@@ -248,7 +255,7 @@ public static partial class DatabaseDesigner{
         ISymbol? member=null;INamedTypeSymbol? row=null;INamedTypeSymbol? key=null;
         if(definition.Kind==DefinitionKind.Query){
             member=PlanTargetMethod(compilation.GetTypeByMetadataName(definition.EntryType)?.GetMembers(definition.EntryMember).OfType<IMethodSymbol>()??[]);
-        }else if(target.Kind is "TableFunction" or "ScalarFunction"||target.Kind=="View"&&FindQueryMember(compilation,definition,target.Id) is not null){
+        }else if(target.Kind is "TableFunction" or "ScalarFunction" or "Property"||target.Kind=="View"&&FindQueryMember(compilation,definition,target.Id) is not null){
             // ビュー・関数は IReader への拡張メンバー。行型は ISet<行> の行(スカラー関数は行型を持たない)。
             var query=FindQueryMember(compilation,definition,target.Id)??throw new ManagementException("NotFound","対象の元宣言がありません。");
             member=query.Member;

@@ -14,9 +14,18 @@ internal sealed partial class SourceBuildArtifactStore(string root,object gate,l
 
     internal static string BundleHash(SourceProjectBuild build)=>Convert.ToHexString(SHA256.HashData(ManifestBytes(build)));
     private static PackageFile[] Files(SourceProjectBuild build)=>[
-        new("module.dll",build.AssemblySha256),new("module.pdb",build.PdbSha256),
+        new("module.dll",build.AssemblySha256),..SymbolFiles(build),
         ..build.Dependencies.OrderBy(item=>item.Name,StringComparer.Ordinal).Select((item,index)=>
             new PackageFile("dependency-"+index.ToString("D3",System.Globalization.CultureInfo.InvariantCulture)+".dll",item.Sha256,item.Name,item.Version,item.Shared))];
+    private static PackageFile[] SymbolFiles(SourceProjectBuild build){
+        if(build.PdbSha256.Length==0){return [];}
+        return [new("module.pdb",build.PdbSha256)];
+    }
+    private static IEnumerable<string> StoredPaths(SourceProjectBuild build){
+        yield return build.AssemblyPath;
+        if(build.PdbSha256.Length!=0){yield return Path.ChangeExtension(build.AssemblyPath,".pdb");}
+        foreach(var dependency in StoredDependencies(build)){yield return dependency.Path;}
+    }
     private static byte[] ManifestBytes(SourceProjectBuild build,int format)=>JsonSerializer.SerializeToUtf8Bytes(new PackageManifest(format,Files(build)),ManagementJson.Options);
     private static int ManifestFormat(SourceProjectBuild build){
         var legacy=ManifestBytes(build,1);
@@ -55,8 +64,7 @@ internal sealed partial class SourceBuildArtifactStore(string root,object gate,l
             using var previous=this.budget.ReserveTemporaryStorage(entries.Bytes);
             if(entries.Packages>=maximumPackages){throw new ManagementException("Limit","保管済み成果物の件数上限です。");}
             var files=StoredFiles(build);var manifest=ManifestBytes(build);
-            var sources=new[]{build.AssemblyPath,Path.ChangeExtension(build.AssemblyPath,".pdb")}
-                .Concat(StoredDependencies(build).Select(item=>item.Path)).ToArray();
+            var sources=StoredPaths(build);
             var buffers=sources.Select(path=>captured[Path.GetFullPath(path)]).ToArray();
             using var addition=this.budget.ReserveTemporaryStorage(buffers.Sum(bytes=>(long)bytes.Length)+manifest.Length);
             Directory.CreateDirectory(this.directory);

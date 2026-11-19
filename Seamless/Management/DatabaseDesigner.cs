@@ -10,6 +10,95 @@ public sealed record TableDesign(string Name,string Schema,ColumnDesign[] Column
 /// <summary>ソースの対象宣言だけを変更する。GUIで解釈できない宣言は拒否し、C#編集へ渡す。</summary>
 public static partial class DatabaseDesigner{
     public static Definition Empty(string id,string name)=>new(id,name,DefinitionKind.Database,"UserCode.ManagedDb","",new("1",[new("Database.cs","using Seamless.Database;\nnamespace UserCode;\ninternal static partial class DatabaseGenerator;\npublic sealed partial class ManagedDb(DatabaseContainerOptions options):DatabaseContainer(options){\n}\n")],[]));
+    internal static Definition EmptyManagedDatabase(string id,string name){
+        ValidateManagedDatabaseName(name);
+        var source="namespace "+name+"{\n"+
+            "    internal static partial class DatabaseGenerator;\n"+
+            "    public sealed partial class Database(global::Seamless.Database.DatabaseContainerOptions options):global::Seamless.Database.DatabaseContainer(options){\n"+
+            "    }\n}\n";
+        return new(id,name,DefinitionKind.Database,name+".Database","",new("1",[new(name+".cs",source)],[]));
+    }
+    internal static bool IsManagedDatabaseName(string name){
+        if(name.Length is 0 or >128||!SyntaxFacts.IsValidIdentifier(name)||name.StartsWith('@')||
+            SyntaxFacts.GetKeywordKind(name)!=SyntaxKind.None){return false;}
+        var upper=name.ToUpperInvariant();
+        return upper is not ("CON" or "PRN" or "AUX" or "NUL" or "SYSTEM")&&
+            !(upper.Length==4&&(upper.StartsWith("COM",StringComparison.Ordinal)||upper.StartsWith("LPT",StringComparison.Ordinal))&&"0123456789¹²³".Contains(upper[3]));
+    }
+    private static void ValidateManagedDatabaseName(string name){
+        if(!IsManagedDatabaseName(name)){throw new ManagementException("Validation","DB名にはC#の名前空間とファイル名に使える名前を入力してください: "+name);}
+    }
+    internal static Definition PrepareManagedDatabase(Definition definition,string name){
+        ValidateManagedDatabaseName(name);
+        if(ManagedFilePath(definition)==name+".cs"){return definition;}
+        var compilation=Compilation(definition);
+        var database=Container(compilation,definition);
+        var oldNamespace=database.ContainingNamespace;
+        var converted=new List<string>();
+        foreach(var file in definition.Source.Files){
+            var tree=compilation.SyntaxTrees.Single(item=>item.FilePath==file.Path);
+            var unit=(CompilationUnitSyntax)tree.GetRoot();
+            if(unit.ContainsDiagnostics||unit.ContainsDirectives||unit.AttributeLists.Count>0||unit.Externs.Count>0||
+                unit.Usings.Any(item=>item.GlobalKeyword.RawKind!=0)||unit.Members.Count==0||
+                unit.Members.Any(item=>item is not BaseNamespaceDeclarationSyntax)){
+                throw new ManagementException("Validation","1ファイルにまとめられない宣言があります: "+file.Path);
+            }
+            var rewrite=new ManagedDatabaseRename(compilation.GetSemanticModel(tree),database,oldNamespace,name);
+            var updated=(CompilationUnitSyntax)rewrite.Visit(unit)!;
+            foreach(var member in updated.Members.OfType<BaseNamespaceDeclarationSyntax>()){
+                var block=member as NamespaceDeclarationSyntax??SyntaxFactory.NamespaceDeclaration(member.Name)
+                    .WithLeadingTrivia(member.GetLeadingTrivia()).WithMembers(member.Members)
+                    .WithUsings(member.Usings).WithExterns(member.Externs);
+                block=block.WithUsings(updated.Usings.AddRange(block.Usings))
+                    .WithNamespaceKeyword(block.NamespaceKeyword.WithTrailingTrivia(SyntaxFactory.Space))
+                    .WithOpenBraceToken(block.OpenBraceToken.WithTrailingTrivia(SyntaxFactory.LineFeed));
+                converted.Add(block.ToFullString().TrimEnd());
+            }
+        }
+        var source=definition.Source with{Files=[new(name+".cs",string.Join("\n",converted)+"\n")]};
+        return definition with{EntryType=name+".Database",Source=source};
+    }
+    private sealed class ManagedDatabaseRename(SemanticModel model,INamedTypeSymbol database,INamespaceSymbol oldNamespace,string name):CSharpSyntaxRewriter{
+        public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node){
+            var symbol=model.GetSymbolInfo(node).Symbol;
+            if(SymbolEqualityComparer.Default.Equals(symbol,database)){return WithName(node,"Database");}
+            if(SymbolEqualityComparer.Default.Equals(symbol,oldNamespace)){return WithName(node,name);}
+            return base.VisitIdentifierName(node);
+        }
+        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node){
+            var updated=(ClassDeclarationSyntax)base.VisitClassDeclaration(node)!;
+            if(SymbolEqualityComparer.Default.Equals(model.GetDeclaredSymbol(node),database)){
+                return updated.WithIdentifier(SyntaxFactory.Identifier("Database").WithTriviaFrom(updated.Identifier));
+            }
+            return updated;
+        }
+        public override SyntaxNode? VisitConstructorDeclaration(ConstructorDeclarationSyntax node){
+            var updated=(ConstructorDeclarationSyntax)base.VisitConstructorDeclaration(node)!;
+            if(SymbolEqualityComparer.Default.Equals(model.GetDeclaredSymbol(node)?.ContainingType,database)){
+                return updated.WithIdentifier(SyntaxFactory.Identifier("Database").WithTriviaFrom(updated.Identifier));
+            }
+            return updated;
+        }
+        private static IdentifierNameSyntax WithName(IdentifierNameSyntax node,string replacement)=>
+            node.WithIdentifier(SyntaxFactory.Identifier(replacement).WithTriviaFrom(node.Identifier));
+    }
+    private static string? ManagedFilePath(Definition definition){
+        var entryType=definition.EntryType.Split('.');
+        if(entryType is [var name,"Database"]&&definition.Source.Files is [var file]&&file.Path==name+".cs"){return file.Path;}
+        return null;
+    }
+    private static Definition AppendManagedDeclarations(Definition definition,string path,string ns,string[] usings,string declaration){
+        var block=FormatCompactSource("namespace "+ns+"{\n"+string.Concat(usings.Select(value=>"using "+value+";\n"))+declaration+"\n}");
+        return AppendManagedSource(definition,path,block);
+    }
+    private static Definition AppendManagedSource(Definition definition,string path,string block){
+        var files=definition.Source.Files.Select(file=>{
+            if(file.Path!=path){return file;}
+            var newline=SourceNewLine.Of(file.Text);
+            return file with{Text=file.Text.TrimEnd()+newline+block.TrimEnd().ReplaceLineEndings(newline)+newline};
+        }).ToArray();
+        return definition with{Source=definition.Source with{Files=files}};
+    }
     private static CSharpCompilation Compilation(Definition definition){
         var options=new CSharpParseOptions(LanguageVersion.CSharp14,preprocessorSymbols:definition.Source.Defines??[]);
         var compilation=CSharpCompilation.Create("Design",definition.Source.Files.Select(file=>CSharpSyntaxTree.ParseText(file.Text,options,path:file.Path)),SourceEditor.PlatformReferences());
@@ -138,7 +227,11 @@ public static partial class DatabaseDesigner{
             var syntax=Declaration(owner);var receiver="this.Database";if(SymbolEqualityComparer.Default.Equals(owner,container)){receiver="this";}
             var text=GeneratedText("\npublic global::"+ns+"."+typeName+" "+part+"=>new("+receiver+");\n",syntax);var edit=AppendMember(syntax,text);var files=definition.Source.Files.Select(file=>{if(file.Path==syntax.SyntaxTree.FilePath){return file with{Text=file.Text.Remove(edit.Start,edit.Length).Insert(edit.Start,edit.Text)};}return file;}).ToList();
             var fileName="Schemas/"+typeName+".cs";if(files.Any(file=>file.Path==fileName)){throw new ManagementException("Conflict","スキーマのソースファイルが既に存在します。");}
-            files.Add(new(fileName,Format("namespace "+ns+";public sealed partial class "+typeName+"(global::Seamless.Database.DatabaseContainer db):global::Seamless.Database.DatabaseSchema(db,"+Literal(full)+"){ }")));definition=definition with{Source=definition.Source with{Files=files.ToArray()}};path=full;
+            var declaration="public sealed partial class "+typeName+"(global::Seamless.Database.DatabaseContainer db):global::Seamless.Database.DatabaseSchema(db,"+Literal(full)+"){ }";
+            definition=definition with{Source=definition.Source with{Files=files.ToArray()}};
+            if(ManagedFilePath(definition) is{} managed){definition=AppendManagedDeclarations(definition,managed,ns,[],declaration);}
+            else{definition=definition with{Source=definition.Source with{Files=[..files,new(fileName,Format("namespace "+ns+";"+declaration))]}};}
+            path=full;
         }return definition;
     }
     public static Definition Apply(Definition definition,TableDesign design){
@@ -149,6 +242,7 @@ public static partial class DatabaseDesigner{
         if(design.Schema.Length>0){owner=Owner(container,design.Schema);}
         IPropertySymbol? property=null;if(design.OriginalPath is not null){property=Property(container,design.OriginalPath);}if(owner.GetMembers(design.Name).Any(member=>!SymbolEqualityComparer.Default.Equals(member,property))){throw new ManagementException("Conflict","同名のオブジェクトがあります。");}
         string keyType,recordType;var shapeChanged=true;
+        string? managedRow=null;
         var generatedTable=property is not null&&IsGeneratedTable(property);
         if(generatedTable&&(design.OriginalPath!=design.Path||design.ForeignKeys.Length>0)){
             throw new ManagementException("Unsupported","Tablesの行の型だけで宣言した表の名前・所属・外部キーは、C#で編集してください。");
@@ -164,8 +258,13 @@ public static partial class DatabaseDesigner{
             keyType="global::"+ns+".Keys."+prefix;recordType="global::"+ns+".Tables."+prefix;
             if(compilation.GetTypeByMetadataName(ns+".Keys."+prefix) is not null||compilation.GetTypeByMetadataName(ns+".Tables."+prefix) is not null){throw new ManagementException("Conflict","行・キー型が既に存在します。C#で型を指定してください。");}
             // 行の型だけを Tables に書き、主キーの列に [Key] を付ける。キーの型 Keys.<名前> は DB の生成器が作る。
-            var text="namespace "+ns+".Tables{public partial struct "+prefix+"{"+Fields(design.Columns)+"}}\n";
-            var fileName="Tables/"+prefix+".cs";if(files.Any(file=>file.Path==fileName)){throw new ManagementException("Conflict","表のソースファイルが既に存在します。");}files.Add(new(fileName,Format("using System;\n"+text)));
+            var row="public partial struct "+prefix+"{"+Fields(design.Columns)+"}";
+            if(ManagedFilePath(definition) is not null){managedRow=row;}
+            else{
+                var fileName="Tables/"+prefix+".cs";
+                if(files.Any(file=>file.Path==fileName)){throw new ManagementException("Conflict","表のソースファイルが既に存在します。");}
+                files.Add(new(fileName,Format("using System;\nnamespace "+ns+".Tables{"+row+"}")));
+            }
         }
         var attributes=string.Join("\n",design.ForeignKeys.Select(relation=>"[global::Seamless.Database.ForeignKey("+Literal(relation.Name)+","+Literal(relation.ReferencedTable)+",new string[]{"+string.Join(",",relation.Columns.Select(Literal))+"},new string[]{"+string.Join(",",relation.ReferencedColumns.Select(Literal))+"})]"));
         var declaration=attributes+"\npublic global::Seamless.Database.Table<"+keyType+","+recordType+"> "+design.Name+"=>this.Table<"+keyType+","+recordType+">(row=>row.Key);\n";
@@ -192,7 +291,9 @@ public static partial class DatabaseDesigner{
             var removed=(previous?.DroppedColumns??[]).Concat(original.Columns.Where(column=>!design.Columns.Any(next=>next.OriginalName==column.Name)).Select(column=>{var old=previous?.Columns.SingleOrDefault(item=>item.Target==column.Name);if(old is not null){return old.Source;}return column.Name;}).OfType<string>()).Distinct().ToArray();
             mappings.Add(new(design.Path,previous?.Source??design.OriginalPath,columns,removed));
         }
-        return definition with{Source=definition.Source with{Files=files.ToArray(),Revision=Guid.NewGuid().ToString("N")},Migration=migration with{Tables=mappings.ToArray(),NewTables=newTables.ToArray()}};
+        var result=definition with{Source=definition.Source with{Files=files.ToArray(),Revision=Guid.NewGuid().ToString("N")},Migration=migration with{Tables=mappings.ToArray(),NewTables=newTables.ToArray()}};
+        if(managedRow is not null){result=AppendManagedDeclarations(result,ManagedFilePath(result)!,ns+".Tables",["System"],managedRow);}
+        return result;
         void ReplaceFields(INamedTypeSymbol type,ColumnDesign[] columns){
             var syntax=Declaration(type);var properties=syntax.Members.OfType<PropertyDeclarationSyntax>().ToArray();if(properties.Any(item=>item.ExpressionBody is not null||item.Initializer is not null)){throw new ManagementException("Unsupported","カスタムプロパティを持つ型はC#で編集してください。");}
             var members=syntax.Members.Where(member=>member is not PropertyDeclarationSyntax).ToList();foreach(var column in columns){var original=properties.SingleOrDefault(item=>item.Identifier.ValueText==column.OriginalName);if(original is null){members.Add(SyntaxFactory.ParseMemberDeclaration(Field(column))!);}else{members.Add(WithKeyAttribute(original.WithType(SyntaxFactory.ParseTypeName(column.Type).WithTriviaFrom(original.Type)).WithIdentifier(SyntaxFactory.Identifier(column.Name).WithTriviaFrom(original.Identifier)),column.PrimaryKey));}}

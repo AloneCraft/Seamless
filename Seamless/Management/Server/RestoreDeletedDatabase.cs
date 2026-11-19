@@ -14,7 +14,7 @@ internal static class RestoreDeletedDatabase{
             ||archive.Queries.Any(query=>store.Read<DefinitionVersion>("active",query.Definition.Id) is not null)){
             throw new ManagementException("Conflict","同じDB名や定義が稼働中か、対象に別の削除操作があります。");
         }
-        var backup=Path.Combine(store.Root,"backups",key);
+        var backup=Path.Combine(ManagementPlacement.DirectoryPath(Path.Combine(store.Root,"backups"),allowShortcut:true),key);
         SourceWorkspace.CheckLinks(backup);
         using var runtime=new NativeRuntime(store,startAuditWorker:false);
         var restored=Recover(previous,Path.Combine(backup,"database"));
@@ -61,8 +61,16 @@ internal static class RestoreDeletedDatabase{
                 }
             }
             var storage=Path.Combine("generations",Guid.NewGuid().ToString("N"));
-            NativeRuntime.CopyGenerationDirectory(source,Path.Combine(store.Root,storage),cancellation);
+            var generation=Path.Combine(store.Root,storage);
+            NativeRuntime.CopyGenerationDirectory(source,generation,cancellation);
             var next=version with{Version=checked(version.Version+1),StoragePath=storage,CreatedAt=DateTimeOffset.UtcNow};
+            if(version.Definition.Kind==DefinitionKind.Database){
+                var manifestPath=Path.Combine(generation,"manifest.json");
+                var manifest=JsonSerializer.Deserialize<ArtifactManifest>(File.ReadAllText(manifestPath),ManagementJson.Options)
+                    ??throw new InvalidDataException("バックアップに公開世代の記録がありません。");
+                SourceWorkspace.Atomic(manifestPath,JsonSerializer.Serialize(manifest with{PublishedVersion=next.Version},ManagementJson.Options));
+                ManagementPlacement.SealData(generation);
+            }
             using var artifact=runtime.ReadArtifact(next);
             return next;
         }

@@ -2624,4 +2624,9 @@
   <data name="データベースのクラス定義（読み取り専用）" xml:space="preserve"><value>Database class definition (read-only)</value></data>
   <data name="スキーマのクラス定義（読み取り専用）" xml:space="preserve"><value>Schema class definition (read-only)</value></data>
   <data name="表示できるクラス宣言がありません。" xml:space="preserve"><value>No class declaration is available.</value></data>
+  <data name="バックアップの保存先" xml:space="preserve"><value>Backup location on the server</value></data>
+  <data name="保存先をコピー" xml:space="preserve"><value>Copy location</value></data>
+  <data name="最近の変更適用時のバックアップ" xml:space="preserve"><value>Recent backups from applied changes</value></data>
+  <data name="データベースの下書き" xml:space="preserve"><value>Database drafts</value></data>
+  <data name="確認するデータベースの下書きがありません。" xml:space="preserve"><value>There are no database drafts to review.</value></data>
 </root>

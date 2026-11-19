@@ -84,7 +84,7 @@ public sealed partial class ManagementStore:IDisposable{
         lock(this.gate){
             var cursor=0L;
             do{
-                var page=this.List<DefinitionVersion>("active",cursor,predicate:version=>version.Definition.Kind==DefinitionKind.Database&&version.Database==name);
+                var page=this.List<DefinitionVersion>("active",cursor,predicate:version=>version.Definition.Kind==DefinitionKind.Database&&version.Database==name&&!this.IsDisplacedPlacement(version));
                 if(page.Items.Length>0){return page.Items[0];}
                 if(!page.HasMore){break;}cursor=page.NextCursor;
             }while(true);

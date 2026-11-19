@@ -5,6 +5,9 @@ public sealed partial class ManagementService{
         ManagementPermission.Validate|ManagementPermission.Apply|ManagementPermission.Manage;
 
     public Task<TableRows> ReadRowsAsync(UserAccount user,TableRowsRequest request,CancellationToken cancellation=default){
+        if(request.Database==SystemDatabaseId||DatabaseSystemObjects.Contains(request.Table)){
+            return Task.FromResult(this.ReadSystemRows(user,request,cancellation));
+        }
         var id=this.AuthorizeRowDatabase(user,request.Database,ManagementPermission.View|ManagementPermission.ReadRows,true);
         this.AfterRowAuthorization?.Invoke();return this.runtime.ReadRowsAsync(request,id,cancellation,()=>{if(this.AuthorizeRowDatabase(user,request.Database,ManagementPermission.View|ManagementPermission.ReadRows,true)!=id){throw new ManagementException("CatalogChanged","行取得のDB識別が変わりました。");}});
     }

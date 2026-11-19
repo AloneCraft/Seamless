@@ -14,6 +14,17 @@
     @if(案内.Length>0){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
     @if(手順 is{} 現在){
         <h3>@現在.Title</h3>
+        @if(現在.Backups.Length>0){
+            <h4>@表示文言.取得("最近の変更適用時のバックアップ")</h4>
+            <ul>
+                @foreach(var バックアップ in 現在.Backups){
+                    <li @key="バックアップ.Path">
+                        <strong>@バックアップ.Database</strong> <time datetime="@バックアップ.StartedAt.ToString("O")">@バックアップ.StartedAt.ToString("yyyy-MM-dd HH:mm zzz")</time>
+                        <バックアップ保存先 パス="@バックアップ.Path"/>
+                    </li>
+                }
+            </ul>
+        }
         <ol class="復元手順一覧">
             @foreach(var 段 in 現在.Steps){
                 <li>@段.Text

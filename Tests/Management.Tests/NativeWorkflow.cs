@@ -57,6 +57,56 @@ public sealed class NativeWorkflow{
         }
         foreach(var baseCall in new[]{"DatabaseContainer()","DatabaseContainer(options with{StorageDirectory=\"outside\"})"}){var schemaDefinition=Database();var source=schemaDefinition.Source with{Files=schemaDefinition.Source.Files.Select(file=>file with{Text=file.Text.Replace("DatabaseContainer(options)",baseCall,StringComparison.Ordinal)}).ToArray()};var compiled=new RuntimeCompiler().Compile(source);Assert.Empty(compiled.AssemblyBytes);Assert.Contains(compiled.Result.Diagnostics,item=>item.Code=="ManagementCodePolicy");}
     }
+    [Fact]public async Task PublishedOperationKeepsChildReadsAndWritesWithTheDatasheetTransaction(){
+        using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");
+        using var service=new Seamless.Management.Server.ManagementService(store);
+        var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
+        Publish(service,user,Database());
+        await service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[new("Rows",TableRowChangeKind.Insert,Values:ManagementJson.Element(new{Id=1,Value=100}))]));
+        var original=Assert.Single((await service.ReadRowsAsync(user,new("Native","Rows"))).Rows);
+        var operation=Query("withdraw","""
+            var db=context.GetDatabase<Db>();
+            int Balance()=>db.Rows.Single().Value;
+            void Debit(int amount)=>db.Rows[new Model.Keys.Row(1)]=new Model.Tables.Row(new(1),amount);
+            var balance=Balance();
+            if(balance<80){return 0;}
+            Debit(balance-80);
+            return 1;
+            """,true);
+        Publish(service,user,operation);
+        var results=await Task.WhenAll(Enumerable.Range(0,2).Select(_=>Task.Run(()=>Assert.Single(service.Execute(user,Request("withdraw"),CancellationToken.None)).Value.GetInt32())));
+        Assert.Equal(new[]{0,1},results.Order());
+        var conflict=await Assert.ThrowsAsync<ManagementException>(()=>service.CommitRowsAsync(user,new("Native",1,Guid.NewGuid(),[new("Rows",TableRowChangeKind.Replace,original.Key,original.Stamp,ManagementJson.Element(new{Id=1,Value=70}))])));
+        Assert.Equal("RowConflict",conflict.Code);
+        Assert.Equal(20,Assert.Single((await service.ReadRowsAsync(user,new("Native","Rows"))).Rows).Values.GetProperty("value").GetInt32());
+    }
+
+    [Fact]public void PreviewRejectsChildTransactionStartsAndPreservesTheDraft(){
+        using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");
+        using var service=new Seamless.Management.Server.ManagementService(store);
+        var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
+        Publish(service,user,Database());
+        var query=Query("withdraw","return 0;",true);
+        Publish(service,user,query);
+        var change=Query("withdraw","return Child(context.GetDatabase<Db>()); } static int Child(Db db){using var tx=db.BeginTransaction();return 1;",true);
+        var draft=service.SaveDraft(user,new(change,1,1));
+        var preview=service.Preview(user,new(change.Id,draft.Revision));
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Diagnostics,diagnostic=>diagnostic.Code=="ManagementCodePolicy"&&diagnostic.Path=="query.cs");
+        Assert.Equal(1,service.GetDefinition(user,change.Id).Version);
+        Assert.Equal(change.Source.Hash(),service.GetDraft(user,change.Id).Definition.Source.Hash());
+    }
+
+    [Fact]public void EndedExecutionContextCannotResolveTheDatabase(){
+        using var database=new ExecutionContextTestDatabase();
+        var context=new ManagementExecutionContext(database,CancellationToken.None);
+        Assert.Same(database,context.GetDatabase<ExecutionContextTestDatabase>());
+        context.End();
+        Assert.Throws<ObjectDisposedException>(()=>context.GetDatabase<ExecutionContextTestDatabase>());
+    }
+
+    private sealed class ExecutionContextTestDatabase:global::Seamless.Database.DatabaseContainer;
+
     [Fact]public async Task PublicationWaiter(){
         using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");using var service=new Seamless.Management.Server.ManagementService(store);var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);Publish(service,user,Database());Publish(service,user,Query("sum","return context.GetDatabase<Db>().Rows.Sum(row=>row.Value);"));
         var updated=Database() with{Source=Database().Source with{Revision="2"}};var draft=service.SaveDraft(user,new(updated,1,1));var preview=service.Preview(user,new("db",draft.Revision));

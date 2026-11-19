@@ -29,8 +29,8 @@ public sealed partial class ManagementService:IDisposable{
     public bool UseSdkBuilds{get=>this.runtime.SdkBuilder is not null;set{this.runtime.SdkBuilder=value?this.runtime.SdkBuilder??new DraftSdkBuilder(System.IO.Path.Combine(this.store.Root,"sdk-drafts"),this.store.SourceBuilds):null;}}
     internal DraftSdkBuilder? SdkBuilder=>this.runtime.SdkBuilder;
     public ManagementService(ManagementStore store,ReadAuditOptions? readAudit):this(store,readAudit,true){}
-    internal ManagementService(ManagementStore store,ReadAuditOptions? readAudit,bool startAuditWorker,bool startReadAuditWorker=true){readAudit?.Validate();if(readAudit is not null&&store.Format<5){throw new ManagementException("MigrationRequired","通常読み取りの集計はupgrade-auditで形式5へ明示更新してから設定してください。");}this.store=store;this.runtime=new(store,startAuditWorker);this.InitializeExecutionHistory();if(readAudit is not null){this.readAuditBuffer=new(readAudit,(id,rows,cancellation)=>{cancellation.ThrowIfCancellationRequested();this.ReadAuditPersisting?.Invoke(Environment.CurrentManagedThreadId);store.ApplyReadSummaryBatch(id,rows);return ValueTask.CompletedTask;},startWorker:startReadAuditWorker,flushOnDispose:startReadAuditWorker);this.runtime.ReadCompleted=sample=>{var ticks=sample.At.UtcTicks;var start=ticks-ticks%readAudit.Window.Ticks;this.readAuditBuffer.Record(new(new(start,TimeSpan.Zero),new(start+readAudit.Window.Ticks,TimeSpan.Zero),store.InstanceId,sample.SubjectId,sample.Database,sample.QueryId,sample.CodeVersion,null));};}}
-    public ServerInfo Info{get{string[] capabilities=["RecoveryGuideV1","NativeManagementV1","StaticPlanV1","PersonalDrafts","ValidationDatabase","ExplicitApply","DefinitionInfoV1","ProtectedSourceV1","NativeCatalogV1","NativeForeignKeysV1","SchemaMigrationsV1","TablePublicationV1","TableRowsV1","UserProfilesV1","DatabaseAuthorizationV1","AuthorizationScopesV1","DatabaseRenameV1","DatabaseDraftV1","DraftPublishedVersionGuardV1","QueryTraceV1","CommonFunctionsV1","ResourceHeatV1","ResourceHeatHistoryV1"];if(this.serverSettingsHost is not null){capabilities=[..capabilities,"ServerSettingsV1"];}if(this.store.HasAudit){capabilities=[..capabilities,"AuditSearchV1","AuditDeliveryV1","AuditReadMethodsV1"];}if(this.store.Format>=5){capabilities=[..capabilities,"AuditReadBufferV1"];}return new(this.store.InstanceId,"1",System.Runtime.InteropServices.RuntimeInformation.OSDescription,capabilities);}}
+    internal ManagementService(ManagementStore store,ReadAuditOptions? readAudit,bool startAuditWorker,bool startReadAuditWorker=true){readAudit?.Validate();if(readAudit is not null&&store.Format<5){throw new ManagementException("MigrationRequired","通常読み取りの集計はupgrade-auditで形式5へ明示更新してから設定してください。");}this.store=store;store.LoadDatabasePlacement();this.runtime=new(store,startAuditWorker);this.InitializeExecutionHistory();if(readAudit is not null){this.readAuditBuffer=new(readAudit,(id,rows,cancellation)=>{cancellation.ThrowIfCancellationRequested();this.ReadAuditPersisting?.Invoke(Environment.CurrentManagedThreadId);store.ApplyReadSummaryBatch(id,rows);return ValueTask.CompletedTask;},startWorker:startReadAuditWorker,flushOnDispose:startReadAuditWorker);this.runtime.ReadCompleted=sample=>{var ticks=sample.At.UtcTicks;var start=ticks-ticks%readAudit.Window.Ticks;this.readAuditBuffer.Record(new(new(start,TimeSpan.Zero),new(start+readAudit.Window.Ticks,TimeSpan.Zero),store.InstanceId,sample.SubjectId,sample.Database,sample.QueryId,sample.CodeVersion,null));};}}
+    public ServerInfo Info{get{string[] capabilities=["RecoveryGuideV1","NativeManagementV1","StaticPlanV1","PersonalDrafts","ValidationDatabase","ExplicitApply","DefinitionInfoV1","ProtectedSourceV1","NativeCatalogV1","NativeForeignKeysV1","SchemaMigrationsV1","TablePublicationV1","TableRowsV1","UserProfilesV1","DatabaseAuthorizationV1","AuthorizationScopesV1","DatabaseRenameV1","DatabaseDraftV1","DraftPublishedVersionGuardV1","QueryTraceV1","CommonFunctionsV1","ResourceHeatV1","ResourceHeatHistoryV1"];if(this.SdkBuilder is not null){capabilities=[..capabilities,"DatabaseSdkConfirmationV1"];}if(this.serverSettingsHost is not null){capabilities=[..capabilities,"ServerSettingsV1"];}if(this.store.HasAudit){capabilities=[..capabilities,"AuditSearchV1","AuditDeliveryV1","AuditReadMethodsV1"];}if(this.store.Format>=5){capabilities=[..capabilities,"AuditReadBufferV1"];}return new(this.store.InstanceId,"1",System.Runtime.InteropServices.RuntimeInformation.OSDescription,capabilities);}}
     public LoginResult Login(LoginRequest request){
         ObjectDisposedException.ThrowIf(this.disposed,this);ManagementStore.ValidateAccountName(request.Name);
         var name=ManagementStore.Normalize(request.Name);var now=DateTimeOffset.UtcNow;
@@ -84,7 +84,7 @@ public sealed partial class ManagementService:IDisposable{
         lock(this.store.Gate){
             var actor=this.CurrentActor(user);
             Require(actor,this.store.CurrentDatabase(definition),ManagementPermission.Edit);
-            var key=DraftSubject(user.Name,definition.Id);var previous=this.store.Read<Draft>("draft",key);
+            var key=DraftSubject(user.Name,definition.Id);var previous=this.FindDraft(actor,definition.Id);
             if((previous?.Revision??0)!=request.ExpectedRevision){throw new ManagementException("Conflict","下書きが別の操作で更新されました。");}
             var active=this.store.Read<DefinitionVersion>("active",definition.Id);
             if(request.ExpectedPublishedVersion is{} version&&((active?.Version??0)!=version||request.BaseVersion!=version)){
@@ -103,7 +103,9 @@ public sealed partial class ManagementService:IDisposable{
             var draft=new Draft(definition,user.Name,checked(request.ExpectedRevision+1),request.BaseVersion,DateTimeOffset.UtcNow){
                 DatabaseChange=change,QueryRenames=CheckedQueryRenames(definition,request.BaseVersion,renames)
             };
-            this.store.Write(()=>{this.store.Put("draft",key,draft);this.store.AddHistory(user.Name,this.store.CurrentDatabase(definition),"DraftSaved",definition.Id,draft.Revision);});return draft;
+            if(definition.Kind==DefinitionKind.Database){this.WriteDraftFile(draft);}
+            var managed=this.WriteManagedSource(actor,draft,active);
+            this.store.Write(()=>{this.store.Put("draft",key,draft);if(managed is not null){this.store.Put("managedSource",definition.Id,managed);}this.store.AddHistory(user.Name,this.store.CurrentDatabase(definition),"DraftSaved",definition.Id,draft.Revision);});return draft;
         }
     }
     private static QueryDraftRename[]? CheckedQueryRenames(Definition definition,long baseVersion,QueryDraftRename[]? renames){
@@ -120,9 +122,12 @@ public sealed partial class ManagementService:IDisposable{
         static bool ValidName(string text)=>!string.IsNullOrWhiteSpace(text)&&text.Length<=2048&&!text.Any(char.IsControl);
     }
     public Draft? FindDraft(UserAccount user,string id){
-        var draft=this.store.Read<Draft>("draft",DraftSubject(user.Name,id));
-        if(draft is not null){Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Edit);}
-        return draft;
+        lock(this.store.Gate){
+            var key=DraftSubject(user.Name,id);
+            var draft=this.store.Read<Draft>("draft",key);
+            if(draft is not null){Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Edit);}
+            return IsManagedSourceOwner(user)?this.ReadManagedSource(user,id,key,draft):draft;
+        }
     }
     public Draft GetDraft(UserAccount user,string id,long? revision=null){
         var draft=this.FindDraft(user,id)??throw new ManagementException("NotFound","個人の下書きがありません。");
@@ -137,7 +142,19 @@ public sealed partial class ManagementService:IDisposable{
     internal void RequestStop(){foreach(var item in this.running.Values){item.Cancel();}}
     public ChangePreview Preview(UserAccount user,DraftKey key){
         var draft=this.GetDraft(user,key.Id,key.Revision);Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Apply);
-        return this.PreviewPublication(user,draft,this.store.Read<DefinitionVersion>("active",key.Id),draft.Definition,null,key.BundleHash);
+        var active=this.store.Read<DefinitionVersion>("active",key.Id);
+        Definition candidate;
+        try{candidate=key.BundleHash is null?this.DatabasePublicationCandidate(draft):draft.Definition;}
+        catch(ManagementException error){return new("",key.Id,draft.Revision,active?.Version??0,[],[],false,[new(error.Code,error.Message)]);}
+        return this.PreviewPublication(user,draft,active,candidate,null,key.BundleHash);
+    }
+    private Definition DatabasePublicationCandidate(Draft draft){
+        var definition=draft.Definition;
+        if(this.SdkBuilder is null||definition.Kind!=DefinitionKind.Database||draft.DatabaseChange is {Delete:true}){return definition;}
+        if(draft.DatabaseChange is null&&(!definition.Id.StartsWith("db-",StringComparison.Ordinal)||!Guid.TryParseExact(definition.Id.AsSpan(3),"N",out _))){return definition;}
+        if(definition.EntryType!="UserCode.ManagedDb"&&!definition.EntryType.EndsWith(".Database",StringComparison.Ordinal)){return definition;}
+        var name=draft.DatabaseChange?.NewName??this.store.CurrentDatabase(definition);
+        return DatabaseDesigner.PrepareManagedDatabase(definition,name);
     }
     public TableChangePreview PreviewTable(UserAccount user,TableDraftKey key){
         if(key.Draft is null||string.IsNullOrWhiteSpace(key.Table)){throw new ManagementException("InvalidRequest","下書きと対象の表を指定してください。");}
@@ -156,25 +173,63 @@ public sealed partial class ManagementService:IDisposable{
     private ChangePreview PreviewPublication(UserAccount user,Draft draft,DefinitionVersion? active,Definition candidate,string? table,string? bundleHash=null){
         this.CheckDatabaseDraft(this.CurrentActor(user),draft.Definition,draft.DatabaseChange,active);
         if(draft.DatabaseChange is{Delete:true}){return this.PreviewDatabaseDeletion(draft,active!);}
-        using var build=this.ReadDraftBuild(user,draft with{Definition=candidate},new(draft.Definition.Id,draft.Revision){BundleHash=bundleHash});string[] changes;DiagnosticInfo? migrationError=null;
-        try{changes=this.runtime.DescribeChanges(active,candidate,build);}catch(ManagementException error){
+        var buildForConfirmation=table is null&&bundleHash is null&&candidate.Kind==DefinitionKind.Database?this.SdkBuilder:null;
+        var confirmed=table is null&&bundleHash is not null?this.FindConfirmedDatabaseBuild(user,draft,candidate):null;
+        var reuseConfirmation=confirmed is not null&&confirmed.Build.BundleHash==bundleHash;
+        using var build=reuseConfirmation
+            ?NativeRuntime.FromImported(this.SourceBuilds.Read(confirmed!.Build))
+            :buildForConfirmation is null
+            ?this.ReadDraftBuild(user,draft with{Definition=candidate},new(draft.Definition.Id,draft.Revision){BundleHash=bundleHash})
+            :buildForConfirmation.Build(candidate,draftRevision:draft.Revision,baseVersion:draft.BaseVersion,includeGenerated:true);
+        if(buildForConfirmation is not null&&build.ImportedBuild is{} inspected){
+            bundleHash=inspected.Build.BundleHash;
+        }
+        string[] changes;DiagnosticInfo? migrationError=null;
+        try{changes=this.runtime.DescribeChanges(active,candidate,build,draft.DatabaseChange?.NewName);}catch(ManagementException error){
             changes=[];var message=error.Message;
             if(error.Code=="BuildMismatch"&&active is not null){message="公開済み v"+active.Version+" を読み出せません。適用の前に保守復旧が必要です。"+message;}
             migrationError=new(error.Code,message);
         }
         var dependencies=this.runtime.Dependencies(candidate);var version=active?.Version??0;
-        var diagnostics=build.Result.Diagnostics.Concat(this.runtime.ValidateDependents(candidate,build)).ToList();if(migrationError is not null){diagnostics.Add(migrationError);}if(version!=draft.BaseVersion){diagnostics.Add(new("Conflict","共有版が進んでいます。差分を確認し基準版を更新してください。"));}
+        var queryBuilds=buildForConfirmation is not null?new List<ConfirmedQueryBuild>():null;
+        var diagnostics=build.Result.Diagnostics.ToList();
+        if(!reuseConfirmation){diagnostics.AddRange(this.runtime.ValidateDependents(candidate,build,queryBuilds));}
+        if(migrationError is not null){diagnostics.Add(migrationError);}
+        if(version!=draft.BaseVersion){diagnostics.Add(new("Conflict","共有版が進んでいます。差分を確認し基準版を更新してください。"));}
+        var confirmedQueries=reuseConfirmation?confirmed!.Queries:queryBuilds?.ToArray();
+        if(confirmedQueries is not null&&build.ImportedBuild is not null&&
+            !dependencies.Order(StringComparer.Ordinal).SequenceEqual(confirmedQueries.Select(query=>query.Id+"@"+query.Version).Order(StringComparer.Ordinal))){
+            diagnostics.Add(new("Conflict","登録クエリの版が変わりました。変更をもう一度確認してください。"));
+        }
         var actualBundle=build.ImportedBuild?.Build.BundleHash;
+        if(buildForConfirmation is not null&&diagnostics.All(item=>item.Severity!="Error")){
+            Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Validate);
+            try{
+                using var validationBuild=build.Retain();
+                var checkedDatabase=this.runtime.CreateValidation(draft with{Definition=candidate},user.Name,validationBuild);
+                try{this.RecordValidation(user,candidate,draft.Revision,checkedDatabase.Id,true,null,actualBundle);}
+                finally{this.runtime.DropValidation(checkedDatabase.Id,user);}
+            }catch(ManagementException error){diagnostics.Add(new(error.Code,error.Message));}
+        }
         var validation=this.store.Read<ValidationResult>("lastValidation",DraftSubject(user.Name,draft.Definition.Id));if(validation is null||validation.DefinitionHash!=candidate.Hash()||validation.DraftRevision!=draft.Revision||validation.BundleHash!=actualBundle){validation=null;diagnostics.Add(new("ValidationNotRun","この適用候補の検証結果はまだありません。",Severity:"Warning"));}else if(!validation.Passed){diagnostics.Add(new("ValidationFailed","直近の検証は失敗しています: "+validation.Error,Severity:"Warning"));}
         var intent=draft.Definition.Hash()+"\n"+draft.Revision+"\n"+version+"\n"+string.Join("\n",dependencies);
+        foreach(var change in changes.Where(change=>change.StartsWith("テーブルの保存先 ",StringComparison.Ordinal))){
+            intent+="\nTableStorageV1\n"+change;
+        }
         if(draft.DatabaseChange is{} databaseChange){
             intent+="\nDatabaseDraftV1\n"+System.Text.Json.JsonSerializer.Serialize(databaseChange,ManagementJson.Options);
             if(databaseChange.NewName is{} name){changes=[ $"DB名を変更: {databaseChange.ExpectedName} → {name}", ..changes ];}
         }
         if(table is not null){intent+="\nTablePublicationV1\n"+table+"\n"+candidate.Hash();}
         if(actualBundle is not null){intent+="\nSourceBuildV1\n"+actualBundle;}
+        if(confirmedQueries is not null){
+            intent+="\n"+string.Join("\n",confirmedQueries.OrderBy(query=>query.Id,StringComparer.Ordinal).Select(query=>query.Build.BundleHash));
+        }
+        if(buildForConfirmation is not null&&build.ImportedBuild is{} captured&&diagnostics.All(item=>item.Severity!="Error")){
+            this.BindConfirmedDatabaseBuild(user,draft,new(captured.Build,confirmedQueries!));
+        }
         var token=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(intent)));
-        return new(token,draft.Definition.Id,draft.Revision,version,changes,dependencies,diagnostics.All(item=>item.Severity!="Error"),diagnostics.ToArray(),validation,candidate.Migration?.HasDataLoss==true){BundleHash=bundleHash,SourceChanges=DescribeSourceChanges(active?.Definition.Source,candidate.Source)};
+        return new(token,draft.Definition.Id,draft.Revision,version,changes,dependencies,diagnostics.All(item=>item.Severity!="Error"),diagnostics.ToArray(),validation,candidate.Migration?.HasDataLoss==true){BundleHash=bundleHash,SourceChanges=DescribeSourceChanges(active?.Definition.Source,candidate.Source),GeneratedSources=build.GeneratedSources};
     }
     private static SourceFileChange[] DescribeSourceChanges(SourceSnapshot? before,SourceSnapshot after){
         var previous=(before?.Files??[]).ToDictionary(file=>file.Path,file=>file.Text,StringComparer.Ordinal);
@@ -203,8 +258,15 @@ public sealed partial class ManagementService:IDisposable{
             if(draft.DatabaseChange is not null){throw new ManagementException("InvalidRequest","DBの変更はまとめて適用してください。");}
             RequireTableSourcePreview(request.BundleHash);plan=PrepareTable(draft,baseline,table);
         }
-        var candidate=plan?.Candidate??draft.Definition;
-        var preview=this.PreviewPublication(user,draft,baseline,candidate,table,request.BundleHash);if(!preview.CanApply||preview.Token!=request.PreviewToken){throw new ManagementException("Conflict","変更影響を再確認してください。");}
+        var externalBuild=request.BundleHash is not null&&this.FindImportedSourceBuild(user,draft)?.Build.BundleHash==request.BundleHash;
+        var candidate=plan?.Candidate??(externalBuild?draft.Definition:this.DatabasePublicationCandidate(draft));
+        var bundleHash=request.BundleHash;
+        var confirmed=table is null?this.FindConfirmedDatabaseBuild(user,draft,candidate):null;
+        if(table is null&&bundleHash is null&&this.SdkBuilder is not null&&candidate.Kind==DefinitionKind.Database&&draft.DatabaseChange is not{Delete:true}){
+            if(confirmed is null){throw new ManagementException("Conflict","変更影響を再確認してください。");}
+            bundleHash=confirmed.Build.BundleHash;
+        }
+        var preview=this.PreviewPublication(user,draft,baseline,candidate,table,bundleHash);if(!preview.CanApply||preview.Token!=request.PreviewToken){throw new ManagementException("Conflict","変更影響を再確認してください。");}
         if(preview.RequiresBackup&&!request.ConfirmDataLoss){throw new ManagementException("BackupRequired","削除を含む変更にはバックアップとデータ削除の明示確認が必要です。");}
         string? backup=null;if(preview.RequiresBackup){backup=Path.Combine(this.store.Root,"backups",request.OperationId.ToString("N"));}
         var operation=new OperationInfo(request.OperationId,user.Name,this.store.CurrentDatabase(draft.Definition),request.Id,OperationState.Running,null,null,DateTimeOffset.UtcNow,intent,backup);
@@ -218,21 +280,30 @@ public sealed partial class ManagementService:IDisposable{
                 registered=true;
             }
             if(draft.DatabaseChange is{Delete:true}){return this.DeleteDatabase(user,draft,baseline!,preview,operation,cancellation.Token);}
-            if(request.BundleHash is not null){selected=this.ReadDraftBuild(user,draft,new(request.Id,request.DraftRevision){BundleHash=request.BundleHash});}
+            if(bundleHash is not null){
+                selected=confirmed?.Build.BundleHash==bundleHash
+                    ?NativeRuntime.FromImported(this.SourceBuilds.Read(confirmed!.Build))
+                    :this.ReadDraftBuild(user,draft,new(request.Id,request.DraftRevision){BundleHash=bundleHash});
+            }
             this.runtime.Publish(candidate,cancellation.Token,publication=>{
                 this.PublicationCheckpoint?.Invoke("Prepared",operation.Id);cancellation.Token.ThrowIfCancellationRequested();
                 lock(this.store.Gate){var latest=this.GetDraft(user,request.Id,request.DraftRevision);var active=this.store.Read<DefinitionVersion>("active",request.Id);
                     var actor=this.CurrentActor(user);Require(actor,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Apply);
                     this.CheckDatabaseDraft(actor,latest.Definition,latest.DatabaseChange,active);
                     if(latest.Definition.Hash()!=draft.Definition.Hash()||latest.DatabaseChange!=draft.DatabaseChange||(active?.Version??0)!=preview.CurrentVersion){throw new ManagementException("Conflict","適用準備中に定義が更新されました。");}
-                    if(request.BundleHash is not null&&this.GetImportedSourceBuild(user,new(request.Id,request.DraftRevision)).Build.BundleHash!=request.BundleHash){throw new ManagementException("Conflict","適用準備中に選択済み成果物が変更されています。");}
+                    if(bundleHash is not null){
+                        var currentBundle=confirmed?.Build.BundleHash==bundleHash
+                            ?this.FindConfirmedDatabaseBuild(user,latest,candidate)?.Build.BundleHash
+                            :this.GetImportedSourceBuild(user,new(request.Id,request.DraftRevision)).Build.BundleHash;
+                        if(currentBundle!=bundleHash){throw new ManagementException("Conflict","適用準備中に選択済み成果物が変更されています。");}
+                    }
                     if(draft.Definition.Kind==DefinitionKind.Database&&this.store.List<DefinitionVersion>("active",predicate:item=>item.Definition.Kind==DefinitionKind.Database&&item.Database==publication.Primary.Database&&item.Definition.Id!=draft.Definition.Id).Items.Length>0){throw new ManagementException("Conflict","同じDBに別の定義が公開されました。");}
                     if(!this.runtime.Dependencies(candidate).Order(StringComparer.Ordinal).SequenceEqual(preview.Dependencies.Order(StringComparer.Ordinal))){throw new ManagementException("Conflict","依存する定義の版が変更されています。");}
                     foreach(var dependent in publication.Dependents){if(this.store.Read<DefinitionVersion>("active",dependent.Definition.Id)?.Version!=dependent.ExpectedVersion){throw new ManagementException("Conflict","依存する問い合わせが更新されました。");}}
                     var name=draft.DatabaseChange?.NewName??publication.Primary.Database;
                     var version=new DefinitionVersion(candidate,checked(preview.CurrentVersion+1),user.Name,DateTimeOffset.UtcNow,publication.Primary.ArtifactHash,publication.Primary.StoragePath){Database=name};
                     var finished=operation with{State=OperationState.Succeeded,PublishedVersion=version.Version,Database=name};
-                    this.store.Write(()=>{
+                    this.store.WritePublication(publication.Primary,()=>{
                         if(active is not null&&draft.DatabaseChange?.NewName is{} newName&&newName!=active.Database){
                             this.WriteDatabaseName(active,newName,cancellation.Token);
                             this.RenameCheckpoint?.Invoke();
@@ -245,14 +316,21 @@ public sealed partial class ManagementService:IDisposable{
                             var remaining=draft with{Definition=plan.RemainingDraft,BaseVersion=version.Version,Revision=checked(draft.Revision+1),SavedAt=version.CreatedAt};
                             this.store.Put("draft",DraftSubject(user.Name,request.Id),remaining);
                         }
-                        else if(draft.DatabaseChange is not null||draft.QueryRenames is not null){
-                            this.store.Put("draft",DraftSubject(user.Name,request.Id),draft with{BaseVersion=version.Version,SavedAt=version.CreatedAt,DatabaseChange=null,QueryRenames=null});
+                        else{
+                            var managed=this.store.Read<ManagedSource>("managedSource",request.Id);
+                            var ownedSource=managed?.Owner==user.Name;
+                            if(ownedSource||draft.DatabaseChange is not null||draft.QueryRenames is not null){
+                                this.store.Put("draft",DraftSubject(user.Name,request.Id),draft with{
+                                    Definition=ownedSource?candidate with{Migration=null}:draft.Definition,
+                                    BaseVersion=version.Version,SavedAt=version.CreatedAt,DatabaseChange=null,QueryRenames=null
+                                });
+                            }
                         }
-                    });
+                    },()=>this.PublicationCheckpoint?.Invoke("PromotionPending",operation.Id));
                     operation=finished;
                     this.PublicationCheckpoint?.Invoke("Committed",operation.Id);
                 }
-            },backup,selected:selected);
+            },backup,selected:selected,confirmedQueries:confirmed?.Build.BundleHash==bundleHash?confirmed?.Queries:null,placementDatabase:draft.DatabaseChange?.NewName);
         }catch(Exception error) when(registered){
             var durable=this.store.Read<OperationInfo>("operation",operation.Id.ToString("N"));
             if(durable?.State==OperationState.Succeeded){operation=durable;}

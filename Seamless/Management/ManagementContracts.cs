@@ -71,6 +71,7 @@ public sealed record ChangePreview(string Token,string Id,long DraftRevision,lon
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? BundleHash{get;init;}
     public SourceFileChange[] SourceChanges{get;init;}=[];
+    public GeneratedSourceFile[] GeneratedSources{get;init;}=[];
 }
 public sealed record ApplyRequest(string Id,long DraftRevision,string PreviewToken,Guid OperationId,[property:System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]bool ConfirmDataLoss=false){
     [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]

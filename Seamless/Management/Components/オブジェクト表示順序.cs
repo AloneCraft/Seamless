@@ -4,7 +4,11 @@ namespace Seamless.Management.Components;
 public sealed class オブジェクト表示順序{
     private readonly Dictionary<(string 所属,string 分類),string[]> 順序=[];
     public bool 変更ありか=>this.順序.Count>0;
-    public static string 分類(string 種類){if(種類 is "ScalarFunction" or "TableFunction" or "RegisteredFunction"){return "Function";}return 種類;}
+    public static string 分類(string 種類)=>種類 switch{
+        "ScalarFunction" or "TableFunction" or "RegisteredFunction"=>"Function",
+        "SystemProperty"=>"SystemView",
+        _=>種類
+    };
     public CatalogObject[] 適用(IEnumerable<CatalogObject> 項目,string 所属,string 種類){
         var 一覧=項目.Where(項目=>項目.Schema==所属&&分類(項目.Kind)==種類).ToArray();
         if(!this.順序.TryGetValue((所属,種類),out var 順序)){return 一覧;}

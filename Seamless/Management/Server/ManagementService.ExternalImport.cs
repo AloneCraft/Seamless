@@ -43,7 +43,7 @@ public sealed partial class ManagementService{
                     var version=new DefinitionVersion(candidate,checked((active?.Version??0)+1),user.Name,DateTimeOffset.UtcNow,publication.Primary.ArtifactHash,publication.Primary.StoragePath){Database=publication.Primary.Database};
                     operation=operation with{State=OperationState.Succeeded,PublishedVersion=version.Version};
                     var previousDraft=this.store.Read<Draft>("draft",DraftSubject(user.Name,candidate.Id));
-                    this.store.Write(()=>{
+                    this.store.WritePublication(publication.Primary,()=>{
                         if(publication.Primary.AuditOrigin is{} origin){this.store.Put("auditOrigin",origin.WalId.ToString("N"),origin);}
                         foreach(var dependent in publication.Dependents){var rebuilt=new DefinitionVersion(dependent.Definition,checked(dependent.ExpectedVersion+1),user.Name,DateTimeOffset.UtcNow,dependent.ArtifactHash,dependent.StoragePath){Database=dependent.Database};this.store.Put("version",rebuilt.Definition.Id+":"+rebuilt.Version,rebuilt);this.store.Put("active",rebuilt.Definition.Id,rebuilt);this.store.AddHistory(user.Name,rebuilt.Database,"Rebuilt",rebuilt.Definition.Id,rebuilt.Version);}
                         this.store.Put("version",candidate.Id+":"+version.Version,version);this.store.Put("active",candidate.Id,version);this.store.Put("operation",operationId.ToString("N"),operation);

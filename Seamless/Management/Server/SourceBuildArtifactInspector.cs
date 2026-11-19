@@ -28,14 +28,21 @@ internal static class SourceBuildArtifactInspector{
             using var capture=new Capture(budget.CreateChild(128L<<20,0),cancellationToken);
             var path=Path.GetFullPath(assemblyPath);
             var image=capture.Read(path);
-            var pdb=capture.Read(Path.ChangeExtension(path,".pdb"));
             using var pe=new PEReader(new MemoryStream(image,false));
             if(!pe.HasMetadata||pe.PEHeaders.CorHeader is not{} cor||(cor.Flags&CorFlags.Requires32Bit)!=0){throw Mismatch("対応するマネージドDLLが必要です。");}
             var metadata=pe.GetMetadataReader();
             if(!metadata.IsAssembly||!metadata.TypeDefinitions.Any(handle=>TypeName(metadata,handle)==context.Current.Definition.EntryType)){
                 throw Mismatch("DB定義の入口型がDLLにありません。");
             }
-            using var provider=MetadataReaderProvider.FromPortablePdbStream(new MemoryStream(pdb,false));
+            var embedded=pe.ReadDebugDirectory().SingleOrDefault(item=>item.Type==DebugDirectoryEntryType.EmbeddedPortablePdb);
+            var pdbHash="";
+            MetadataReaderProvider provider;
+            if(embedded.Type==DebugDirectoryEntryType.EmbeddedPortablePdb){provider=pe.ReadEmbeddedPortablePdbDebugDirectoryData(embedded);}
+            else{
+                var pdb=capture.Read(Path.ChangeExtension(path,".pdb"));pdbHash=Hash(pdb);
+                provider=MetadataReaderProvider.FromPortablePdbStream(new MemoryStream(pdb,false));
+            }
+            using var ownedProvider=provider;
             var symbols=provider.GetMetadataReader();
             var id=symbols.DebugMetadataHeader?.Id.ToArray()??[];
             if(id.Length!=20||!pe.ReadDebugDirectory().Any(entry=>{
@@ -46,7 +53,7 @@ internal static class SourceBuildArtifactInspector{
             CheckSources(context,symbols,capture);
             var dependencies=CheckDependencies(path,image,capture);
             var result=new SourceProjectBuild(context.ProjectId,context.Current.Definition.Id,context.Current.DraftRevision,context.Current.BaseVersion,
-                context.Current.Definition.Hash(),context.Current.Definition.Source.Hash(),path,Hash(image),Hash(pdb),
+                context.Current.Definition.Hash(),context.Current.Definition.Source.Hash(),path,Hash(image),pdbHash,
                 metadata.GetGuid(metadata.GetModuleDefinition().Mvid),dependencies);
             result=result with{BundleHash=SourceBuildArtifactStore.BundleHash(result)};
             captured?.Invoke(result,capture.Files);
@@ -80,14 +87,18 @@ internal static class SourceBuildArtifactInspector{
         foreach(var handle in symbols.Documents){
             var document=symbols.GetDocument(handle);
             var name=symbols.GetString(document.Name);
-            if(Path.IsPathFullyQualified(name)){documents.TryAdd(Path.GetFullPath(name),document);}
+            if(context.ProjectId=="server-draft"){documents.TryAdd(name.Replace('\\','/'),document);}
+            else if(Path.IsPathFullyQualified(name)){documents.TryAdd(Path.GetFullPath(name),document);}
         }
         foreach(var source in context.Current.Definition.Source.Files){
             var file=context.Binding.Files.Single(item=>item.Path==source.Path);
             var bytes=capture.Read(file.FullPath);
             using var text=new StreamReader(new MemoryStream(bytes,false),Encoding.UTF8,true);
             if(text.ReadToEnd()!=source.Text){throw Mismatch("ビルド確認中にソースが変更されました: "+source.Path);}
-            if(!documents.TryGetValue(Path.GetFullPath(file.FullPath),out var document)||document.Hash.IsNil){
+            var documentPath=context.ProjectId=="server-draft"
+                ?DraftSdkBuilder.PdbRoot+"/"+source.Path.Replace('\\','/')
+                :Path.GetFullPath(file.FullPath);
+            if(!documents.TryGetValue(documentPath,out var document)||document.Hash.IsNil){
                 throw Mismatch("PDBに元ソースのチェックサムがありません: "+source.Path);
             }
             var algorithm=symbols.GetGuid(document.HashAlgorithm);

@@ -2572,4 +2572,9 @@
   <data name="復元の手順を取得できませんでした。" xml:space="preserve"><value>復元の手順を取得できませんでした。</value></data>
   <data name="クリップボードへ写しました。" xml:space="preserve"><value>クリップボードへ写しました。</value></data>
   <data name="クリップボードへ写せませんでした。文を選んで写してください。" xml:space="preserve"><value>クリップボードへ写せませんでした。文を選んで写してください。</value></data>
+  <data name="バックアップの保存先" xml:space="preserve"><value>バックアップの保存先</value></data>
+  <data name="保存先をコピー" xml:space="preserve"><value>保存先をコピー</value></data>
+  <data name="最近の変更適用時のバックアップ" xml:space="preserve"><value>最近の変更適用時のバックアップ</value></data>
+  <data name="データベースの下書き" xml:space="preserve"><value>データベースの下書き</value></data>
+  <data name="確認するデータベースの下書きがありません。" xml:space="preserve"><value>確認するデータベースの下書きがありません。</value></data>
 </root>

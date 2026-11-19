@@ -1,4 +1,4 @@
-﻿using Seamless.Collections.Tsavorite;
+using Seamless.Collections.Tsavorite;
 using Tsavorite.core;
 namespace Seamless.Database.System;
 
@@ -9,4 +9,6 @@ public enum DatabaseObjectKind {
     ScalarFunction,
     StoredProcedure,
     SystemTable,
+    Property,
+    SystemView,
 }

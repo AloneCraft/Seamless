@@ -4,8 +4,15 @@ public sealed partial class ManagementService{
     public const string SystemDatabaseId="system";
     public CatalogPage<CatalogDatabase> Databases(UserAccount user,long cursor=0,string versionToken=""){
         lock(this.store.Gate){var token=this.CatalogToken(versionToken);if(cursor<0){throw new ManagementException("InvalidRequest","ページ指定が不正です。");}
-            var page=this.store.SelectPage<DefinitionVersion,CatalogDatabase>("active",cursor,100,item=>item.Definition.Kind==DefinitionKind.Database&&Can(user,item.Database,ManagementPermission.View),item=>new("db:"+item.Definition.Id,item.Database,item.Definition.Id,item.Version,item.ArtifactHash,false));
-            var items=page.Items;if(cursor==0&&Can(user,"*",ManagementPermission.Manage)){items=[new(SystemDatabaseId,"system","",0,"",true),..items];}
+            var page=this.store.SelectPage<DefinitionVersion,CatalogDatabase>("active",cursor,100,
+                item=>item.Definition.Kind==DefinitionKind.Database&&!this.store.IsDisplacedPlacement(item)&&Can(user,item.Database,ManagementPermission.View)&&ManagementPlacement.HasDatabaseEntry(this.store.Root,item),
+                item=>new("db:"+item.Definition.Id,item.Database,item.Definition.Id,item.Version,item.ArtifactHash,false){PlacementError=this.runtime.PlacementError(item)});
+            var items=page.Items;
+            if(!page.HasMore&&Can(user,"*",ManagementPermission.Manage)){
+                items=[..items,..this.store.UnregisteredPlacements.Select(item=>new CatalogDatabase(
+                    "placement:"+item.Name,item.Name,"",item.Version,"",false){PlacementError=item.Error})];
+            }
+            if(cursor==0&&Can(user,"*",ManagementPermission.Manage)){items=[new(SystemDatabaseId,"system","",0,"",true),..items];}
             return new(items,page.NextCursor,page.HasMore,token);
         }
     }
@@ -21,8 +28,8 @@ public sealed partial class ManagementService{
             return new(page.Items,page.NextCursor,page.HasMore,token);
         }
     }
-    public CatalogPage<CatalogObject> Objects(UserAccount user,CatalogRequest request)=>this.CatalogRead(user,request,(_,items)=>Slice(items.Select(item=>item.Details.Object).Where(item=>(request.IncludeSystemObjects||item.Kind!="SystemTable")&&(request.Schema is null||item.Schema==request.Schema)&&(request.Kind is null||item.Kind==request.Kind)&&(string.IsNullOrEmpty(request.NameFilter)||item.Name.Contains(request.NameFilter,StringComparison.OrdinalIgnoreCase))),request.Cursor,this.CatalogToken(request.VersionToken)));
-    public CatalogObjectDetails ObjectDetails(UserAccount user,CatalogRequest request)=>this.CatalogRead(user,request,(_,items)=>items.FirstOrDefault(item=>item.Details.Object.Id==request.ObjectId)?.Details??throw new ManagementException("NotFound","オブジェクトがありません。"));
+    public CatalogPage<CatalogObject> Objects(UserAccount user,CatalogRequest request)=>this.CatalogRead(user,request,(_,items)=>Slice(items.Select(item=>item.Details.Object).Where(item=>(request.IncludeSystemObjects||item.Kind is not ("SystemTable" or "SystemView" or "SystemProperty"))&&(request.Schema is null||item.Schema==request.Schema)&&(request.Kind is null||item.Kind==request.Kind)&&(string.IsNullOrEmpty(request.NameFilter)||item.Name.Contains(request.NameFilter,StringComparison.OrdinalIgnoreCase))),request.Cursor,this.CatalogToken(request.VersionToken)));
+    public CatalogObjectDetails ObjectDetails(UserAccount user,CatalogRequest request)=>this.CatalogRead(user,request,(_,items)=>items.FirstOrDefault(item=>item.Details.Object.Id==(request.DatabaseId==SystemDatabaseId?request.ObjectId:DatabaseSystemObjects.CanonicalId(request.ObjectId)))?.Details??throw new ManagementException("NotFound","オブジェクトがありません。"));
     public CatalogObjectDetails PublishedObjectDetails(UserAccount user,CatalogRequest request){var details=this.ObjectDetails(user,request);return details with{Source=details.Source with{Path=null,Start=0,Length=0,Available=false,UnavailableReason="PublishedMetadata"}};}
     public CatalogObjectSource ObjectSource(UserAccount user,CatalogRequest request){
         lock(this.store.Gate){var version=this.CatalogVersion(user,request.DatabaseId);if(version is not null){RequireSource(user,version);}var details=this.ObjectDetails(user,request);if(!details.Source.Available){version=null;}return new(details.Source,version);}
@@ -36,9 +43,11 @@ public sealed partial class ManagementService{
     }
     private T CatalogRead<T>(UserAccount user,CatalogRequest request,Func<Type,IEnumerable<NativeCatalog.Item>,T> read){
         lock(this.store.Gate){user=this.CurrentActor(user);_=this.CatalogToken(request.VersionToken);var version=this.CatalogVersion(user,request.DatabaseId);
-            if(version is null){return read(this.store.SystemCatalogType,NativeCatalog.Read(this.store.SystemCatalogType,null));}
+            if(version is null){return read(this.store.SystemCatalogType,NativeCatalog.Read(this.store.SystemCatalogType,null).Concat(SystemViews()));}
             using var compiled=this.runtime.ReadArtifact(version);var context=new ManagedLoadContext(imported:compiled.ImportedBuild);
-            try{using var stream=new MemoryStream(compiled.AssemblyBytes);var type=context.LoadFromStream(stream).GetType(version.Definition.EntryType,true)!;var items=NativeCatalog.Read(type,version);if(!Can(user,version.Database,ManagementPermission.Edit)){items=items.Select(static item=>item with{Details=item.Details with{Source=item.Details.Source with{Path=null,Start=0,Length=0,Available=false,UnavailableReason="Permission"}}});}return read(type,items);}
+            try{using var stream=new MemoryStream(compiled.AssemblyBytes);var type=context.LoadFromStream(stream).GetType(version.Definition.EntryType,true)!;var items=NativeCatalog.Read(type,version)
+                .Where(item=>!DatabaseSystemObjects.Contains(item.Details.Object.Id)).Concat(DatabaseMetadata(user,version));
+                if(!Can(user,version.Database,ManagementPermission.Edit)){items=items.Select(static item=>item with{Details=item.Details with{Source=item.Details.Source with{Path=null,Start=0,Length=0,Available=false,UnavailableReason="Permission"}}});}return read(type,items);}
             finally{context.Unload();}
         }
     }

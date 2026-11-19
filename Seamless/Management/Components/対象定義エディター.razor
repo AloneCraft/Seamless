@@ -77,7 +77,7 @@
         }
         return new(this.定義.Source,部分.Path,部分.Start,部分.Length){DB定義=DB定義};
     }}
-    private bool この部分は問い合わせ本体か(ObjectDefinitionPart 部分)=>this.定義.Kind==DefinitionKind.Database&&部分.Role=="Member"&&this.対象.Kind is "View" or "ScalarFunction" or "TableFunction";
+    private bool この部分は問い合わせ本体か(ObjectDefinitionPart 部分)=>this.定義.Kind==DefinitionKind.Database&&部分.Role=="Member"&&this.対象.Kind is "View" or "ScalarFunction" or "TableFunction" or "Property";
     protected override void OnParametersSet(){
         if(this.基準 is null||!this.変更ありか&&!ReferenceEquals(this.読取定義,this.定義)){
             try{this.読み込む(this.定義);}catch(ManagementException 例外){this.案内=例外.Message;}
@@ -142,7 +142,7 @@
         this.外側宣言=null;
         if(this.問い合わせ編集範囲 is{} 枠){this.入力コード=枠.Body;this.外側宣言=(枠.Opening,枠.Closing);}
     }
-    private string 表示コード(Definition 定義,ObjectDefinitionPart 部分)=>this.対象.Kind is "View" or "ScalarFunction" or "TableFunction"
+    private string 表示コード(Definition 定義,ObjectDefinitionPart 部分)=>this.対象.Kind is "View" or "ScalarFunction" or "TableFunction" or "Property"
         ?DatabaseDesigner.FormatObjectPart(定義.Source,部分):部分.Text;
     private Task 変更通知Async(){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.変更ありか=true;this.案内=null;this.診断一覧=[];return this.未保存変更時.InvokeAsync(true);}
     private Task コード変更時Async(string 値){
