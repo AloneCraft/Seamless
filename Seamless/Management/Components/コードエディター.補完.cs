@@ -4,7 +4,10 @@ using Microsoft.JSInterop;
 namespace Seamless.Management.Components;
 
 /// <summary>部分宣言の入力を元ファイルへ差し戻して解析するための、版固定の範囲。</summary>
-public sealed record コード補完範囲(SourceSnapshot ソース,string パス,int 開始,int 長さ);
+public sealed record コード補完範囲(SourceSnapshot ソース,string パス,int 開始,int 長さ){
+    internal Definition? DB定義{get;init;}
+    internal string スキーマ{get;init;}="";
+}
 public sealed record コード補完適用結果(int Position,string Text);
 
 public partial class コードエディター{
@@ -16,34 +19,42 @@ public partial class コードエディター{
     private CancellationTokenSource? 補完取消;
     private IJSObjectReference? 補完モジュール,補完操作;
     private DotNetObjectReference<コードエディター>? 補完参照;
-    private long 補完世代;
+    private long 補完世代,補完範囲版;
     private bool 補完中か;
+    private bool テーブル選択か;
 
     private void 補完の入力を照合(){
+        if(this.直前補完範囲!=this.補完範囲){this.補完範囲版++;}
         if(this.直前補完入力!=this.値||this.直前補完範囲!=this.補完範囲||this.読み取り専用か){this.補完を取消();}
         this.直前補完入力=this.値;this.直前補完範囲=this.補完範囲;
     }
     private void 補完を取消(){
-        this.補完世代++;this.補完取消?.Cancel();this.補完結果=null;this.補完中か=false;this.補完案内=null;
+        this.補完世代++;this.補完取消?.Cancel();this.補完結果=null;this.補完中か=false;this.補完案内=null;this.テーブル選択か=false;
     }
     private SourceSnapshot 補完入力を作る(string 入力値){
         var 範囲=this.補完範囲??throw new ManagementException("InvalidRequest","補完するソース範囲がありません。");
         return new SourceEditor().Apply(範囲.ソース,new(範囲.ソース.Hash(),範囲.パス,範囲.開始,範囲.長さ,入力値));
     }
-    [JSInvokable]public async Task 補完要求Async(int 位置,string 入力値){
-        if(this.破棄済みか||this.読み取り専用か||this.補完範囲 is null||位置<0||位置>入力値.Length){return;}
+    [JSInvokable]public Task 補完要求Async(int 位置,string 入力値)=>this.候補要求Async(位置,位置,入力値,false);
+    [JSInvokable]public Task テーブル候補要求Async(int 開始,int 終了,string 入力値)=>this.候補要求Async(開始,終了,入力値,true);
+    private async Task 候補要求Async(int 開始,int 終了,string 入力値,bool テーブルか){
+        if(this.破棄済みか||this.読み取り専用か||this.補完範囲 is not{} 範囲||開始<0||終了<開始||終了>入力値.Length||テーブルか&&範囲.DB定義 is null){return;}
         this.補完を取消();
         this.直前補完入力=入力値;
-        var 世代=this.補完世代;var 範囲=this.補完範囲;
+        var 世代=this.補完世代;this.テーブル選択か=テーブルか;
         using var 取消=new CancellationTokenSource();this.補完取消=取消;
         this.補完中か=true;await this.InvokeAsync(this.StateHasChanged);
         try{
             var ソース=this.補完入力を作る(入力値);
-            var 結果=await Task.Run(()=>this.補完器.Complete(ソース,範囲.パス,範囲.開始+位置,取消.Token),取消.Token);
+            var 結果=await Task.Run(()=>{
+                if(テーブルか){return Server.TableReferenceCompletion.Find(範囲.DB定義!,ソース,範囲.パス,範囲.開始+開始,範囲.開始+終了,範囲.スキーマ,取消.Token);}
+                if(範囲.DB定義 is not null){return this.補完器.Complete(ソース,範囲.パス,範囲.開始+開始,new Server.RuntimeCompiler().CompileSchemaForEditing,取消.Token);}
+                return this.補完器.Complete(ソース,範囲.パス,範囲.開始+開始,取消.Token);
+            },取消.Token);
             if(世代!=this.補完世代||this.破棄済みか){return;}
             if(結果.Start<範囲.開始||結果.Start+結果.Length>範囲.開始+入力値.Length){return;}
             this.補完結果=結果;
-            if(結果.Items.Length==0){this.補完案内=表示文言.取得("この位置で解決できる補完候補がありません。");}
+            if(結果.Items.Length==0){this.補完案内=表示文言.取得(結果.UnavailableReason??"この位置で解決できる補完候補がありません。");}
         }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
         catch(ManagementException 例外){if(世代==this.補完世代){this.補完案内=例外.Message;}}
         finally{
@@ -73,6 +84,7 @@ public partial class コードエディター{
             this.補完モジュール=await this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/code-completion.js");
             this.補完参照=DotNetObjectReference.Create(this);
             this.補完操作=await this.補完モジュール.InvokeAsync<IJSObjectReference>("初期化",this.根,this.入力,this.補完参照,表示文言.取得("補完操作に失敗しました。入力は保持しています。"));
+            if(this.補完範囲?.DB定義 is not null){await this.InvokeAsync(this.StateHasChanged);}
         }
         await this.補完操作.InvokeVoidAsync("update");
     }

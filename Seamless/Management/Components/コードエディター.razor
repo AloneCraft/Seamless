@@ -1,6 +1,12 @@
 @implements IAsyncDisposable
 @inject IJSRuntime スクリプト
-<div @ref="根" class="色付きコード @追加クラス" style="--コード行数:@行数">
+<div @ref="根" class="色付きコード @追加クラス" style="--コード行数:@行数" data-completion-scope="@補完範囲版">
+    @if(this.補完範囲?.DB定義 is not null&&!this.読み取り専用か){
+        <div class="コードテーブル操作">
+            <button type="button" class="控えめボタン" data-table-picker disabled="@(this.補完操作 is null)">@表示文言.取得("テーブルを挿入")</button>
+            <span>@表示文言.取得("q はこのDBの読み取り口です。")</span>
+        </div>
+    }
     <div class="コード行番号" aria-hidden="true"><pre @ref="番号">@番号文字列</pre></div>
     <div class="コード編集枠">
         <pre @ref="色表示" class="コード色表示" aria-hidden="true"><code>@foreach(var 断片 in 色一覧){<span class="@断片.Style">@断片.Text</span>}@("\n")</code></pre>
@@ -12,8 +18,14 @@
             @if(this.補完中か){<p role="status">@表示文言.取得("補完候補を解析中")</p>}
             @if(this.補完案内 is not null){<p role="status">@this.補完案内</p>}
             @if(this.補完結果 is{} 結果&&結果.Items.Length>0){
-                <div class="コード補完候補" role="listbox" aria-label="@表示文言.取得("C#補完候補")">
-                    @for(var 番号=0;番号<結果.Items.Length;番号++){var 候補=結果.Items[番号];<button type="button" role="option" tabindex="-1" data-code-completion-index="@番号" aria-selected="@(番号==0)"><span>@候補.InsertText</span><small>@候補.Kind</small><span class="コード補完詳細">@候補.DisplayText</span></button>}
+                <div @key="結果" class="コード補完候補" role="listbox" aria-label="@表示文言.取得(this.テーブル選択か?"参照できるテーブル":"C#補完候補")">
+                    @for(var 番号=0;番号<結果.Items.Length;番号++){
+                        var 候補=結果.Items[番号];
+                        <button type="button" role="option" tabindex="-1" data-code-completion-index="@番号" aria-selected="@(番号==0)">
+                            @if(this.テーブル選択か){<span>@候補.DisplayText</span><code class="コード補完詳細">@候補.InsertText</code>}
+                            else{<span>@候補.InsertText</span><small>@候補.Kind</small><span class="コード補完詳細">@候補.DisplayText</span>}
+                        </button>
+                    }
                 </div>
                 @if(結果.Limited){<p class="小案内">@表示文言.取得("候補は先頭100件です。入力を絞って再取得してください。")</p>}
             }

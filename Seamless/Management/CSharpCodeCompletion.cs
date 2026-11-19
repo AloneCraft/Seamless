@@ -16,7 +16,10 @@ public sealed class CSharpCodeCompletion{
         this.references=references?.ToArray()??SourceEditor.PlatformReferences();
     }
 
-    public CodeCompletionResult Complete(SourceSnapshot source,string path,int position,CancellationToken cancellationToken=default){
+    public CodeCompletionResult Complete(SourceSnapshot source,string path,int position,CancellationToken cancellationToken=default)=>
+        this.Complete(source,path,position,null,cancellationToken);
+
+    internal CodeCompletionResult Complete(SourceSnapshot source,string path,int position,Func<SourceSnapshot,CSharpCompilation>? compileSchema,CancellationToken cancellationToken){
         cancellationToken.ThrowIfCancellationRequested();
         source=source.Freeze();
         SourceEditor.Validate(source);
@@ -38,9 +41,17 @@ public sealed class CSharpCodeCompletion{
         // 未入力の識別子を構文上の名前として束縛し、末尾のドットでも同じ解析経路を使う。
         const string placeholder="__seamless_completion__";
         var text=file.Text.Remove(start,end-start).Insert(start,placeholder);
-        var tree=CSharpSyntaxTree.ParseText(text,options,path,cancellationToken:cancellationToken);
-        var trees=source.Files.Select(item=>item.Path==path?tree:CSharpSyntaxTree.ParseText(item.Text,options,item.Path,cancellationToken:cancellationToken));
-        var compilation=CSharpCompilation.Create("ManagementCompletion",trees,this.references,new(OutputKind.DynamicallyLinkedLibrary,nullableContextOptions:NullableContextOptions.Enable));
+        SyntaxTree tree;
+        CSharpCompilation compilation;
+        if(compileSchema is null){
+            tree=CSharpSyntaxTree.ParseText(text,options,path,cancellationToken:cancellationToken);
+            var trees=source.Files.Select(item=>item.Path==path?tree:CSharpSyntaxTree.ParseText(item.Text,options,item.Path,cancellationToken:cancellationToken));
+            compilation=CSharpCompilation.Create("ManagementCompletion",trees,this.references,new(OutputKind.DynamicallyLinkedLibrary,nullableContextOptions:NullableContextOptions.Enable));
+        }else{
+            var edited=source with{Files=source.Files.Select(item=>item.Path==path?item with{Text=text}:item).ToArray()};
+            compilation=compileSchema(edited);
+            tree=compilation.SyntaxTrees.Single(item=>item.FilePath==path);
+        }
         var model=compilation.GetSemanticModel(tree);
         var name=tree.GetRoot(cancellationToken).FindToken(start).Parent;
         INamespaceOrTypeSymbol? container=null;

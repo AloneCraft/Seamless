@@ -76,6 +76,8 @@ export function 初期化(root, input, receiver, failureMessage) {
     };
     const update = () => {
         if (disposed) return;
+        const popup = list();
+        if (popup && (!requested || !matches(requested))) popup.hidden = true;
         const entries = options();
         selected = Math.min(selected, Math.max(0, entries.length - 1));
         entries.forEach((entry, index) => {
@@ -88,12 +90,23 @@ export function 初期化(root, input, receiver, failureMessage) {
     };
     const matches = request => !disposed && !composing && !input.readOnly && document.activeElement === input
         && generation === request.generation && input.value === request.text
-        && input.selectionStart === request.position && input.selectionEnd === request.position;
+        && root.dataset.completionScope === request.scope
+        && input.selectionStart === request.position && input.selectionEnd === request.end;
+    const capture = tables => ({
+        text: input.value, position: input.selectionStart, end: tables ? input.selectionEnd : input.selectionStart,
+        scope: root.dataset.completionScope, generation, tables
+    });
     const request = async snapshot => {
         if (!matches(snapshot)) return;
         if (inFlight) { pendingRequest = snapshot; return; }
         inFlight = true; selected = 0; requested = snapshot;
-        try { await receiver.invokeMethodAsync('補完要求Async', snapshot.position, snapshot.text); }
+        try {
+            if (snapshot.tables) {
+                await receiver.invokeMethodAsync('テーブル候補要求Async', snapshot.position, snapshot.end, snapshot.text);
+            } else {
+                await receiver.invokeMethodAsync('補完要求Async', snapshot.position, snapshot.text);
+            }
+        }
         catch (error) { report(error); }
         finally {
             inFlight = false;
@@ -123,7 +136,7 @@ export function 初期化(root, input, receiver, failureMessage) {
         compositionEnded = false;
         if (event.ctrlKey && !event.altKey && !event.metaKey && event.code === 'Space') {
             event.preventDefault(); event.stopPropagation();
-            await request({ text: input.value, position: input.selectionStart, generation });
+            await request(capture(false));
             return;
         }
         if (event.key === 'Escape' && (inFlight || pendingRequest)) {
@@ -148,12 +161,17 @@ export function 初期化(root, input, receiver, failureMessage) {
         if (!entry || !root.contains(entry)) return;
         event.preventDefault(); selected = Number(entry.dataset.codeCompletionIndex); void apply(selected);
     };
+    const click = event => {
+        if (!event.target.closest('[data-table-picker]') || input.readOnly || composing) return;
+        input.focus({ preventScroll: true });
+        void request(capture(true));
+    };
     const inputChanged = event => {
         generation++; pendingRequest = null; requested = null;
         const popup = list(); if (popup) popup.hidden = true;
         input.removeAttribute('aria-activedescendant');
         if (composing || compositionEnded || event.isComposing || event.inputType !== 'insertText' || event.data !== '.') return;
-        const snapshot = { text: input.value, position: input.selectionStart, generation };
+        const snapshot = capture(false);
         requestAnimationFrame(() => { if (matches(snapshot)) void request(snapshot); });
     };
     const compositionStart = () => { composing = true; compositionEnded = false; void cancel(); };
@@ -164,6 +182,7 @@ export function 初期化(root, input, receiver, failureMessage) {
     input.addEventListener('compositionstart', compositionStart);
     input.addEventListener('compositionend', compositionEnd);
     root.addEventListener('pointerdown', pointerdown);
+    root.addEventListener('click', click);
     root.addEventListener('focusout', focusout);
     window.addEventListener('scroll', place, true);
     window.addEventListener('resize', place);
@@ -176,6 +195,7 @@ export function 初期化(root, input, receiver, failureMessage) {
             input.removeEventListener('compositionstart', compositionStart);
             input.removeEventListener('compositionend', compositionEnd);
             root.removeEventListener('pointerdown', pointerdown);
+            root.removeEventListener('click', click);
             root.removeEventListener('focusout', focusout);
             window.removeEventListener('scroll', place, true);
             window.removeEventListener('resize', place);

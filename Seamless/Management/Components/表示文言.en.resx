@@ -2617,4 +2617,9 @@
   <data name="戻り型 {0}" xml:space="preserve"><value>Return type {0}</value></data>
   <data name="レコードの集合を返すには、関数に結果列を追加してください。" xml:space="preserve"><value>Add a result column to return a set of records.</value></data>
   <data name="保存済み {0} 行" xml:space="preserve"><value>{0} saved rows</value></data>
+  <data name="テーブルを挿入" xml:space="preserve"><value>Insert table</value></data>
+  <data name="q はこのDBの読み取り口です。" xml:space="preserve"><value>Use q to read from this database.</value></data>
+  <data name="参照できるテーブル" xml:space="preserve"><value>Available tables</value></data>
+  <data name="この読み取り口から参照できるテーブルがありません。" xml:space="preserve"><value>No tables are available through this reader.</value></data>
+  <data name="この位置のDBの読み取り口を解決できません。" xml:space="preserve"><value>The database reader is unavailable at this position.</value></data>
 </root>

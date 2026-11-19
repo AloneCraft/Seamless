@@ -3,8 +3,8 @@
     @foreach(var 診断 in this.診断一覧){<p class="構造診断" role="alert"><code>@診断.Code</code> @診断.Message</p>}
     @if(this.基準 is{} 設計){
         @if(this.内部表示=="Source"){
-            <div class="コード見出し"><select aria-label="@表示文言.取得("対象の部分宣言")" disabled="@this.同期中か" value="@this.選択部分ID" @onchange="this.部分選択時Async">@foreach(var 部分 in 設計.Parts){<option value="@部分.Id">@部分.Path · @表示文言.取得(部分.Role) · @部分.Start</option>}</select><span>@表示文言.取得("対象の宣言だけを編集します。usingと名前空間は保持します。")</span></div>
-            <コードエディター 追加クラス="DBコード枠" ラベル="対象のC#" 値="@this.入力コード" 補完範囲="this.選択補完範囲" 読み取り専用か="@(!this.編集可能か||this.同期中か)" 値変更時="this.コード変更時Async"/>
+            <div class="コード見出し"><select aria-label="@表示文言.取得("対象の部分宣言")" disabled="@this.同期中か" @bind:get="this.選択部分ID" @bind:set="this.部分選択時Async">@foreach(var 部分 in 設計.Parts){<option value="@部分.Id">@部分.Path · @表示文言.取得(部分.Role) · @部分.Start</option>}</select><span>@表示文言.取得("対象の宣言だけを編集します。usingと名前空間は保持します。")</span></div>
+            <コードエディター @key="this.選択部分ID" 追加クラス="DBコード枠" ラベル="対象のC#" 値="@this.入力コード" 補完範囲="this.選択補完範囲" 読み取り専用か="@(!this.編集可能か||this.同期中か)" 値変更時="this.コード変更時Async"/>
         }else if(!設計.StructureAvailable){
             <p class="小案内">@設計.StructureUnavailableReason</p>
         }else{
@@ -63,8 +63,10 @@
     private コード補完範囲? 選択補完範囲{get{
         var 部分=this.基準?.Parts.SingleOrDefault(部分=>部分.Id==this.選択部分ID);
         if(部分 is null){return null;}
-        return new(this.定義.Source,部分.Path,部分.Start,部分.Length);
+        var DB定義=この部分は問い合わせ本体か(部分)?this.定義:null;
+        return new(this.定義.Source,部分.Path,部分.Start,部分.Length){DB定義=DB定義,スキーマ=this.対象.Schema};
     }}
+    private bool この部分は問い合わせ本体か(ObjectDefinitionPart 部分)=>this.定義.Kind==DefinitionKind.Database&&部分.Role=="Member"&&this.対象.Kind is "View" or "ScalarFunction" or "TableFunction";
     protected override void OnParametersSet(){
         if(this.基準 is null||!this.変更ありか&&!ReferenceEquals(this.読取定義,this.定義)){
             try{this.読み込む(this.定義);}catch(ManagementException 例外){this.案内=例外.Message;}
@@ -109,9 +111,8 @@
         this.列一覧.Add(new(){名前=名前});
         await this.変更通知Async();await this.表示モード変更時.InvokeAsync("Structure");await this.InvokeAsync(this.StateHasChanged);
     }
-    private async Task 部分選択時Async(ChangeEventArgs 引数){
-        var ID=引数.Value?.ToString();
-        if(ID is null||!await this.同期Async()||this.基準 is null){return;}
+    private async Task 部分選択時Async(string ID){
+        if(!await this.同期Async()||this.基準 is null){return;}
         var 部分=this.基準.Parts.SingleOrDefault(部分=>部分.Id==ID);if(部分 is null){return;}
         this.選択部分ID=ID;this.入力コード=this.表示コード(this.定義,部分);
     }
