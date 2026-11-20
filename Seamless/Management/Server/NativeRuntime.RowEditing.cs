@@ -64,7 +64,7 @@ internal sealed partial class NativeRuntime{
                 foreach(var write in writes){write();}
                 return new(version.Version,request.OperationId,request.Changes.Length);
             }
-            using var transaction=database.BeginTransaction(cancellation);
+            using var transaction=database.BeginPlannedRowTransaction(targets,cancellation);
             foreach(var group in request.Changes.GroupBy(change=>change.Table,StringComparer.Ordinal)){
                 var declaration=FindRowTable(declarations,group.Key);
                 var change=RowHandler<Action<object,IEnumerable<TableRowChange>,CancellationToken>>(declaration,nameof(ApplyTypedRows));

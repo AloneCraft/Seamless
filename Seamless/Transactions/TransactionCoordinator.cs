@@ -36,6 +36,7 @@ public sealed class TransactionCommitException(Guid id,TransactionOutcomeKind ou
 public sealed partial class TransactionCoordinator:IAsyncDisposable{
     private readonly object initialization=new();
     private readonly SemaphoreSlim gate=new(1,1);
+    private readonly TableAdmission tableAdmission=new();
     private readonly AsyncLocal<Marker?> ambient=new();
     private readonly Dictionary<(int,int),ITransactionParticipant> participants=[];
     private readonly TransactionJournal? journal;
@@ -59,7 +60,8 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
     private readonly List<Action<TransactionScope>> commitValidators=[];
     public void RegisterCommitValidator(Action<TransactionScope> validator){lock(this.initialization){if(this.started){throw new InvalidOperationException("Register validators before starting transactions.");}this.commitValidators.Add(validator);}}
     internal void ValidateCommit(TransactionScope scope){foreach(var validator in this.commitValidators){validator(scope);}}
-    public long AppliedLsn{get;private set;}
+    private long appliedLsn;
+    public long AppliedLsn{get=>Volatile.Read(ref this.appliedLsn);private set=>Volatile.Write(ref this.appliedLsn,value);}
     public TransactionFailure Failure=>this.failure;
     public void Register(ITransactionParticipant participant){
         ArgumentNullException.ThrowIfNull(participant);
@@ -91,7 +93,7 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
     /// <summary>
     /// 保留していた表の保存の仕組みが開いた。始まった後なら、その表の位置より後で、当て終えた位置までの記録のうち、その表の分だけを当てる。
     /// 始まる前なら保留だけを外し、当て直しは始まるときに、その表の位置から行う。
-    /// Exclusive の方式では、呼ぶ側は書き込みの門の中にいるので、ほかの取引の確定と重ならない。
+    /// 呼ぶ側は同じ表を更新する他の取引を排除する。別の表の確定と重なる場合は当て終えた位置を一度だけ読む。
     /// </summary>
     public void OpenDeferred(ITransactionParticipant participant){
         ArgumentNullException.ThrowIfNull(participant);
@@ -163,30 +165,35 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
     }
     public ValueTask<TransactionScope> BeginAsync(CancellationToken cancellationToken=default)=>this.BeginCore(false,cancellationToken);
     public ValueTask<TransactionScope> BeginReadOnlyAsync(CancellationToken cancellationToken=default)=>this.BeginCore(true,cancellationToken);
-    private ValueTask<TransactionScope> BeginCore(bool readOnly,CancellationToken cancellationToken){
+    internal bool SupportsTableAdmission=>this.versioned is null&&this.preparedJournal is null&&this.Concurrency==TransactionConcurrencyMode.Exclusive;
+    internal ValueTask<TransactionScope> BeginPlannedAsync(bool readOnly,IReadOnlyDictionary<ITransactionParticipant,bool> access,CancellationToken cancellationToken){
+        if(!this.SupportsTableAdmission){throw new NotSupportedException("Table admission is not available for this transaction profile.");}
+        return this.BeginCore(readOnly,cancellationToken,access);
+    }
+    private ValueTask<TransactionScope> BeginCore(bool readOnly,CancellationToken cancellationToken,IReadOnlyDictionary<ITransactionParticipant,bool>? access=null){
         if(this.HasCurrentTransaction){throw new InvalidOperationException("Start a joined child through the existing transaction scope.");}
         ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();
         if(!this.started){this.Recover();}
         // 非asyncの入口でholderを設定し、await先でAsyncLocalを書き戻すことに依存しない。
-        var marker=new Marker();this.ambient.Value=marker;return this.Acquire(marker,readOnly,cancellationToken);
+        var marker=new Marker();this.ambient.Value=marker;return this.Acquire(marker,readOnly,cancellationToken,access:access);
     }
-    private async ValueTask<TransactionScope> Acquire(Marker marker,bool readOnly,CancellationToken cancellationToken,Guid? requestedId=null){
+    private async ValueTask<TransactionScope> Acquire(Marker marker,bool readOnly,CancellationToken cancellationToken,Guid? requestedId=null,IReadOnlyDictionary<ITransactionParticipant,bool>? access=null){
         var acquired=false;TransactionContext? context=null;
         try{
             // Exclusiveで1つずつ通すのは書き込みの取引だけ。版付きの保存があれば、読み込み専用の取引は開始時点の版を読むので待たない（2026-11-15の決定）。
-            if(this.Concurrency==TransactionConcurrencyMode.Exclusive&&!(readOnly&&this.versioned is not null)){await this.gate.WaitAsync(cancellationToken).ConfigureAwait(false);acquired=true;marker.HoldsExclusiveGate=true;}
+            if(this.SupportsTableAdmission){marker.Admission=await this.tableAdmission.Acquire(access,cancellationToken).ConfigureAwait(false);}
+            if(access is null&&this.Concurrency==TransactionConcurrencyMode.Exclusive&&!(readOnly&&this.versioned is not null)){await this.gate.WaitAsync(cancellationToken).ConfigureAwait(false);acquired=true;marker.HoldsExclusiveGate=true;}
             cancellationToken.ThrowIfCancellationRequested();ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();
-            var id=Guid.NewGuid();if(requestedId is{} requested){id=requested;}context=new(id,readOnly);
+            var id=Guid.NewGuid();if(requestedId is{} requested){id=requested;}context=new(id,readOnly){TableAccess=access};
             if(this.versioned is not null){await this.versioned.Start(context,cancellationToken).ConfigureAwait(false);}
             marker.Context=context;return new TransactionScope(this,marker,context);
-        }catch{marker.Active=false;marker.Context=null;if(context is not null){this.versioned?.End(context);}if(acquired){this.gate.Release();}throw;}
+        }catch{marker.Active=false;marker.Context=null;if(context is not null){this.versioned?.End(context);}if(acquired){this.gate.Release();}marker.Admission?.Dispose();throw;}
     }
     public IDisposable EnterRead(CancellationToken cancellationToken=default){
         if(this.versioned is not null){throw new NotSupportedException("Use a versioned read-only transaction; raw reads cannot select a snapshot.");}
         if(this.HasCurrentTransaction){throw new InvalidOperationException("Use the explicit transaction collection view.");}
         ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);
-        this.failure.ThrowIfFailed();this.gate.Wait(cancellationToken);
-        try{ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();return new ReadLease(this.gate);}catch{this.gate.Release();throw;}
+        this.failure.ThrowIfFailed();return this.EnterExclusiveRead(cancellationToken,shuttingDown:false);
     }
     internal void Release(Marker marker){
         marker.Active=false;
@@ -194,6 +201,7 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
         var context=marker.Context;marker.Context=null;
         if(context is not null){this.versioned?.End(context);}
         if(marker.HoldsExclusiveGate){this.gate.Release();}
+        marker.Admission?.Dispose();
     }
     public void StopAccepting()=>this.stopping=true;
     /// <summary>外部所有者が分離性と変更集合の凍結を確立した確定要求。版付きscopeの代用にはしない。</summary>
@@ -205,7 +213,16 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
         try{ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();if(this.preparedJournal.GetOutcome(id).Kind!=TransactionOutcomeKind.Unknown){throw new InvalidOperationException("The external transaction has already completed.");}return await this.Commit(id,[changes],metadata,cancellationToken:cancellationToken,forceCommitRecord:true).ConfigureAwait(false);}
         finally{this.gate.Release();}
     }
-    public IDisposable EnterReadForShutdown(){if(this.versioned is not null){this.versioned.WaitForDrain();}this.gate.Wait();return new ReadLease(this.gate);}
+    public IDisposable EnterReadForShutdown(){if(this.versioned is not null){this.versioned.WaitForDrain();}return this.EnterExclusiveRead(default,shuttingDown:true);}
+    private IDisposable EnterExclusiveRead(CancellationToken cancellationToken,bool shuttingDown){
+        var admission=this.SupportsTableAdmission?this.tableAdmission.Acquire(null,cancellationToken).AsTask().GetAwaiter().GetResult():null;
+        var held=false;
+        try{
+            this.gate.Wait(cancellationToken);held=true;
+            if(!shuttingDown){ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();}
+            return new ReadLease(this.gate,admission);
+        }catch{if(held){this.gate.Release();}admission?.Dispose();throw;}
+    }
     internal bool Owns(ITransactionParticipant participant){
         if(participant is IRoutedVersionedTransactionParticipant{Routing:{} route} child){
             var group=route.Group;return this.participants.TryGetValue((group.Partition,group.TableId),out var owner)&&ReferenceEquals(owner,group)&&group.Owns(child);
@@ -222,6 +239,14 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
         return match??throw new InvalidDataException("WAL table/schema identity mismatch.");
     }
     internal async ValueTask<TransactionCommitResult> Commit(Guid id,IReadOnlyList<ITransactionChanges> changes,ReadOnlyMemory<byte> metadata=default,bool readOnly=false,TransactionContext? context=null,CancellationToken cancellationToken=default,bool forceCommitRecord=false,Action<TransactionInstallationContext>? installed=null){
+        if(context?.TableAccess is not null){
+            await this.gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try{return await this.CommitCurrent(id,changes,metadata,readOnly,context,cancellationToken,forceCommitRecord,installed).ConfigureAwait(false);}
+            finally{this.gate.Release();}
+        }
+        return await this.CommitCurrent(id,changes,metadata,readOnly,context,cancellationToken,forceCommitRecord,installed).ConfigureAwait(false);
+    }
+    private async ValueTask<TransactionCommitResult> CommitCurrent(Guid id,IReadOnlyList<ITransactionChanges> changes,ReadOnlyMemory<byte> metadata,bool readOnly,TransactionContext? context,CancellationToken cancellationToken,bool forceCommitRecord,Action<TransactionInstallationContext>? installed){
         if(this.versioned is not null){return await this.versioned.Commit(context!,changes,metadata,cancellationToken,installed).ConfigureAwait(false);}
         if(installed is not null){throw new NotSupportedException("An installation observer requires a versioned domain.");}
         cancellationToken.ThrowIfCancellationRequested();
@@ -285,14 +310,71 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
         lock(this.initialization){var kind=TransactionOutcomeKind.Unknown;if(id!=Guid.Empty&&id==this.lastAborted){kind=TransactionOutcomeKind.Aborted;}return ValueTask.FromResult(new TransactionOutcome(id,kind,0));}
     }
     public ValueTask DisposeAsync(){
-        if(this.HasCurrentTransaction||this.versioned?.HasActive==true||!this.gate.Wait(0)){throw new InvalidOperationException("Finish active transactions before disposing the coordinator.");}
+        using var admission=this.tableAdmission.TryAcquireExclusive();
+        if(admission is null||this.HasCurrentTransaction||this.versioned?.HasActive==true||!this.gate.Wait(0)){throw new InvalidOperationException("Finish active transactions before disposing the coordinator.");}
         try{this.versioned?.Dispose();this.disposed=true;}catch{this.gate.Release();throw;}
         this.gate.Release();this.gate.Dispose();return ValueTask.CompletedTask;
     }
-    internal sealed class Marker{public volatile bool Active=true;public bool HoldsExclusiveGate;public TransactionContext? Context;}
-    private sealed class ReadLease(SemaphoreSlim gate):IDisposable{
+    internal sealed class Marker{public volatile bool Active=true;public bool HoldsExclusiveGate;public TransactionContext? Context;public IDisposable? Admission;}
+    private sealed class ReadLease(SemaphoreSlim gate,IDisposable? admission):IDisposable{
         private SemaphoreSlim? owner=gate;
-        public void Dispose()=>Interlocked.Exchange(ref this.owner,null)?.Release();
+        public void Dispose(){if(Interlocked.Exchange(ref this.owner,null) is{} held){held.Release();admission?.Dispose();}}
+    }
+
+    private sealed class TableAdmission{
+        private readonly object sync=new();
+        private readonly Dictionary<ITransactionParticipant,int> held=new();
+        private TaskCompletionSource changed=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int planned;
+        private int exclusiveWaiters;
+        private bool exclusive;
+
+        internal IDisposable? TryAcquireExclusive(){
+            lock(this.sync){
+                if(this.exclusive||this.planned!=0){return null;}
+                this.exclusive=true;return new Lease(this,null);
+            }
+        }
+        internal async ValueTask<IDisposable> Acquire(IReadOnlyDictionary<ITransactionParticipant,bool>? access,CancellationToken cancellation){
+            var ordered=access?.OrderBy(item=>item.Key.Partition).ThenBy(item=>item.Key.TableId).ToArray();
+            if(ordered is null){lock(this.sync){this.exclusiveWaiters++;}}
+            try{
+                while(true){
+                    Task wait;
+                    lock(this.sync){
+                        cancellation.ThrowIfCancellationRequested();
+                        if(!this.exclusive&&(ordered is null?this.planned==0:
+                            this.exclusiveWaiters==0&&ordered.All(item=>!this.held.TryGetValue(item.Key,out var mode)||mode>0&&!item.Value))){
+                            if(ordered is null){this.exclusive=true;}
+                            else{
+                                this.planned++;
+                                foreach(var (table,write) in ordered){this.held[table]=write?-1:this.held.GetValueOrDefault(table)+1;}
+                            }
+                            return new Lease(this,ordered);
+                        }
+                        wait=this.changed.Task;
+                    }
+                    await wait.WaitAsync(cancellation).ConfigureAwait(false);
+                }
+            }finally{if(ordered is null){lock(this.sync){this.exclusiveWaiters--;this.Signal();}}}
+        }
+        private void Signal(){var previous=this.changed;this.changed=new(TaskCreationOptions.RunContinuationsAsynchronously);previous.TrySetResult();}
+        private void Release(KeyValuePair<ITransactionParticipant,bool>[]? access){
+            lock(this.sync){
+                if(access is null){this.exclusive=false;}
+                else{
+                    foreach(var (table,write) in access){
+                        if(write||this.held[table]==1){this.held.Remove(table);}else{this.held[table]--;}
+                    }
+                    this.planned--;
+                }
+                this.Signal();
+            }
+        }
+        private sealed class Lease(TableAdmission owner,KeyValuePair<ITransactionParticipant,bool>[]? access):IDisposable{
+            private TableAdmission? admission=owner;
+            public void Dispose()=>Interlocked.Exchange(ref this.admission,null)?.Release(access);
+        }
     }
 }
 public sealed partial class TransactionScope:IAsyncDisposable{
@@ -342,7 +424,11 @@ public sealed partial class TransactionScope:IAsyncDisposable{
         if(index<0){throw new KeyNotFoundException("Savepoint not found: "+name);}
         this.state.Savepoints[index].Dispose();this.state.Savepoints.RemoveAt(index);
     }
-    public void Enlist(ITransactionChanges changes){using var access=this.Enter();this.state.Context.EnsureWritable();if(this.state.Context.Domain is not null){throw new NotSupportedException("Register versioned participants before starting the domain.");}this.state.Extra.Add(changes);}
+    public void Enlist(ITransactionChanges changes){
+        if(this.HasTablePlan){throw new NotSupportedException("Unbound changes cannot be enlisted in a planned table transaction.");}
+        this.EnlistLegacyChanges(changes);
+    }
+    internal void EnlistLegacyChanges(ITransactionChanges changes){using var access=this.Enter();this.state.Context.EnsureWritable();if(this.state.Context.Domain is not null){throw new NotSupportedException("Register versioned participants before starting the domain.");}this.state.Extra.Add(changes);}
     public T Use<T,TResult>(ITransactionParticipant participant,Func<TResult,T> action) where TResult:class,ITransactionChanges{
         using var access=this.Enter(allowQuery:true);var changes=this.GetChanges(participant);
         var result=action((TResult)changes);this.state.Context.ThrowIfUnavailable();return result;
@@ -357,7 +443,12 @@ public sealed partial class TransactionScope:IAsyncDisposable{
         using var access=this.Enter(allowQuery:true);var changes=this.GetChanges(participant);var previous=this.state.QueryThread;this.state.QueryThread=Environment.CurrentManagedThreadId;
         try{operation((TChanges)changes,ref value);this.state.Context.ThrowIfUnavailable();}finally{this.state.QueryThread=previous;}
     }
+    internal bool HasChangeSet(ITransactionParticipant participant)=>this.state.Changes.ContainsKey(participant);
+    internal bool HasTablePlan=>this.state.Context.TableAccess is not null;
+    internal bool CanWriteTable(ITransactionParticipant participant)=>this.state.Context.CanWriteTable(participant);
+    internal void CheckTableAccess(ITransactionParticipant participant,bool write)=>this.state.Context.CheckTableAccess(participant,write);
     private ITransactionChanges GetChanges(ITransactionParticipant participant){
+        this.CheckTableAccess(participant,false);
         this.state.Owner.Failure.ThrowIfFailed();
         if(this.state.Aborted){throw new InvalidOperationException("The joined transaction was aborted.");}
         if(!this.state.Owner.Owns(participant)){throw new InvalidOperationException("Collection belongs to a different transaction database.");}

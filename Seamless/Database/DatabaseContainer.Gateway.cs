@@ -68,6 +68,7 @@ public abstract partial class DatabaseContainer{
     }
     internal IEnumerable<WalEntry> PrepareGatewayCommit(DatabaseTransactionState state,GatewayTransactionOwner owner){
         this.ValidateGatewayOwner(state,owner);if(state.GatewayPrepared){throw new InvalidOperationException("The Gateway transaction is already prepared.");}
+        this.ValidateRelationChanges(null,state);
         state.GatewayPrepared=true;
         return Encode();
         IEnumerable<WalEntry> Encode(){
@@ -82,6 +83,7 @@ public abstract partial class DatabaseContainer{
     }
     internal GatewayPreparedSnapshot SealGatewaySnapshot(DatabaseTransactionState state,GatewayTransactionOwner owner){
         this.ValidateGatewayOwner(state,owner);if(this.gatewayRecovered||this.gatewayCandidateOwner!=owner||state.GatewayPrepared){throw new InvalidOperationException("Only the owning unpublished generation may be sealed without a common commit.");}
+        this.ValidateRelations();
         state.GatewayPrepared=true;
         try{
             foreach(var overlay in state.Overlays.Values){overlay.Apply();}

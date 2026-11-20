@@ -363,7 +363,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         string? keyType=null;
         if(member is IPropertySymbol property&&property.Type is INamedTypeSymbol {TypeArguments.Length:2} named){keyType=named.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);}
         IPropertySymbol? partial=null;if(member is IPropertySymbol{IsPartialDefinition:true,PartialImplementationPart:null} definition){partial=definition;}
-        return new(kind,name,typeName,importKind,location,keyType){PartialProperty=partial};
+        return new(kind,name,typeName,importKind,location,keyType){PartialProperty=partial,SourceProperty=member as IPropertySymbol,RowSymbol=recordType};
     }
 
     private static bool TryGetMaterializedRecordType(ITypeSymbol type,out ITypeSymbol recordType) {
@@ -500,6 +500,8 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         AppendTransactions(builder,indent,className,declarations,schemaMarkers);
         builder.AppendLine($"{indent}}}");
 
+        AppendForeignKeyExtensions(builder,indent,symbol,declarations);
+
         if(namespaceName.Length>0) {
             builder.AppendLine("}");
         }
@@ -517,6 +519,88 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         }
         AppendPartialTableImplementations(builder,declarations);
         return builder.ToString();
+    }
+
+    private static void AppendForeignKeyExtensions(StringBuilder builder,string indent,INamedTypeSymbol database,ImmutableArray<ObjectDeclaration> objects){
+        var tables=objects.Where(table=>table.ImportKind=="Table").ToDictionary(table=>table.Name,StringComparer.Ordinal);
+        var methods=new StringBuilder();
+        var used=new HashSet<(string Name,string Receiver)>();
+        var extensionClass="Extensions";
+        while(database.ContainingNamespace.GetTypeMembers(extensionClass).Length>0){extensionClass+="_";}
+        foreach(var child in tables.Values.OrderBy(table=>table.Name,StringComparer.Ordinal)){
+            if(child.SourceProperty is null||child.RowSymbol is null){continue;}
+            foreach(var attribute in child.SourceProperty.GetAttributes()){
+                var args=attribute.ConstructorArguments;
+                if(attribute.AttributeClass?.ToDisplayString()!="Seamless.Database.ForeignKeyAttribute"||
+                    args.Length!=4||args[0].Value is not string name||args[1].Value is not string target){continue;}
+                var from=args[2];var to=args[3];
+                if(
+                    from.Kind!=TypedConstantKind.Array||to.Kind!=TypedConstantKind.Array||from.IsNull||to.IsNull||
+                    from.Values.Length==0||from.Values.Length!=to.Values.Length||
+                    !tables.TryGetValue(target,out var parent)||parent.RowSymbol is null){continue;}
+                var columns=from.Values.Zip(to.Values,(left,right)=>(
+                    Child:left.Value is string c?FindColumn(child.RowSymbol,c):null,
+                    Parent:right.Value is string p?FindColumn(parent.RowSymbol,p):null)).ToArray();
+                if(columns.Any(column=>column.Child is null||column.Parent is null)){continue;}
+                var baseName=SyntaxFacts.IsValidIdentifier(name)||SyntaxFacts.GetKeywordKind(name)!=SyntaxKind.None
+                    ?name:"FK_"+string.Concat(Encoding.UTF8.GetBytes(name).Select(value=>value.ToString("X2",global::System.Globalization.CultureInfo.InvariantCulture)));
+                var same=parent.RecordTypeName==child.RecordTypeName;
+                var childrenName=Unique(same?baseName+"_Children":baseName,parent.RecordTypeName);
+                var parentName=Unique(same?baseName+"_Parent":baseName,child.RecordTypeName);
+                var reader=database.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)+".IReader";
+                var childValues=columns.Select((column,index)=>$"var key{index}=row.{Identifier(column.Child!.Name)};");
+                var parentValues=columns.Select((column,index)=>$"var key{index}=row.{Identifier(column.Parent!.Name)};");
+                var nullChecks=columns.Select((column,index)=>(Column:column.Child!,Index:index))
+                    .Where(item=>item.Column.Type.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T||item.Column.NullableAnnotation==NullableAnnotation.Annotated)
+                    .Select(item=>$"key{item.Index} is null").ToArray();
+                string Match(IPropertySymbol field,string left,string right)=>$"global::System.Collections.Generic.EqualityComparer<{field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>.Default.Equals({left},{right})";
+                var childrenMatch=string.Join(" && ",columns.Select((column,index)=>Match(column.Child!,$"item.{Identifier(column.Child!.Name)}",$"key{index}")));
+                var parentMatch=string.Join(" && ",columns.Select((column,index)=>Match(column.Child!,$"key{index}",$"item.{Identifier(column.Parent!.Name)}")));
+                methods.AppendLine($"{indent}    public static global::Seamless.Collections.ISet<{child.RecordTypeName}> {Identifier(childrenName)}(this in {parent.RecordTypeName} row,{reader} q){{");
+                foreach(var assignment in parentValues){methods.AppendLine($"{indent}        {assignment}");}
+                methods.AppendLine($"{indent}        return global::Seamless.Linq.Set.Where(q.{MemberAccess(child.Name)},item=>{childrenMatch});");
+                methods.AppendLine($"{indent}    }}");
+                var missing=$"throw new global::System.Collections.Generic.KeyNotFoundException({Literal("Referenced row is unavailable: "+name)});";
+                methods.AppendLine($"{indent}    public static {parent.RecordTypeName} {Identifier(parentName)}(this in {child.RecordTypeName} row,{reader} q){{");
+                foreach(var assignment in childValues){methods.AppendLine($"{indent}        {assignment}");}
+                if(nullChecks.Length>0){methods.AppendLine($"{indent}        if({string.Join(" || ",nullChecks)}){{{missing}}}");}
+                methods.AppendLine($"{indent}        var parents=q.{MemberAccess(parent.Name)};");
+                if(parent.KeyTypeName is{} keyType&&KeyOrder(parent,columns.Select(column=>column.Parent!.Name).ToArray()) is{} order){
+                    var keyValues=order.Select(index=>"key"+index+(columns[index].Child!.Type.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T?".Value":""));
+                    methods.AppendLine($"{indent}        if(parents is global::Seamless.Transactions.Collections.ReadOnlyTransactionCollection<{keyType},{parent.RecordTypeName}> keyed){{");
+                    methods.AppendLine($"{indent}            if(keyed.TryGetValue(new {keyType}({string.Join(",",keyValues)}),out var found)){{return found;}}");
+                    methods.AppendLine($"{indent}            {missing}");
+                    methods.AppendLine($"{indent}        }}");
+                }
+                methods.AppendLine($"{indent}        foreach(var item in parents){{if({parentMatch}){{return item;}}}}");
+                methods.AppendLine($"{indent}        {missing}");
+                methods.AppendLine($"{indent}    }}");
+            }
+        }
+        if(methods.Length==0){return;}
+        builder.AppendLine($"{indent}public static partial class {extensionClass}{{");
+        builder.Append(methods);
+        builder.AppendLine($"{indent}}}");
+
+        string Unique(string name,string receiver){
+            var candidate=name;
+            for(var number=2;!used.Add((candidate,receiver));number++){candidate=name+"_"+number.ToString(global::System.Globalization.CultureInfo.InvariantCulture);}
+            return candidate;
+        }
+        static IPropertySymbol? FindColumn(ITypeSymbol row,string name)=>row.GetMembers(name).OfType<IPropertySymbol>().FirstOrDefault();
+        static int[]? KeyOrder(ObjectDeclaration parent,string[] columns){
+            if(parent.SourceProperty?.Type is not INamedTypeSymbol table||table.TypeArguments.Length!=2||
+                table.TypeArguments[0] is not INamedTypeSymbol key){return null;}
+            var names=key.InstanceConstructors.Where(method=>method.DeclaredAccessibility==Accessibility.Public&&method.Parameters.Length==columns.Length)
+                .Select(method=>method.Parameters.Select(parameter=>parameter.Name).ToArray())
+                .Where(members=>members.All(member=>columns.Contains(member,StringComparer.OrdinalIgnoreCase))).Take(2).ToArray();
+            if(names.Length==1){return names[0].Select(member=>Array.FindIndex(columns,column=>column.Equals(member,StringComparison.OrdinalIgnoreCase))).ToArray();}
+            if(key.TypeKind!=TypeKind.Error){return null;}
+            var members=parent.RowSymbol!.GetMembers().OfType<IPropertySymbol>().Where(property=>property.GetAttributes().Any(attribute=>
+                attribute.AttributeClass?.ToDisplayString()=="Seamless.Database.KeyAttribute")).Select(property=>property.Name).ToArray();
+            return members.Length==columns.Length&&members.All(member=>columns.Contains(member,StringComparer.Ordinal))
+                ?members.Select(member=>Array.IndexOf(columns,member)).ToArray():null;
+        }
     }
 
     // [宣言/partial の表] 利用者が宣言だけを書いた partial の表のプロパティ(属性を付けるときなど)に、get と関係代入の set を作る。
@@ -591,6 +675,8 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         public string PropertyAttributes{get;init;}=string.Empty;
         public QueryMember? Query{get;private init;}
         public IPropertySymbol? PartialProperty{get;init;}
+        public IPropertySymbol? SourceProperty{get;init;}
+        public ITypeSymbol? RowSymbol{get;init;}
         public ObjectDeclaration WithQuery(QueryMember query)=>new(this.Kind,this.Name,this.RecordTypeName,this.ImportKind,this.Location,this.KeyTypeName){Query=query,PropertyAttributes=this.PropertyAttributes,PartialProperty=this.PartialProperty};
     }
     private static void AppendTransactions(StringBuilder builder,string indent,string className,ImmutableArray<ObjectDeclaration> declarations,ObjectDeclaration[] schemaMarkers){
@@ -601,6 +687,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         builder.AppendLine(";");
         AppendTransactionEntry(builder,indent,"BeginTransactionAsync","BeginTransactionScopeAsync");
         AppendTransactionEntry(builder,indent,"BeginReadOnlyTransactionAsync","BeginReadOnlyTransactionScopeAsync");
+        AppendTransactionEntry(builder,indent,"BeginTransactionAsync","BeginPlannedTransactionScopeAsync",planned:true);
         builder.AppendLine($"{indent}    // [入口] 読み書きの取引(同期)。usingで囲み、Commitを呼ばずに抜けると取り消す。基底の暗黙の取引(DatabaseTransaction)を隠す。");
         builder.AppendLine($"{indent}    public new TypedTransaction BeginTransaction(global::System.Threading.CancellationToken cancellationToken=default)=>new(this,this.BeginTransactionScopeAsync(cancellationToken).AsTask().GetAwaiter().GetResult());");
         // 入口の形(IReader・Reader・TypedTransaction)には、表の無いスキーマも入れる(ビュー・関数の受け手になるため)。
@@ -646,14 +733,16 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         AppendTransactionProperties(builder,indent+"        ",className,readerItems,"",ref number,"this");
         builder.AppendLine($"{indent}    }}");
     }
-    private static void AppendTransactionEntry(StringBuilder builder,string indent,string method,string begin){
+    private static void AppendTransactionEntry(StringBuilder builder,string indent,string method,string begin,bool planned=false){
         var access="更新可能。静的解析で不明な呼出しが残る場合も、この契約を保持";
         if(method=="BeginReadOnlyTransactionAsync"){access="読取専用。書込みを実行時にも拒否し、履歴予算圧迫時の中止候補になる";}
         builder.AppendLine($"{indent}    // [アクセス] {access}。生成された呼出し側のコメントに、取引範囲の解析結果を記録する。");
         builder.AppendLine($"{indent}    // [並行性] root同士はOptions.TransactionConcurrencyに従う。一つの取引への同時公開操作と、一query内部のworker分割は別の指定。");
-        builder.AppendLine($"{indent}    public global::System.Threading.Tasks.ValueTask<TypedTransaction> {method}(global::System.Threading.CancellationToken cancellationToken=default){{");
+        var parameters=planned?"string[] reads,string[] writes,":"";
+        var arguments=planned?"reads,writes,":"";
+        builder.AppendLine($"{indent}    public global::System.Threading.Tasks.ValueTask<TypedTransaction> {method}({parameters}global::System.Threading.CancellationToken cancellationToken=default){{");
         builder.AppendLine($"{indent}        // [同期/キュー] 非asyncの入口でAsyncLocal holderを設定。共通層が排他gateまたはsnapshot登録を行い、回収中は入場を待つ。");
-        builder.AppendLine($"{indent}        var operation=this.{begin}(cancellationToken);");
+        builder.AppendLine($"{indent}        var operation=this.{begin}({arguments}cancellationToken);");
         builder.AppendLine($"{indent}        // [寿命] 待機結果を型付きビューへ包む。表のhandleやnative epochをこの待機のために保持しない。");
         builder.AppendLine($"{indent}        return Wrap(operation);");
         builder.AppendLine($"{indent}        // [資源] scopeの所有権だけをTypedTransactionへ移す。Dispose/Commit/Rollbackは共通scopeの寿命管理へ戻す。");

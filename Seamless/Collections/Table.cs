@@ -44,6 +44,9 @@ public class Table<TKey,TRecord>:IEnumerable<TRecord> where TKey:notnull{
     public static implicit operator Table<TKey,TRecord>(List<TRecord> rows)=>new(rows);
     public static implicit operator Table<TKey,TRecord>(TRecord[] rows)=>new(rows);
     public static implicit operator Table<TKey,TRecord>(global::System.Collections.Generic.HashSet<TRecord> rows)=>new(rows);
+    public static Table<TKey,TRecord> operator +(Table<TKey,TRecord> table,IEnumerable<TRecord> rows)=>table.Union(rows);
+    public static Table<TKey,TRecord> operator -(Table<TKey,TRecord> table,IEnumerable<TRecord> rows)=>table.Except(rows);
+    public static Table<TKey,TRecord> operator &(Table<TKey,TRecord> table,IEnumerable<TRecord> rows)=>table.Intersect(rows);
 
     /// <summary>条件を満たす行だけの表。表へ代入すると、満たさない行を消す。</summary>
     public Table<TKey,TRecord> Where(Func<TRecord,bool> predicate){
@@ -162,6 +165,9 @@ public class Table<TKey,TRecord>:IEnumerable<TRecord> where TKey:notnull{
     // T = T.Except(R1)…Except(Rn) を書き換えた形。右の行のうち表にあって全列が等しい行だけを消す。
     [EditorBrowsable(EditorBrowsableState.Never)]
     public virtual void AssignExcept(params IEnumerable<TRecord>[] rows){ArgumentNullException.ThrowIfNull(rows);if(this.expression is not null){throw this.WriteError();}TableAssignment.RemoveListed(this,rows);}
+    // FLinq の複合代入から、通常の積集合と同じ差分経路を呼ぶ。
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public void AssignIntersect(IEnumerable<TRecord> rows)=>this.Assign(this.Intersect(rows));
     // T = T.Where(p) を書き換えた形。条件を満たさない行を消す。
     [EditorBrowsable(EditorBrowsableState.Never)]
     public virtual void AssignWhere(Func<TRecord,bool> keep){ArgumentNullException.ThrowIfNull(keep);if(this.expression is not null){throw this.WriteError();}TableAssignment.RemoveRejected(this,[keep]);}
@@ -197,6 +203,9 @@ public class Table<TRecord>:Table<TRecord,TRecord> where TRecord:notnull{
     public static implicit operator Table<TRecord>(List<TRecord> rows)=>new(rows);
     public static implicit operator Table<TRecord>(TRecord[] rows)=>new(rows);
     public static implicit operator Table<TRecord>(global::System.Collections.Generic.HashSet<TRecord> rows)=>new(rows);
+    public static Table<TRecord> operator +(Table<TRecord> table,IEnumerable<TRecord> rows)=>table.Union(rows);
+    public static Table<TRecord> operator -(Table<TRecord> table,IEnumerable<TRecord> rows)=>table.Except(rows);
+    public static Table<TRecord> operator &(Table<TRecord> table,IEnumerable<TRecord> rows)=>table.Intersect(rows);
 
     public new Table<TRecord> Where(Func<TRecord,bool> predicate){
         ArgumentNullException.ThrowIfNull(predicate);

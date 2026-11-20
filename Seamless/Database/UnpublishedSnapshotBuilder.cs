@@ -54,7 +54,7 @@ public abstract partial class DatabaseContainer{
                     // 空の候補にも基準版を残す。初期行の構築は業務WALのcommitではない。
                     if(this.owner.Options.TransactionHistory is not null){this.owner.sharedCheckpoint.CommitVersion=1;}
                     this.owner.unpublishedSnapshot=null;this.owner.EnsureSharedReady();
-                    if(this.owner.RelationValidators.Length>0){var read=this.owner.BeginReadOnlyTransactionScopeAsync().AsTask().GetAwaiter().GetResult();try{this.owner.ValidateRelations(read);}finally{read.DisposeAsync().AsTask().GetAwaiter().GetResult();}}
+                    if(this.owner.RelationValidators.Length>0){var read=this.owner.BeginReadOnlyTransactionScopeAsync().AsTask().GetAwaiter().GetResult();try{foreach(var relation in this.owner.RelationValidators){relation.Validate(this.owner,read,null,null);}}finally{read.DisposeAsync().AsTask().GetAwaiter().GetResult();}}
                     this.completed=true;
                 }
                 catch{this.owner.unpublishedSnapshot=this;this.failed=true;throw;}

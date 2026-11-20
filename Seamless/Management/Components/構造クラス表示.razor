@@ -22,15 +22,21 @@
 @code{
     [Parameter,EditorRequired]public Definition 定義{get;set;}=default!;
     [Parameter]public string? スキーマ{get;set;}
+    [Parameter]public ObjectDefinitionDesign? テーブル{get;set;}
     private Definition? 読取定義;
+    private ObjectDefinitionDesign? 読取テーブル;
     private string? 読取スキーマ;
     private ObjectDefinitionPart[] 宣言一覧=[];
     private int 選択番号;
-    private string 見出し=>string.IsNullOrEmpty(this.スキーマ)?"データベースのクラス定義（読み取り専用）":"スキーマのクラス定義（読み取り専用）";
+    private string 見出し=>this.テーブル is not null?"対象のC#":string.IsNullOrEmpty(this.スキーマ)?"データベースのC#ソース（読み取り専用）":"スキーマのクラス定義（読み取り専用）";
     protected override void OnParametersSet(){
-        if(ReferenceEquals(this.読取定義,this.定義)&&this.読取スキーマ==this.スキーマ){return;}
-        this.読取定義=this.定義;this.読取スキーマ=this.スキーマ;this.選択番号=0;
-        try{this.宣言一覧=DatabaseDesigner.ReadStructureClassParts(this.定義,this.スキーマ);}
+        if(ReferenceEquals(this.読取定義,this.定義)&&this.読取スキーマ==this.スキーマ&&ReferenceEquals(this.読取テーブル,this.テーブル)){return;}
+        this.読取定義=this.定義;this.読取スキーマ=this.スキーマ;this.読取テーブル=this.テーブル;this.選択番号=0;
+        try{
+            this.宣言一覧=this.テーブル is{} テーブル
+                ?DatabaseDesigner.ReadTableSourceParts(this.定義.Source,テーブル)
+                :DatabaseDesigner.ReadStructureClassParts(this.定義,this.スキーマ);
+        }
         catch(ManagementException){this.宣言一覧=[];}
     }
 }

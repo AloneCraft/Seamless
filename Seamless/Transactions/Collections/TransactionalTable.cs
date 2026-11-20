@@ -68,13 +68,20 @@ public sealed class TransactionalTable<TKey,TRecord>:IContextualTransactionParti
             }
             var current=this.table.read(key);if(current.Found){return(true,this.table.Snapshot(current.Row));}return current;
         }
+        public void VisitFinalChanges(Action<TKey,(bool Found,TRecord Row),(bool Found,TRecord Row)> visit){
+            foreach(var pair in this.changes.Enumerate()){
+                this.context?.ThrowIfUnavailable();
+                visit(pair.Key,this.table.read(pair.Key),(!pair.Value.Deleted,pair.Value.Record));
+            }
+        }
         public void Set(TKey key,TRecord row){
             this.context?.EnsureWritable();
+            this.context?.CheckTableAccess(this.table,true);
             if(!this.table.resources.Codecs.GetEqualityComparer<TKey>().Equals(key,this.table.keyOf(row))){throw new ArgumentException("Record key does not match the indexer key.",nameof(row));}
             this.changes.Set(key,new(false,this.table.Snapshot(row)));
         }
-        public bool Add(TRecord row){this.context?.EnsureWritable();var key=this.table.keyOf(row);if(this.Read(key).Found){return false;}this.Set(key,row);return true;}
-        public bool Remove(TKey key){this.context?.EnsureWritable();if(!this.Read(key).Found){return false;}this.changes.Set(key,new(true,default!));return true;}
+        public bool Add(TRecord row){this.context?.EnsureWritable();this.context?.CheckTableAccess(this.table,true);var key=this.table.keyOf(row);if(this.Read(key).Found){return false;}this.Set(key,row);return true;}
+        public bool Remove(TKey key){this.context?.EnsureWritable();this.context?.CheckTableAccess(this.table,true);if(!this.Read(key).Found){return false;}this.changes.Set(key,new(true,default!));return true;}
         public IEnumerable<TRecord> Rows(){
             this.context?.ThrowIfUnavailable();
             foreach(var pair in this.table.rows()){
@@ -132,6 +139,9 @@ public sealed class TransactionCollection<TKey,TRecord>:global::Seamless.Databas
     private readonly Func<TRecord,TKey> keyOf;
     internal TransactionCollection(ITransactionalTable<TKey,TRecord> table,TransactionScope scope,Func<TRecord,TKey> keyOf){this.table=table;this.scope=scope;this.keyOf=keyOf;}
     private T Use<T>(Func<ITableChanges<TKey,TRecord>,T> action)=>this.scope.Use<T,ITableChanges<TKey,TRecord>>(this.table,action);
+    internal void VisitFinalChanges(Action<TKey,(bool Found,TRecord Row),(bool Found,TRecord Row)> visit){
+        if(this.scope.HasChangeSet(this.table)){this.Use(changes=>{changes.VisitFinalChanges(visit);return true;});}
+    }
     public TransactionRows<TKey,TRecord> Rows=>new(this);
     internal bool MatchesReadOnlyJoinIndex(Func<TRecord,TKey> expectedKey)=>
         this.scope.IsReadOnly&&this.table is VersionedTransactionalTable<TKey,TRecord> versioned&&versioned.MatchesJoinKey(expectedKey);

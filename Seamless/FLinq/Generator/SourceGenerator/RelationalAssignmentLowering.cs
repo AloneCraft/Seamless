@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Seamless.FLinq.Generator;
 
@@ -21,7 +22,8 @@ internal static class RelationalAssignmentLowering{
 
     /// <summary>メソッドの本体に関係代入があるか(FLinq の対象を探す段で使う)。</summary>
     internal static bool ContainsAssignment(SyntaxNode body,SemanticModel model)=>
-        body.DescendantNodes().OfType<AssignmentExpressionSyntax>().Any(assignment=>IsTableAssignment(assignment,model));
+        body.DescendantNodes().OfType<AssignmentExpressionSyntax>().Any(assignment=>IsTableAssignment(assignment,model)&&
+            (assignment.IsKind(SyntaxKind.SimpleAssignmentExpression)||assignment.Parent is ExpressionStatementSyntax&&LowerCompound(assignment,model) is not null));
 
     internal static bool TryLower(MethodDeclarationSyntax method,SemanticModel model,out MethodDeclarationSyntax lowered,out SemanticModel loweredModel,out int count){
         lowered=method;loweredModel=model;count=0;
@@ -47,9 +49,9 @@ internal static class RelationalAssignmentLowering{
         return true;
     }
 
-    // 左辺が表(Seamless.Database.Table)のプロパティで、set を持つ単純な代入。
+    // 左辺が書き込み可能な表のプロパティ。
     private static bool IsTableAssignment(AssignmentExpressionSyntax assignment,SemanticModel model)=>
-        assignment.IsKind(SyntaxKind.SimpleAssignmentExpression)
+        assignment.Kind() is SyntaxKind.SimpleAssignmentExpression or SyntaxKind.AddAssignmentExpression or SyntaxKind.SubtractAssignmentExpression or SyntaxKind.AndAssignmentExpression
         &&model.GetSymbolInfo(assignment.Left).Symbol is IPropertySymbol{SetMethod:not null} property
         &&IsTableType(property.Type);
 
@@ -68,6 +70,7 @@ internal static class RelationalAssignmentLowering{
     }
 
     private static InvocationExpressionSyntax? Lower(AssignmentExpressionSyntax assignment,SemanticModel model){
+        if(!assignment.IsKind(SyntaxKind.SimpleAssignmentExpression)){return LowerCompound(assignment,model);}
         var target=assignment.Left;
         var value=Unparenthesize(assignment.Right);
         // 置き換え: new(q)・new Table<…>(q)・[..q]
@@ -98,6 +101,59 @@ internal static class RelationalAssignmentLowering{
         }
         // それ以外の組み合わせは、表の set が実行時に同じ規則で差分を求める。
         return null;
+    }
+
+    private static InvocationExpressionSyntax? LowerCompound(AssignmentExpressionSyntax assignment,SemanticModel model){
+        if(model.GetOperation(assignment) is not ICompoundAssignmentOperation{
+                Target:IPropertyReferenceOperation{Property:var property},OperatorMethod:{ } operation}||
+            !IsTableType(operation.ContainingType)||operation.Parameters.Length!=2||
+            !UsesStandardSetter(property,model.Compilation)){return null;}
+
+        // 受け手と右辺はそれぞれ一度だけ評価する。集合式の型付けと null の検査も演算子と同じ順で行う。
+        var rowsType=SyntaxFactory.ParseTypeName(operation.Parameters[1].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        var right=SyntaxFactory.CastExpression(rowsType,SyntaxFactory.ParenthesizedExpression(assignment.Right.WithoutTrivia()));
+        var missingRows=SyntaxFactory.ThrowExpression(SyntaxFactory.ParseExpression("new global::System.ArgumentNullException(\"rows\")"))
+            .WithThrowKeyword(SyntaxFactory.Token(SyntaxKind.ThrowKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+        var checkedRows=SyntaxFactory.BinaryExpression(SyntaxKind.CoalesceExpression,right,missingRows);
+        var method=assignment.Kind() switch{
+            SyntaxKind.AddAssignmentExpression=>"AssignUnion",
+            SyntaxKind.SubtractAssignmentExpression=>"AssignExcept",
+            _=>"AssignIntersect"
+        };
+        return Call(assignment.Left,method,[checkedRows]);
+    }
+
+    private static bool UsesStandardSetter(IPropertySymbol property,Compilation compilation){
+        if(property.IsStatic||property.IsVirtual||property.IsOverride||property.IsAbstract){return false;}
+        if(IsStandardStoredTable(property,compilation)){return true;}
+        // 型付き取引のルート表は、生成された get/set の両方が同じDBの表を開く。
+        if(property.ContainingType.Name!="TypedTransaction"||
+            !property.DeclaringSyntaxReferences.Any(reference=>reference.SyntaxTree.FilePath.EndsWith(".Container.g.cs",StringComparison.Ordinal))||
+            property.ContainingType.ContainingType is not{} database){return false;}
+        return database.GetMembers(property.Name).OfType<IPropertySymbol>().Any(table=>IsStandardStoredTable(table,compilation));
+    }
+
+    private static bool IsStandardStoredTable(IPropertySymbol property,Compilation compilation){
+        if(property.IsVirtual||property.IsOverride||property.IsAbstract){return false;}
+        var implementation=property.PartialImplementationPart??property;
+        foreach(var reference in implementation.DeclaringSyntaxReferences){
+            if(reference.GetSyntax() is not PropertyDeclarationSyntax{AccessorList:{ } accessors}){continue;}
+            var getter=accessors.Accessors.FirstOrDefault(accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody?.Expression;
+            var setter=accessors.Accessors.FirstOrDefault(accessor=>accessor.IsKind(SyntaxKind.SetAccessorDeclaration))?.ExpressionBody?.Expression;
+            if(getter is not InvocationExpressionSyntax{
+                Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}}} call||
+                call.ArgumentList.Arguments.Count>1||
+                call.ArgumentList.Arguments.Count==1&&call.ArgumentList.Arguments[0].Expression is not SimpleLambdaExpressionSyntax||
+                setter is not InvocationExpressionSyntax{
+                    Expression:MemberAccessExpressionSyntax{Name.Identifier.ValueText:"Assign",Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax} table},
+                    ArgumentList.Arguments.Count:1} assign||
+                table.Name.Identifier.ValueText!=property.Name||
+                assign.ArgumentList.Arguments[0].Expression is not IdentifierNameSyntax{Identifier.ValueText:"value"}){continue;}
+            var model=compilation.GetSemanticModel(reference.SyntaxTree);
+            if(model.GetSymbolInfo(call).Symbol is IMethodSymbol method&&method.ContainingNamespace.ToDisplayString()=="Seamless.Database"&&
+                method.ContainingType.Name is "DatabaseContainer" or "DatabaseSchema"){return true;}
+        }
+        return false;
     }
 
     // 左辺と同じ表か。同じ式で書いた同じプロパティを指すときだけ(取引の表は読むたびに包みが変わるが、同じ取引の同じ表)。

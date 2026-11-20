@@ -39,6 +39,9 @@ public sealed class RelationalAssignmentAnalyzerTests{
                 db.Items=[new Item(2,"b")];
                 db.Items=list;
                 db.Items=array;
+                db.Items += [new(4,"a")];
+                db.Items -= list;
+                db.Items &= query;
                 db.Items.Add(new Item(3,"c"));
                 db.Items[3]=new Item(3,"d");
                 db.Items.Remove(3);
@@ -49,6 +52,9 @@ public sealed class RelationalAssignmentAnalyzerTests{
                 using var tx=db.BeginTransaction();
                 tx.Items=tx.Items.Union(rows);
                 tx.Items=new(rows);
+                tx.Items += rows;
+                tx.Items -= rows;
+                tx.Items &= rows;
                 tx.Commit();
             }
             """);
@@ -61,6 +67,7 @@ public sealed class RelationalAssignmentAnalyzerTests{
         var(compiler,analyzer)=Analyze("""
             public static void Write(Shop db,Item item,Item[] rows){
                 db.Items.Union(rows).Add(item);
+                (db.Items+rows).Add(item);
                 db.Items.Where(static row=>row.Key>0)[1]=item;
                 new global::Seamless.Database.Table<int,Item>(rows).Remove(1);
                 ((global::Seamless.Database.Table<int,Item>)rows).Remove(item);
@@ -70,7 +77,7 @@ public sealed class RelationalAssignmentAnalyzerTests{
             """);
         Assert.True(compiler.IsEmpty,string.Join(global::System.Environment.NewLine,compiler));
         // 変数に入れた式は実行時に見分ける(書き込むと例外)。
-        Assert.Equal(4,analyzer.Count(static diagnostic=>diagnostic.Id=="SDB004"));
+        Assert.Equal(5,analyzer.Count(static diagnostic=>diagnostic.Id=="SDB004"));
     }
 
     [Fact,Trait("Category","Unit")]
@@ -80,6 +87,7 @@ public sealed class RelationalAssignmentAnalyzerTests{
                 db.Items.Add(item);
                 using(var tx=db.BeginTransaction()){
                     db.Items.Add(item);
+                    db.Items += rows;
                     tx.Items=tx.Items.Union(db.Items);
                     global::System.Action later=()=>db.Items.Add(item);
                     tx.Commit();
@@ -92,7 +100,7 @@ public sealed class RelationalAssignmentAnalyzerTests{
             }
             """);
         Assert.True(compiler.IsEmpty,string.Join(global::System.Environment.NewLine,compiler));
-        // 取引の範囲の中の3つだけ。範囲の外とラムダの中は対象外(ラムダは後で別の流れで動きうるので、実行時の例外で守る)。
-        Assert.Equal(3,analyzer.Count(static diagnostic=>diagnostic.Id=="SDB005"));
+        // 範囲の外とラムダの中は対象外(ラムダは後で別の流れで動きうるので、実行時の例外で守る)。
+        Assert.Equal(4,analyzer.Count(static diagnostic=>diagnostic.Id=="SDB005"));
     }
 }

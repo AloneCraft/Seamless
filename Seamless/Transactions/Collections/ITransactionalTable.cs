@@ -13,6 +13,7 @@ public interface ITransactionalTable<TKey,TRecord>:ITransactionParticipant where
 }
 internal interface ITableChanges<TKey,TRecord>:ITransactionChanges where TKey:notnull{
     (bool Found,TRecord Row) Read(TKey key);
+    void VisitFinalChanges(Action<TKey,(bool Found,TRecord Row),(bool Found,TRecord Row)> visit);
     void Set(TKey key,TRecord row);
     bool Add(TRecord row);
     bool Remove(TKey key);

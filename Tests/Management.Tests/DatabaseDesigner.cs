@@ -27,8 +27,7 @@ public sealed partial class DatabaseDesigner{
                 // 行の投入は試験側の取引で行う(管理サーバーの中の利用者コードは取引を開けない)。
                 public static void Seed(ManagedDb database){database.Items.Add(new(new(1),10m));database.dbo0.Items.Add(new(new(1),20m));database.dbo1.Items.Add(new(new(1),30m));
                 }
-                public static bool Run(ManagedDb database){
-                    using var r=database.BeginRead();
+                public static bool Run(ManagedDb.IReader r){
                     return r.ItemList.Single().Value==10m&&r.dbo0.ItemList.Single().Value==20m&&r.dbo1.ItemList.Single().Value==30m
                         &&r.ItemList.Count==1&&r.ItemList.Contains(new(1,10m))
                         &&r.Amount(1)==10m&&r.dbo0.Amount(1)==20m&&r.dbo1.Amount(1)==30m
@@ -46,7 +45,9 @@ public sealed partial class DatabaseDesigner{
             using var database=(Seamless.Database.DatabaseContainer)Activator.CreateInstance(assembly.GetType("UserCode.ManagedDb")!,[Seamless.Database.DatabaseContainerOptions.InMemory with{IndexSize=1024,PageSize=65536,SegmentSize=1048576,MemorySize=1048576}])!;
             var type=assembly.GetType("UserCode.Probe")!;
             using(var write=database.BeginTransaction()){type.GetMethod("Seed")!.Invoke(null,[database]);write.Commit();}
-            Assert.Equal(true,type.GetMethod("Run")!.Invoke(null,[database]));
+            using(var reader=(IDisposable)database.GetType().GetMethod("BeginRead")!.Invoke(database,[CancellationToken.None])!){
+                Assert.Equal(true,type.GetMethod("Run")!.Invoke(null,[reader]));
+            }
             // 名前で呼ぶ入口(Manager の実行が使う)からも同じ値になる。
             using var amount=database.Queries.Single(query=>query.Name=="dbo1.Amount").Execute(database,1);
             Assert.Equal(30m,amount.Value);

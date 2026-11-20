@@ -7,15 +7,41 @@ namespace Seamless.Management;
 
 public static partial class DatabaseDesigner{
     internal static ObjectDefinitionPart[] ReadStructureClassParts(Definition definition,string? schema){
-        var container=Container(Compilation(definition),definition);
-        var owner=string.IsNullOrEmpty(schema)?container:Owner(container,schema);
-        if(!string.IsNullOrEmpty(schema)&&!IsSchemaType(owner)){return [];}
+        if(string.IsNullOrEmpty(schema)){
+            return definition.Source.Files.Select(file=>new ObjectDefinitionPart(file.Path,"File",file.Path,0,file.Text.Length,FormatCompactSource(file.Text))).ToArray();
+        }
+        var owner=Owner(Container(Compilation(definition),definition),schema);
+        if(!IsSchemaType(owner)){return [];}
         return owner.DeclaringSyntaxReferences.OrderBy(reference=>reference.SyntaxTree.FilePath,StringComparer.Ordinal)
             .ThenBy(reference=>reference.Span.Start).Select(reference=>{
                 var node=reference.GetSyntax();
                 var part=new ObjectDefinitionPart(reference.SyntaxTree.FilePath+"#"+node.FullSpan.Start,"Class",
                     reference.SyntaxTree.FilePath,node.FullSpan.Start,node.FullSpan.Length,node.ToFullString());
                 return part with{Text=FormatObjectPart(definition.Source,part)};
+            }).ToArray();
+    }
+
+    internal static ObjectDefinitionPart[] ReadTableSourceParts(SourceSnapshot source,ObjectDefinitionDesign design){
+        var options=new CSharpParseOptions(LanguageVersion.CSharp14,preprocessorSymbols:source.Defines??[]);
+        return design.Parts.GroupBy(part=>part.Path,StringComparer.Ordinal).OrderBy(group=>group.Key,StringComparer.Ordinal)
+            .Select(group=>{
+                var file=source.Files.Single(item=>item.Path==group.Key);
+                var selected=group.Select(part=>new TextSpan(part.Start,part.Length)).ToHashSet();
+                var root=SyntaxFactory.ParseCompilationUnit(file.Text,options:options);
+                var display=root.WithMembers(KeepMembers(root.Members));
+                return new ObjectDefinitionPart(file.Path,"File",file.Path,0,file.Text.Length,FormatCompactSource(display.ToFullString()));
+
+                SyntaxList<MemberDeclarationSyntax> KeepMembers(SyntaxList<MemberDeclarationSyntax> members)=>
+                    SyntaxFactory.List(members.Select(Keep).OfType<MemberDeclarationSyntax>());
+                MemberDeclarationSyntax? Keep(MemberDeclarationSyntax member){
+                    if(selected.Contains(member.FullSpan)){return member;}
+                    if(!selected.Any(span=>member.FullSpan.Contains(span))){return null;}
+                    return member switch{
+                        BaseNamespaceDeclarationSyntax scope=>scope.WithMembers(KeepMembers(scope.Members)),
+                        TypeDeclarationSyntax type=>type.WithMembers(KeepMembers(type.Members)),
+                        _=>null
+                    };
+                }
             }).ToArray();
     }
 

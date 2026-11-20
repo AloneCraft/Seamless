@@ -579,9 +579,8 @@ public sealed partial class FLinqIncrementalGenerator {
                 if(TryRenderOrdinaryMethodInvocationExpression(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var ordinaryInvocationText)) {
                     // 本体を別の生成位置へ移すと、元のBegin呼出しのInterceptsLocationは適用されない。
                     // 同じ境界解析の結果をこの実呼出しへも反映し、引数の評価順と非async入口を保つ。
-                    if(method.Name=="BeginTransactionAsync"&&DatabaseTransactionAccessAnalysis.IsReadOnlyBegin(semanticModel,invocation)){
-                        ordinaryInvocationText="/* [アクセス判定] 取引境界全体で書込みなし。移動したBeginにも同じreadonly判定を反映。 */"
-                            +ordinaryInvocationText.Replace(".BeginTransactionAsync(",".BeginReadOnlyTransactionAsync(",StringComparison.Ordinal);
+                    if(method.Name=="BeginTransactionAsync"){
+                        ordinaryInvocationText=DatabaseTransactionAccessAnalysis.RewriteBegin(semanticModel,invocation,ordinaryInvocationText);
                     }
                     text=ReplaceExpressionFragment(text,invocationText,ordinaryInvocationText);
                     foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);

@@ -23,6 +23,7 @@ public static partial class DatabaseDesigner{
         if(selected.Member is{} member){
             foreach(var reference in member.DeclaringSyntaxReferences){
                 var syntax=reference.GetSyntax();
+                if(syntax.SyntaxTree.FilePath==GeneratedTablesPath){continue;}
                 if(parts.Any(part=>part.Path==syntax.SyntaxTree.FilePath&&part.Start<=syntax.FullSpan.Start&&part.Start+part.Length>=syntax.FullSpan.End)){continue;}
                 Add(syntax,"Member",member.ToDisplayString());
             }
@@ -71,6 +72,9 @@ public static partial class DatabaseDesigner{
     public static ObjectDefinitionEdit ApplyObjectStructure(Definition latest,ObjectDefinitionDesign baseline,ColumnDesign[] columns,ParameterDesign[] parameters,string returnType){
         var current=CheckObjectBaseline(latest,baseline);
         if(!current.StructureAvailable){throw new ManagementException("Unsupported",current.StructureUnavailableReason!);}
+        if(baseline.Object.Kind=="Table"&&ManagedFilePath(latest) is not null){
+            columns=columns.Select(column=>column with{Type=ManagedColumnType(column.Type)}).ToArray();
+        }
         if(columns.Select(column=>column.Name).Distinct(StringComparer.Ordinal).Count()!=columns.Length||parameters.Select(parameter=>parameter.Name).Distinct(StringComparer.Ordinal).Count()!=parameters.Length){throw new ManagementException("Validation","列名・引数名の重複を解消してください。");}
         foreach(var column in columns){Identifier(column.Name);ValidateObjectType(column.Type);}
         foreach(var parameter in parameters){Identifier(parameter.Name);ValidateObjectType(parameter.Type);}
@@ -137,6 +141,9 @@ public static partial class DatabaseDesigner{
         var candidate=latest with{Source=latest.Source with{Files=files,Revision=Guid.NewGuid().ToString("N")}};
         var diagnostics=ObjectSyntaxDiagnostics(candidate);if(diagnostics.Length>0){return new(null,diagnostics);}
         if(baseline.Object.Kind=="Table"){
+            if(ManagedFilePath(candidate) is{} path){
+                candidate=MergeManagedTableNamespaces(UpgradeManagedTableSetters(candidate),path,candidate.EntryType.Split('.')[0],null);
+            }
             var migration=latest.Migration??new(1,[],[]);
             if(!(migration.NewTables??[]).Contains(baseline.Object.Id,StringComparer.Ordinal)){
                 var previous=migration.Tables.SingleOrDefault(table=>table.Target==baseline.Object.Id);

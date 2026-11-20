@@ -49,14 +49,25 @@ public abstract partial class DatabaseContainer{
     protected virtual void EnsureTransactionSchema(){throw new NotSupportedException("SharedV2 requires a generated typed transaction schema.");}
     protected ValueTask<TransactionScope> BeginTransactionScopeAsync(CancellationToken cancellationToken=default)=>this.BeginTransactionScopeCore(false,cancellationToken);
     protected ValueTask<TransactionScope> BeginReadOnlyTransactionScopeAsync(CancellationToken cancellationToken=default)=>this.BeginTransactionScopeCore(true,cancellationToken);
-    private ValueTask<TransactionScope> BeginTransactionScopeCore(bool readOnly,CancellationToken cancellationToken){
+    /// <summary>生成された取引の表アクセスを受付前に確定する。</summary>
+    protected ValueTask<TransactionScope> BeginPlannedTransactionScopeAsync(string[] reads,string[] writes,CancellationToken cancellationToken=default)=>this.BeginTransactionScopeCore(writes.Length==0,cancellationToken,reads,writes);
+    private ValueTask<TransactionScope> BeginTransactionScopeCore(bool readOnly,CancellationToken cancellationToken,string[]? reads=null,string[]? writes=null){
         this.EnsureAvailable();
         if(this.Options.GatewayProfile is not null){throw new InvalidOperationException("Use the owning Gateway transaction rather than a standalone transaction scope.");}
         if(this.ambientReadSession.Value is not null||this.ambientTransaction.Value is not null){throw new InvalidOperationException("A legacy/read scope is already active.");}
         this.EnsureSharedReady();
+        if(writes is not null&&this.sharedCoordinator!.SupportsTableAdmission){
+            var access=new Dictionary<ITransactionParticipant,bool>();
+            var writing=writes.ToHashSet(StringComparer.Ordinal);
+            foreach(var path in reads!.Concat(this.RelationDependencies(writing))){access[this.ResolveParticipant(path)]=false;}
+            foreach(var path in writing){access[this.ResolveParticipant(path)]=true;}
+            return this.sharedCoordinator.BeginPlannedAsync(readOnly,access,cancellationToken);
+        }
         if(readOnly){return this.sharedCoordinator!.BeginReadOnlyAsync(cancellationToken);}
         return this.sharedCoordinator!.BeginAsync(cancellationToken);
     }
+    private ITransactionParticipant ResolveParticipant(string path)=>this.sharedParticipants.TryGetValue(path,out var participant)
+        ?participant:throw new ArgumentException("Unknown transaction table: "+path,nameof(path));
     private void EnsureSharedReady(){
         ObjectDisposedException.ThrowIf(this.disposed,this);
         lock(this.gate){

@@ -176,7 +176,7 @@ public static partial class DatabaseDesigner{
         if(keyNames.Length==0){throw new ManagementException("Unsupported","主キー([Key])の無い表はC#で編集してください。");}
         if(!IsGeneratedTable(property)){
             var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
-            if(syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}},ArgumentList.Arguments.Count:1} call||call.ArgumentList.Arguments[0].Expression is not SimpleLambdaExpressionSyntax lambda){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
+            if(TableGetter(syntax) is not{} getter||getter.ArgumentList.Arguments[0].Expression is not SimpleLambdaExpressionSyntax lambda){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
             if(!IsKeySelector(lambda,keyNames)){throw new ManagementException("Unsupported","計算を含むキーの定義はC#で編集してください。");}
         }
         var existing=definition.Migration?.Tables.SingleOrDefault(table=>table.Target==path);
@@ -193,10 +193,31 @@ public static partial class DatabaseDesigner{
     private static string FileNewLine(SyntaxNode node)=>SourceNewLine.Of(node.SyntaxTree.GetText().ToString());
     /// <summary>Managerが作った断片(利用者の本文を含まないもの)の改行を、書き込み先のファイルの改行へそろえる。</summary>
     private static string GeneratedText(string generated,SyntaxNode target){var newLine=FileNewLine(target);return newLine==SourceNewLine.Default?generated:generated.Replace(SourceNewLine.Default,newLine,StringComparison.Ordinal);}
-    private static (int Start,int Length,string Text) AppendMember(TypeDeclarationSyntax owner,string member){
+    private static (int Start,int Length,string Text) AppendMember(SyntaxNode owner,string member){
         var newLine=FileNewLine(owner);
-        if(!owner.OpenBraceToken.IsMissing&&owner.OpenBraceToken.IsKind(SyntaxKind.OpenBraceToken)){return(owner.CloseBraceToken.SpanStart,0,newLine+member+newLine);}
-        var updated=owner.WithSemicolonToken(default).WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken)).WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken)).AddMembers(SyntaxFactory.ParseMemberDeclaration(member)!);return(owner.SpanStart,owner.Span.Length,updated.WithoutLeadingTrivia().WithoutTrailingTrivia().NormalizeWhitespace(eol:newLine).ToFullString());
+        var source=owner.SyntaxTree.GetText();
+        var line=source.Lines.GetLineFromPosition(owner.SpanStart);
+        var indent=source.ToString(Microsoft.CodeAnalysis.Text.TextSpan.FromBounds(line.Start,owner.SpanStart));
+        if(!indent.AsSpan().Trim().IsEmpty){
+            indent=new string(' ',4*owner.Ancestors().Count(node=>node is NamespaceDeclarationSyntax or TypeDeclarationSyntax));
+        }
+        var indented=string.Join(newLine,member.Trim().ReplaceLineEndings("\n").Split('\n')
+            .Select(text=>indent+"    "+text));
+        if(owner is TypeDeclarationSyntax type&&type.OpenBraceToken.RawKind==0&&type.SemicolonToken is{RawKind:>0,IsMissing:false} semicolon){
+            return(semicolon.SpanStart,semicolon.Span.Length,"{"+newLine+indented+newLine+indent+"}");
+        }
+        var close=owner is NamespaceDeclarationSyntax ns?ns.CloseBraceToken:((TypeDeclarationSyntax)owner).CloseBraceToken;
+        if(close.RawKind==0||close.IsMissing){throw new ManagementException("Validation","宣言を追加する前に、クラスの閉じ括弧を確認してください。");}
+        var previous=close.GetPreviousToken();
+        var start=previous.Span.End;
+        // コメントや指示は保持し、閉じ括弧の手前の余分な空白だけを置き換える。
+        foreach(var trivia in previous.TrailingTrivia.Concat(close.LeadingTrivia)){
+            if(!trivia.IsKind(SyntaxKind.WhitespaceTrivia)&&!trivia.IsKind(SyntaxKind.EndOfLineTrivia)){
+                start=trivia.FullSpan.End;
+            }
+        }
+        var separator=start>0&&source[start-1] is '\r' or '\n'?"":newLine;
+        return(start,close.SpanStart-start,separator+indented+newLine+indent);
     }
     public static string[] Tables(Definition definition)=>TableProperties(Container(Compilation(definition),definition)).Keys.ToArray();
     private static Dictionary<string,IPropertySymbol> TableProperties(INamedTypeSymbol container){
@@ -225,7 +246,7 @@ public static partial class DatabaseDesigner{
             }
             var full=string.Join(".",new[]{path,part}.Where(value=>value.Length>0));var ns=container.ContainingNamespace.ToDisplayString();var typeName="Schema_"+full.Replace('.','_');if(compilation.GetTypeByMetadataName(ns+"."+typeName) is not null){throw new ManagementException("Conflict","スキーマ型名が競合しています。");}
             var syntax=Declaration(owner);var receiver="this.Database";if(SymbolEqualityComparer.Default.Equals(owner,container)){receiver="this";}
-            var text=GeneratedText("\npublic global::"+ns+"."+typeName+" "+part+"=>new("+receiver+");\n",syntax);var edit=AppendMember(syntax,text);var files=definition.Source.Files.Select(file=>{if(file.Path==syntax.SyntaxTree.FilePath){return file with{Text=file.Text.Remove(edit.Start,edit.Length).Insert(edit.Start,edit.Text)};}return file;}).ToList();
+            var text="public global::"+ns+"."+typeName+" "+part+"=>new("+receiver+");";var edit=AppendMember(syntax,text);var files=definition.Source.Files.Select(file=>{if(file.Path==syntax.SyntaxTree.FilePath){return file with{Text=file.Text.Remove(edit.Start,edit.Length).Insert(edit.Start,edit.Text)};}return file;}).ToList();
             var fileName="Schemas/"+typeName+".cs";if(files.Any(file=>file.Path==fileName)){throw new ManagementException("Conflict","スキーマのソースファイルが既に存在します。");}
             var declaration="public sealed partial class "+typeName+"(global::Seamless.Database.DatabaseContainer db):global::Seamless.Database.DatabaseSchema(db,"+Literal(full)+"){ }";
             definition=definition with{Source=definition.Source with{Files=files.ToArray()}};
@@ -236,6 +257,7 @@ public static partial class DatabaseDesigner{
     }
     public static Definition Apply(Definition definition,TableDesign design){
         definition=EnsureSchema(definition,design.Schema);
+        if(ManagedFilePath(definition) is not null){design=design with{Columns=design.Columns.Select(column=>column with{Type=ManagedColumnType(column.Type)}).ToArray()};}
         ObjectName(design.Name);foreach(var part in design.Schema.Split('.',StringSplitOptions.RemoveEmptyEntries)){ObjectName(part);}if(design.Columns.Length==0||!design.Columns.Any(column=>column.PrimaryKey)||design.Columns.Select(column=>column.Name).Distinct().Count()!=design.Columns.Length){throw new ManagementException("Validation","列と主キーを指定し、列名の重複を解消してください。");}
         foreach(var column in design.Columns){Identifier(column.Name);if(SyntaxFactory.ParseTypeName(column.Type).ContainsDiagnostics){throw new ManagementException("Validation","列の型が不正です: "+column.Name);}if(column.PrimaryKey&&column.Type.EndsWith('?')){throw new ManagementException("Validation","主キーをnull許容にはできません。");}}
         var compilation=Compilation(definition);var container=Container(compilation,definition);var edits=new List<(string File,int Start,int Length,string Text)>();var files=definition.Source.Files.ToList();var ns=container.ContainingNamespace.ToDisplayString();var owner=container;
@@ -267,15 +289,34 @@ public static partial class DatabaseDesigner{
             }
         }
         var attributes=string.Join("\n",design.ForeignKeys.Select(relation=>"[global::Seamless.Database.ForeignKey("+Literal(relation.Name)+","+Literal(relation.ReferencedTable)+",new string[]{"+string.Join(",",relation.Columns.Select(Literal))+"},new string[]{"+string.Join(",",relation.ReferencedColumns.Select(Literal))+"})]"));
-        var declaration=attributes+"\npublic global::Seamless.Database.Table<"+keyType+","+recordType+"> "+design.Name+"=>this.Table<"+keyType+","+recordType+">(row=>row.Key);\n";
-        if(property is null){var type=Declaration(owner);var edit=AppendMember(type,GeneratedText(declaration,type));edits.Add((type.SyntaxTree.FilePath,edit.Start,edit.Length,edit.Text));}
+        var declaration=attributes+"\npublic global::Seamless.Database.Table<"+keyType+","+recordType+"> "+design.Name+
+            "{get=>this.Table<"+keyType+","+recordType+">(row=>row.Key);set=>this."+design.Name+".Assign(value);}\n";
+        if(property is null){var type=Declaration(owner);var edit=AppendMember(type,declaration);edits.Add((type.SyntaxTree.FilePath,edit.Start,edit.Length,edit.Text));}
         else if(!generatedTable){var syntax=(PropertyDeclarationSyntax)property.DeclaringSyntaxReferences.Single().GetSyntax();
-            if(shapeChanged&&syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}}}){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
+            if(shapeChanged&&TableGetter(syntax) is null){throw new ManagementException("Unsupported","カスタム実装の表はC#で編集してください。");}
             var generated=(PropertyDeclarationSyntax)SyntaxFactory.ParseMemberDeclaration(declaration)!;
-            if(!shapeChanged){generated=generated.WithExpressionBody(syntax.ExpressionBody).WithAccessorList(syntax.AccessorList).WithSemicolonToken(syntax.SemicolonToken);}
+            var original=Read(definition,design.OriginalPath!);
+            if(original.Schema==design.Schema){generated=generated.WithType(syntax.Type);}
+            var standardSetter=generated.AccessorList!.Accessors[1];
+            if(!shapeChanged){
+                var accessors=syntax.AccessorList;
+                if(accessors?.Accessors.FirstOrDefault(accessor=>accessor.IsKind(SyntaxKind.SetAccessorDeclaration)) is{} setter){
+                    accessors=accessors.ReplaceNode(setter,RenamedSetter(setter));
+                }
+                generated=generated.WithExpressionBody(syntax.ExpressionBody).WithAccessorList(accessors).WithSemicolonToken(syntax.SemicolonToken);
+            }else if(syntax.AccessorList?.Accessors.FirstOrDefault(accessor=>accessor.IsKind(SyntaxKind.SetAccessorDeclaration)) is{} originalSetter){
+                generated=generated.ReplaceNode(standardSetter,RenamedSetter(originalSetter));
+            }
+            AccessorDeclarationSyntax RenamedSetter(AccessorDeclarationSyntax setter){
+                if(syntax.Identifier.ValueText==design.Name||setter.ExpressionBody?.Expression is not InvocationExpressionSyntax{
+                    Expression:MemberAccessExpressionSyntax{Name.Identifier.ValueText:"Assign",Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax} receiver},
+                    ArgumentList.Arguments:[{Expression:IdentifierNameSyntax{Identifier.ValueText:"value"}}]}||
+                    receiver.Name.Identifier.ValueText!=syntax.Identifier.ValueText){return setter;}
+                return setter.ReplaceNode(receiver.Name,SyntaxFactory.IdentifierName(generated.Identifier).WithTriviaFrom(receiver.Name));
+            }
             var kept=syntax.AttributeLists.Select(list=>list.WithAttributes(SyntaxFactory.SeparatedList(list.Attributes.Where(attribute=>!attribute.Name.ToString().EndsWith("ForeignKey",StringComparison.Ordinal)&&!attribute.Name.ToString().EndsWith("ForeignKeyAttribute",StringComparison.Ordinal))))).Where(list=>list.Attributes.Count>0);
             generated=generated.WithAttributeLists(SyntaxFactory.List(kept.Concat(generated.AttributeLists)));
-            var original=Read(definition,design.OriginalPath!);if(original.Schema!=design.Schema){var targetOwner=Declaration(owner);edits.Add((syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,""));edits.Add((targetOwner.SyntaxTree.FilePath,targetOwner.CloseBraceToken.SpanStart,0,GeneratedText("\n"+generated.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString()+"\n",targetOwner)));}
+            if(original.Schema!=design.Schema){var targetOwner=Declaration(owner);edits.Add((syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,""));edits.Add((targetOwner.SyntaxTree.FilePath,targetOwner.CloseBraceToken.SpanStart,0,GeneratedText("\n"+generated.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString()+"\n",targetOwner)));}
             else{edits.Add((syntax.SyntaxTree.FilePath,syntax.SpanStart,syntax.Span.Length,generated.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString()));}
         }
         foreach(var group in edits.GroupBy(edit=>edit.File)){var index=files.FindIndex(file=>file.Path==group.Key);var text=files[index].Text;foreach(var edit in group.OrderByDescending(edit=>edit.Start)){text=text.Remove(edit.Start,edit.Length).Insert(edit.Start,edit.Text);}files[index]=files[index] with{Text=text};}
@@ -292,7 +333,9 @@ public static partial class DatabaseDesigner{
             mappings.Add(new(design.Path,previous?.Source??design.OriginalPath,columns,removed));
         }
         var result=definition with{Source=definition.Source with{Files=files.ToArray(),Revision=Guid.NewGuid().ToString("N")},Migration=migration with{Tables=mappings.ToArray(),NewTables=newTables.ToArray()}};
-        if(managedRow is not null){result=AppendManagedDeclarations(result,ManagedFilePath(result)!,ns+".Tables",["System"],managedRow);}
+        if(ManagedFilePath(result) is{} managedPath){
+            result=MergeManagedTableNamespaces(UpgradeManagedTableSetters(result),managedPath,ns,managedRow);
+        }
         return result;
         void ReplaceFields(INamedTypeSymbol type,ColumnDesign[] columns){
             var syntax=Declaration(type);var properties=syntax.Members.OfType<PropertyDeclarationSyntax>().ToArray();if(properties.Any(item=>item.ExpressionBody is not null||item.Initializer is not null)){throw new ManagementException("Unsupported","カスタムプロパティを持つ型はC#で編集してください。");}
@@ -301,6 +344,97 @@ public static partial class DatabaseDesigner{
         }
     }
     private static string Fields(IEnumerable<ColumnDesign> columns)=>string.Join("\n",columns.Select(Field));
+    private static InvocationExpressionSyntax? TableGetter(PropertyDeclarationSyntax property)=>
+        (property.ExpressionBody??property.AccessorList?.Accessors.FirstOrDefault(accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody)?.Expression is
+            InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Expression:ThisExpressionSyntax,Name:GenericNameSyntax{Identifier.ValueText:"Table"}},ArgumentList.Arguments.Count:1} call?call:null;
+
+    private static Definition UpgradeManagedTableSetters(Definition definition){
+        if(ManagedFilePath(definition) is not{} path){return definition;}
+        var compilation=Compilation(definition);
+        var tables=TableProperties(Container(compilation,definition)).Values;
+        var edits=new Dictionary<PropertyDeclarationSyntax,PropertyDeclarationSyntax>();
+        foreach(var table in tables){
+            if(table.SetMethod is not null||table.IsAbstract||table.IsOverride||table.IsVirtual||
+                table.DeclaringSyntaxReferences.Length!=1||table.DeclaringSyntaxReferences[0].GetSyntax() is not PropertyDeclarationSyntax syntax||
+                syntax.SyntaxTree.FilePath!=path||TableGetter(syntax) is not{} call||
+                call.ArgumentList.Arguments[0].Expression is not SimpleLambdaExpressionSyntax){continue;}
+            var binding=compilation.GetSemanticModel(syntax.SyntaxTree).GetSymbolInfo(call);
+            if(binding.Symbol is{} symbol?!IsTableFactory(symbol):binding.CandidateSymbols.IsEmpty||!binding.CandidateSymbols.All(IsTableFactory)){continue;}
+            var setter=SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.ParseExpression("this."+syntax.Identifier.Text+".Assign(value)")))
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+            var accessors=syntax.AccessorList;
+            if(accessors is null&&syntax.ExpressionBody is{} expression){
+                var get=SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithExpressionBody(expression)
+                    .WithSemicolonToken(syntax.SemicolonToken.WithTrailingTrivia(default(SyntaxTriviaList)));
+                accessors=SyntaxFactory.AccessorList(SyntaxFactory.SingletonList(get));
+            }
+            if(accessors is not null){
+                edits[syntax]=syntax.WithExpressionBody(null).WithSemicolonToken(default).WithAccessorList(accessors.AddAccessors(setter)).WithTrailingTrivia(syntax.GetTrailingTrivia());
+            }
+        }
+        if(edits.Count==0){return definition;}
+        var file=definition.Source.Files.Single();
+        var root=edits.Keys.First().SyntaxTree.GetRoot();
+        var text=root.ReplaceNodes(edits.Keys,(original,_)=>edits[original]).ToFullString();
+        return definition with{Source=definition.Source with{Files=[file with{Text=text}]}};
+
+        static bool IsTableFactory(ISymbol symbol)=>symbol is IMethodSymbol method&&
+            method.ContainingNamespace.ToDisplayString()=="Seamless.Database"&&method.ContainingType.Name is "DatabaseContainer" or "DatabaseSchema";
+    }
+
+    private static string ManagedColumnType(string type){
+        var name=type.TrimEnd('?');
+        return name is "Guid" or "DateTime" or "DateTimeOffset" or "DateOnly" or "TimeOnly" or "TimeSpan"
+            ?"global::System."+type:type;
+    }
+
+    private static Definition MergeManagedTableNamespaces(Definition definition,string path,string ns,string? row){
+        var file=definition.Source.Files.Single(item=>item.Path==path);
+        var root=SyntaxFactory.ParseCompilationUnit(file.Text);
+        var database=root.Members.OfType<NamespaceDeclarationSyntax>().SingleOrDefault(item=>item.Name.ToString()==ns&&
+            item.Members.OfType<ClassDeclarationSyntax>().Any(type=>type.Identifier.ValueText=="Database"));
+        var flat=root.Members.OfType<NamespaceDeclarationSyntax>().Where(item=>item.Name.ToString()==ns+".Tables"&&IsGeneratedRows(item)).ToArray();
+        if(database is null){
+            return row is null?definition:AppendManagedDeclarations(definition,path,ns+".Tables",[],row);
+        }
+        var nested=database.Members.OfType<NamespaceDeclarationSyntax>().Where(item=>item.Name.ToString()=="Tables").ToArray();
+        if(nested.Length>1||database.ContainsDirectives){
+            return row is null?definition:AppendManagedDeclarations(definition,path,ns+".Tables",[],row);
+        }
+        if(flat.Length==0&&row is null){return definition;}
+        var target=nested.SingleOrDefault();
+        var additions=flat.SelectMany(block=>block.Members).Select(member=>member.ToFullString()).ToList();
+        if(row is not null){additions.Add(row);}
+        var text=string.Join("\n",additions.Select(FormatCompactSource));
+        var edit=target is null?AppendMember(database,FormatCompactSource("namespace Tables{\n"+text+"\n}")):AppendMember(target,text);
+        var changes=flat.Select(block=>(Start:block.FullSpan.Start,Length:block.FullSpan.Length,Text:"")).Append(edit);
+        var source=file.Text;
+        foreach(var change in changes.OrderByDescending(change=>change.Start)){
+            source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
+        }
+        return definition with{Source=definition.Source with{Files=[file with{Text=source}]}};
+
+        static bool IsGeneratedRows(NamespaceDeclarationSyntax block)=>
+            !block.ContainsDirectives&&
+            block.WithMembers(default).DescendantTrivia().All(trivia=>trivia.IsKind(SyntaxKind.WhitespaceTrivia)||trivia.IsKind(SyntaxKind.EndOfLineTrivia))&&
+            block.Externs.Count==0&&block.Usings.All(item=>item.ToString()=="using System;")&&
+            block.Members.All(member=>member is StructDeclarationSyntax type&&type.Modifiers.Any(SyntaxKind.PartialKeyword)&&
+                type.AttributeLists.Count==0&&type.BaseList is null&&type.TypeParameterList is null&&type.Members.All(field=>
+                    field is PropertyDeclarationSyntax property&&property.Modifiers.Any(SyntaxKind.PartialKeyword)&&
+                    property.ExpressionBody is null&&property.Initializer is null&&property.AccessorList is{} access&&
+                    access.Accessors.All(accessor=>accessor.Body is null&&accessor.ExpressionBody is null)&&
+                    IsQualified(property.Type)&&property.AttributeLists.SelectMany(list=>list.Attributes).All(attribute=>
+                        attribute.Name.ToString()=="global::Seamless.Database.Key"&&attribute.ArgumentList is null)));
+
+        static bool IsQualified(TypeSyntax type)=>type switch{
+            PredefinedTypeSyntax=>true,
+            ArrayTypeSyntax array=>IsQualified(array.ElementType),
+            NullableTypeSyntax nullable=>IsQualified(nullable.ElementType),
+            _=>type.ToString().StartsWith("global::",StringComparison.Ordinal)&&
+                !type.DescendantNodesAndSelf().OfType<GenericNameSyntax>().Any()
+        };
+    }
     private static string Field(ColumnDesign column)=>(column.PrimaryKey?"[global::Seamless.Database.Key] ":"")+"public partial "+column.Type+" "+column.Name+"{get;}";
     // [主キー] 設計器は DB の生成器を通さずに読むので、キーの型(生成される Keys.<名前>)ではなく行の型の [Key] から主キーの列を読む。
     private static bool IsKeyAttribute(AttributeSyntax attribute)=>attribute.Name.ToString().Split('.').Last() is "Key" or "KeyAttribute";

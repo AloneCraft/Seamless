@@ -35,12 +35,12 @@ public sealed class RelationalAssignmentAnalyzer:DiagnosticAnalyzer{
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterOperationAction(AnalyzeInvocation,OperationKind.Invocation);
-        context.RegisterOperationAction(AnalyzeAssignment,OperationKind.SimpleAssignment);
+        context.RegisterOperationAction(AnalyzeAssignment,OperationKind.SimpleAssignment,OperationKind.CompoundAssignment);
         context.RegisterOperationAction(AnalyzePropertyReference,OperationKind.PropertyReference);
     }
 
     private static readonly HashSet<string> WritingMethods=new(StringComparer.Ordinal){
-        "Add","Remove","Assign","AssignUnion","AssignExcept","AssignWhere","AssignRows","Update","Merge","Replace",
+        "Add","Remove","Assign","AssignUnion","AssignExcept","AssignIntersect","AssignWhere","AssignRows","Update","Merge","Replace",
     };
 
     // 表の型(Seamless.Database.Table`1・Table`2)か、その派生。
@@ -63,7 +63,7 @@ public sealed class RelationalAssignmentAnalyzer:DiagnosticAnalyzer{
     }
 
     private static void AnalyzeAssignment(OperationAnalysisContext context){
-        var assignment=(ISimpleAssignmentOperation)context.Operation;
+        var assignment=(IAssignmentOperation)context.Operation;
         // 添字の set(T.Union(rows)[key] = row)。
         if(assignment.Target is IPropertyReferenceOperation{Property.IsIndexer:true,Instance:{ } instance}&&IsTableType(instance.Type)&&IsExpression(instance)){
             context.ReportDiagnostic(Diagnostic.Create(WriteToExpression,assignment.Syntax.GetLocation(),assignment.Syntax.ToString()));
@@ -76,6 +76,7 @@ public sealed class RelationalAssignmentAnalyzer:DiagnosticAnalyzer{
         while(operation is IParenthesizedOperation parenthesized){operation=parenthesized.Operand;}
         return operation switch{
             IInvocationOperation{TargetMethod:{IsStatic:false,Name:"Where" or "Union" or "Except" or "Intersect"} method}=>IsTableType(method.ContainingType),
+            IBinaryOperation{OperatorMethod:{ } method}=>IsTableType(method.ContainingType)&&IsTableType(operation.Type),
             IObjectCreationOperation creation=>IsTableType(creation.Type),
             ICollectionExpressionOperation collection=>IsTableType(collection.Type),
             IConversionOperation{OperatorMethod:not null} conversion=>IsTableType(conversion.Type),

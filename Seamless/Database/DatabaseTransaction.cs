@@ -339,6 +339,13 @@ internal sealed class TableTransactionOverlay<TKey,TRecord>(
         return table.DirectTryGetValue(key,out record);
     }
 
+    internal void VisitFinalChanges(Action<TKey,(bool Found,TRecord Row),(bool Found,TRecord Row)> visit){
+        foreach(var pair in this.changes.Enumerate()){
+            var found=table.DirectTryGetValue(pair.Key,out var before);
+            visit(pair.Key,(found,before),(!pair.Value.Deleted,pair.Value.Record));
+        }
+    }
+
     public bool Add(TKey key,TRecord record) {
         if(this.TryGetValue(key,out _)) {
             return false;

@@ -161,6 +161,42 @@ public sealed class RelationalAssignmentDatabaseTests{
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task CompoundAssignmentsUseSetSemanticsForKeyedAndKeylessTables(bool versioned){
+        using var db=new ShopDatabase(Options(versioned));
+        db.Items += [A,A,B];
+        Assert.True((db.Items+[C]).IsExpression);
+        await using(var tx=await db.BeginTransactionAsync()){
+            var expression=tx.Items+[C];
+            Assert.Equal(3,expression.Count);
+            Assert.Equal(2,tx.Items.Count);
+            await tx.CommitAsync();
+        }
+        Assert.Equal(new[]{A,B},await ReadItems(db));
+        Assert.Throws<PrimaryKeyViolationException>(()=>db.Items += [C,A with{Name="different"}]);
+        Assert.Equal(new[]{A,B},await ReadItems(db));
+        db.Items -= new List<Item>{A with{Name="different"},B};
+        db.Tags += [new("x"),new("x"),new("y")];
+        db.Tags -= [new("y")];
+        db.Tags &= [new("x"),new("z")];
+        db.Items &= [A,C];
+        Assert.Equal(new[]{A},await ReadItems(db));
+
+        await using(var tx=await db.BeginTransactionAsync()){
+            tx.Items += new[]{B,C,C}.Where(static row=>row.Key>0);
+            tx.Items -= [B,C with{Name="different"}];
+            tx.Items &= [C with{Name="different"},A];
+            tx.Tags += [new("y"),new("z")];
+            tx.Tags -= [new("y")];
+            tx.Tags &= [new("z")];
+            await tx.CommitAsync();
+        }
+        Assert.Equal(new[]{A},await ReadItems(db));
+        Assert.Equal(new[]{"z"},await ReadTags(db));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task TransactionTablesAcceptRelationalAssignmentInsideTheTransaction(bool versioned){
         using var db=new ShopDatabase(Options(versioned));
         await using(var tx=await db.BeginTransactionAsync()){
@@ -243,6 +279,11 @@ public sealed class RewrittenWriter{
     public void KeepActive(ShopDatabase.TypedTransaction tx){tx.Items=tx.Items.Where(static row=>row.Active);}
     public void RemoveListed(ShopDatabase.TypedTransaction tx,Item[] rows){tx.Items=tx.Items.Except(rows);}
     public void AddOrderedToDatabase(ShopDatabase db,Item[] rows){db.Items=db.Items.Union(rows.OrderBy(row=>{this.KeyCalls++;return row.Key;}));}
+    public void AddCompound(Func<ShopDatabase.TypedTransaction> receiver,Func<IEnumerable<Item>> rows){receiver().Items += rows();}
+    public void RemoveCompound(ShopDatabase.TypedTransaction tx,Item first,Item second){tx.Items -= [first,second];}
+    public void KeepCompound(ShopDatabase.TypedTransaction tx,Item[] rows){tx.Items &= rows;}
+    public void UpdateTags(ShopDatabase db,Tag[] rows){db.Tags += rows;db.Tags -= [new("skip")];db.Tags &= [new("keep")];}
+    public void UpdateTags(ShopDatabase.TypedTransaction tx,Tag[] rows){tx.Tags += rows;tx.Tags -= [new("keep")];tx.Tags &= [new("next")];}
 }
 [global::Seamless.FLinq.LinqIntercept(false)]
 public sealed class RuntimeWriter{
@@ -252,6 +293,11 @@ public sealed class RuntimeWriter{
     public void KeepActive(ShopDatabase.TypedTransaction tx){tx.Items=tx.Items.Where(static row=>row.Active);}
     public void RemoveListed(ShopDatabase.TypedTransaction tx,Item[] rows){tx.Items=tx.Items.Except(rows);}
     public void AddOrderedToDatabase(ShopDatabase db,Item[] rows){db.Items=db.Items.Union(rows.OrderBy(row=>{this.KeyCalls++;return row.Key;}));}
+    public void AddCompound(Func<ShopDatabase.TypedTransaction> receiver,Func<IEnumerable<Item>> rows){receiver().Items += rows();}
+    public void RemoveCompound(ShopDatabase.TypedTransaction tx,Item first,Item second){tx.Items -= [first,second];}
+    public void KeepCompound(ShopDatabase.TypedTransaction tx,Item[] rows){tx.Items &= rows;}
+    public void UpdateTags(ShopDatabase db,Tag[] rows){db.Tags += rows;db.Tags -= [new("skip")];db.Tags &= [new("keep")];}
+    public void UpdateTags(ShopDatabase.TypedTransaction tx,Tag[] rows){tx.Tags += rows;tx.Tags -= [new("keep")];tx.Tags &= [new("next")];}
 }
 
 public sealed class RelationalAssignmentRewriteTests{
@@ -266,6 +312,35 @@ public sealed class RelationalAssignmentRewriteTests{
     }
 
     private static DatabaseContainerOptions Options()=>DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20};
+
+    [Fact]
+    public async Task CompoundAssignmentsPreserveEvaluationAndResultsWithOrWithoutExpansion(){
+        var rewritten=new RewrittenWriter();var runtime=new RuntimeWriter();
+        using var first=new ShopDatabase(Options());using var second=new ShopDatabase(Options());
+        var trace=new List<string>();
+        IEnumerable<Item> Rows(){
+            trace.Add("enumerate");yield return A;yield return B;yield return C;
+        }
+        ShopDatabase.TypedTransaction Receiver(ShopDatabase.TypedTransaction tx){trace.Add("receiver");return tx;}
+        IEnumerable<Item> Right(){trace.Add("right");return Rows();}
+        var actual=await Run(first,tx=>rewritten.AddCompound(()=>Receiver(tx),Right));
+        Assert.Equal(new[]{"receiver","right","enumerate"},trace);
+        trace.Clear();
+        Assert.Equal(actual,await Run(second,tx=>runtime.AddCompound(()=>Receiver(tx),Right)));
+        Assert.Equal(new[]{"receiver","right","enumerate"},trace);
+        Assert.Equal(await Run(first,tx=>rewritten.RemoveCompound(tx,B,C with{Name="different"})),
+            await Run(second,tx=>runtime.RemoveCompound(tx,B,C with{Name="different"})));
+        Assert.Equal(new[]{C},await Run(first,tx=>rewritten.KeepCompound(tx,[C,D])));
+        Assert.Equal(new[]{C},await Run(second,tx=>runtime.KeepCompound(tx,[C,D])));
+        rewritten.UpdateTags(first,[new("keep"),new("skip"),new("keep")]);
+        runtime.UpdateTags(second,[new("keep"),new("skip"),new("keep")]);
+        Assert.Equal(new[]{new Tag("keep")},first.Tags.ToArray());
+        Assert.Equal(first.Tags.ToArray(),second.Tags.ToArray());
+        await Run(first,tx=>rewritten.UpdateTags(tx,[new("next"),new("other")]));
+        await Run(second,tx=>runtime.UpdateTags(tx,[new("next"),new("other")]));
+        Assert.Equal(new[]{new Tag("next")},first.Tags.ToArray());
+        Assert.Equal(first.Tags.ToArray(),second.Tags.ToArray());
+    }
 
     [Fact]
     public async Task RewrittenAndRuntimeAssignmentsLeaveTheSameRowsAndTheRewriteDropsOrdering(){

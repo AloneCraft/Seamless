@@ -8,23 +8,40 @@ public sealed class StoredTable<TKey,TRecord>:Table<TKey,TRecord>,global::System
     where TRecord:struct {
     private readonly DatabaseContainer database;
     private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>? legacyRows;
-    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows{get=>this.legacyRows??this.OpenRows();set=>this.legacyRows=value;}
+    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows{
+        get{
+            var current=this.legacyRows;
+            return current is not null&&!this.opening?current:this.OpenRows();
+        }
+        set=>this.legacyRows=value;
+    }
     // 使う表だけを開く(設計 20261116-使う表だけを開く.md)：保存の仕組みを初めて使うときに開く処理。開いた後に onOpened(当て直し)を呼ぶ。
     private Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>>? opener;
     private Action? onOpened;
     private readonly object openGate=new();
+    private volatile bool opening;
     internal bool IsStorageOpen=>this.legacyRows is not null;
     private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> OpenRows(){
-        if(this.opener is null){throw new InvalidOperationException("Use the generated versioned transaction collection.");}
         lock(this.openGate){
+            this.openFailure?.Throw();
             if(this.legacyRows is{} opened){return opened;}
             ObjectDisposedException.ThrowIf(this.disposed,this);
+            if(this.opener is null){throw new InvalidOperationException("Use the generated versioned transaction collection.");}
             // 当て直しは行を書き込むので、先に開いた行の入れ物を置いてから呼ぶ。
-            this.legacyRows=this.opener();var after=this.onOpened;this.opener=null;this.onOpened=null;
-            after?.Invoke();
-            return this.legacyRows;
+            this.opening=true;
+            try{
+                this.legacyRows=this.opener();var after=this.onOpened;this.opener=null;this.onOpened=null;
+                after?.Invoke();
+                this.opening=false;
+                return this.legacyRows;
+            }catch(Exception error){
+                // 他の取引に、当て直しの途中で止まった表を返さない。
+                this.openFailure=global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
+                throw;
+            }
         }
     }
+    private global::System.Runtime.ExceptionServices.ExceptionDispatchInfo? openFailure;
     // 保存の仕組みを開かずに作る(使う表だけを開く)。sharedFactory は開いた後の取り直しに使う。
     internal StoredTable(DatabaseContainer database,Func<TRecord,TKey> keySelector,IDisposable ownedResources,string name,
         Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>> opener,Action onOpened,Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>> sharedFactory){

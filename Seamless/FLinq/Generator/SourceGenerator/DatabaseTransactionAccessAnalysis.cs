@@ -9,13 +9,17 @@ namespace Seamless.FLinq.Generator;
 internal sealed class DatabaseTransactionAccessAnalysis{
     private readonly Compilation compilation;
     private readonly CancellationToken cancellationToken;
+    private readonly INamedTypeSymbol database;
     private readonly HashSet<ISymbol> visiting=new(SymbolEqualityComparer.Default);
     private readonly HashSet<ISymbol> initializing=new(SymbolEqualityComparer.Default);
     private readonly List<string> steps=[];
     private readonly HashSet<string> recorded=new(StringComparer.Ordinal);
     private int remaining=10000;
     private bool unsafeAccess;
-    private DatabaseTransactionAccessAnalysis(Compilation compilation,CancellationToken cancellationToken){this.compilation=compilation;this.cancellationToken=cancellationToken;}
+    private bool unknownAccess;
+    private readonly HashSet<string> reads=new(StringComparer.Ordinal);
+    private readonly HashSet<string> writes=new(StringComparer.Ordinal);
+    private DatabaseTransactionAccessAnalysis(Compilation compilation,INamedTypeSymbol database,CancellationToken cancellationToken){this.compilation=compilation;this.database=database;this.cancellationToken=cancellationToken;}
 
     private static (IMethodSymbol Begin,DatabaseTransactionAccessAnalysis Analysis)? AnalyzeBegin(SemanticModel model,InvocationExpressionSyntax invocation,CancellationToken cancellationToken){
         if(model.GetSymbolInfo(invocation,cancellationToken).Symbol is not IMethodSymbol{ Name:"BeginTransactionAsync",IsStatic:false,IsVirtual:false } begin
@@ -33,13 +37,22 @@ internal sealed class DatabaseTransactionAccessAnalysis{
             &&variable.Parent?.Parent is LocalDeclarationStatementSyntax declaration&&declaration.UsingKeyword.IsKind(SyntaxKind.UsingKeyword)&&declaration.Parent is BlockSyntax block){
             statements=block.Statements.Skip(block.Statements.IndexOf(declaration)+1);
         }else if(variable?.Parent?.Parent is UsingStatementSyntax statement){statements=[statement.Statement];}
-        var analysis=new DatabaseTransactionAccessAnalysis(model.Compilation,cancellationToken);
+        var analysis=new DatabaseTransactionAccessAnalysis(model.Compilation,begin.ContainingType,cancellationToken);
         if(statements is null){analysis.Unsafe(invocation,"不明: await usingで所有する取引範囲を確定できないため、更新可能な開始を保持");}
         else{foreach(var statement in statements){analysis.Visit(model.GetOperation(statement,cancellationToken));}}
         return(begin,analysis);
     }
-    internal static bool IsReadOnlyBegin(SemanticModel model,InvocationExpressionSyntax invocation){
-        var decision=AnalyzeBegin(model,invocation,default);return decision.HasValue&&!decision.Value.Analysis.unsafeAccess;
+    internal static string RewriteBegin(SemanticModel model,InvocationExpressionSyntax invocation,string invocationText){
+        if(AnalyzeBegin(model,invocation,default) is not{} decision){return invocationText;}
+        var analysis=decision.Analysis;
+        if(analysis.PlanArguments() is{} arguments){return invocationText.Replace(".BeginTransactionAsync(",".BeginTransactionAsync("+arguments+",",StringComparison.Ordinal);}
+        return analysis.unsafeAccess?invocationText:invocationText.Replace(".BeginTransactionAsync(",".BeginReadOnlyTransactionAsync(",StringComparison.Ordinal);
+    }
+    private string? PlanArguments(){
+        if(this.unknownAccess||this.reads.Count==0||!this.database.GetMembers("BeginTransactionAsync").OfType<IMethodSymbol>().Any(method=>method.Parameters.Length==3)){return null;}
+        return Array(this.reads.Except(this.writes))+","+Array(this.writes);
+        static string Array(IEnumerable<string> values)=>"new string[]{"+string.Join(",",values.OrderBy(value=>value,StringComparer.Ordinal)
+            .Select(value=>Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(value,true)))+"}";
     }
     internal static string? ReadOnlyInterceptor(SemanticModel model,InvocationExpressionSyntax invocation,CancellationToken cancellationToken){
         if(AnalyzeBegin(model,invocation,cancellationToken) is not { } decision){return null;}
@@ -50,22 +63,46 @@ internal sealed class DatabaseTransactionAccessAnalysis{
         var type=begin.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);var result=begin.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var target="BeginReadOnlyTransactionAsync";var kind="ReadOnly";var prefix="__DatabaseReadOnly_";
         if(analysis.unsafeAccess){target="BeginTransactionAsync";kind="WritableOrUnknown";prefix="__DatabaseTransaction_";}
+        var arguments=analysis.PlanArguments();
+        if(arguments is not null){target="BeginTransactionAsync";arguments+=",";}
         var plan=new StringBuilder();
         plan.AppendLine("// [アクセス判定] "+kind+": "+Clean(invocation.SyntaxTree.FilePath)+":"+(invocation.GetLocation().GetLineSpan().StartLinePosition.Line+1));
         foreach(var step in analysis.steps){plan.AppendLine("// "+step);}
+        if(arguments is not null){plan.AppendLine("// [表ロック] "+arguments);}
         plan.AppendLine("// [変形] BeginTransactionAsync -> "+target+"。既存取引を受け取るだけの呼出しでは取引全体を変更しない。");
         plan.AppendLine("// [並列] 取引の同時実行はOptions.TransactionConcurrencyで選択。同一取引の公開呼出しは一つずつ。読取判定だけでworkerを追加しない。");
         plan.AppendLine("// [キュー・同期] 開始は回収中のdomain入場待ちを経る。確定キュー/WALへの投入はCommitAsyncで行い、この開始行では行わない。");
         plan.AppendLine("// [資源・不変条件] 同じsnapshotを全表へ共有。終了時にscopeが参照を解放し、競合時に業務処理を自動再実行しない。");
         var debug=Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(plan.ToString(),true);
-        return "// <auto-generated/>\n#nullable enable\nnamespace Intercept{\n"+plan+"internal static class "+prefix+suffix+"{\n#if DEBUG\n// [Debug] 静的判断をメタデータ定数へ保存。実行時の型や取引を保持せず、ログ出力もしない。\ninternal const string DebugPlan="+debug+";\n#endif\n"+attribute+"\npublic static "+result+" Begin(this "+type+" receiver,global::System.Threading.CancellationToken cancellationToken){\n// [委譲] 非asyncの入口を維持し、AsyncLocal holderの設定を呼出し側の実行コンテキストに残す。取消tokenは同じ値を転送。\nreturn receiver."+target+"(cancellationToken);\n}\n}}\n";
+        return "// <auto-generated/>\n#nullable enable\nnamespace Intercept{\n"+plan+"internal static class "+prefix+suffix+"{\n#if DEBUG\n// [Debug] 静的判断をメタデータ定数へ保存。実行時の型や取引を保持せず、ログ出力もしない。\ninternal const string DebugPlan="+debug+";\n#endif\n"+attribute+"\npublic static "+result+" Begin(this "+type+" receiver,global::System.Threading.CancellationToken cancellationToken){\n// [委譲] 非asyncの入口を維持し、AsyncLocal holderの設定を呼出し側の実行コンテキストに残す。取消tokenは同じ値を転送。\nreturn receiver."+target+"("+arguments+"cancellationToken);\n}\n}}\n";
     }
     private static string Clean(string text)=>GeneratedExecutionAnnotations.Clean(text);
     private void Note(SyntaxNode syntax,string message){
         var span=syntax.GetLocation().GetLineSpan();var key=syntax.SyntaxTree.FilePath+":"+syntax.SpanStart+":"+message;
         if(this.recorded.Add(key)){this.steps.Add("[アクセス] "+Clean(System.IO.Path.GetFileName(span.Path))+":"+(span.StartLinePosition.Line+1)+" "+Clean(message));}
     }
-    private void Unsafe(SyntaxNode syntax,string reason){this.unsafeAccess=true;this.Note(syntax,reason);}
+    private void Unsafe(SyntaxNode syntax,string reason){this.unknownAccess=this.unsafeAccess=true;this.Note(syntax,reason);}
+    private void RecordWrite(IOperation? operation,SyntaxNode syntax){
+        this.unsafeAccess=true;
+        if(operation is IPropertyReferenceOperation property&&this.Path(property) is{} path){
+            this.writes.Add(path);this.Note(syntax,"書込み: "+path);return;
+        }
+        this.Unsafe(syntax,"不明: 書込み先の表");
+    }
+    private string? Path(IPropertyReferenceOperation property){
+        var type=property.Property.ContainingType;
+        if(!IsView(property.Type)||!IsScope(type)){return null;}
+        var path=property.Property.Name;
+        while(type.Name.StartsWith("SchemaView",StringComparison.Ordinal)){
+            var parent=type.ContainingType;
+            if(parent is null){return null;}
+            var owners=parent.GetMembers().OfType<IPropertySymbol>().Where(member=>SymbolEqualityComparer.Default.Equals(member.Type,type)).Take(2).ToArray();
+            if(owners.Length!=1){return null;}
+            path=owners[0].Name+"."+path;
+            type=parent;
+        }
+        return SymbolEqualityComparer.Default.Equals(type.ContainingType,this.database)?path:null;
+    }
     private static bool HasTypeParameter(ITypeSymbol type)=>type.TypeKind==TypeKind.TypeParameter||type is INamedTypeSymbol named&&named.TypeArguments.Any(HasTypeParameter);
     private static bool IsDatabase(INamedTypeSymbol? type){
         for(;type is not null;type=type.BaseType){if(type.Name=="DatabaseContainer"&&type.ContainingNamespace.ToDisplayString()=="Seamless.Database"){return true;}}return false;
@@ -79,23 +116,25 @@ internal sealed class DatabaseTransactionAccessAnalysis{
         ||type.ContainingNamespace.ToDisplayString()=="System"&&type.Name is "Decimal" or "DateTime" or "Guid" or "TimeSpan");
     private void Visit(IOperation? operation){
         this.cancellationToken.ThrowIfCancellationRequested();
-        if(operation is null){this.unsafeAccess=true;return;}
+        if(operation is null){this.unknownAccess=this.unsafeAccess=true;return;}
         if(--this.remaining<=0||operation.Kind is OperationKind.Invalid or OperationKind.DynamicInvocation or OperationKind.DynamicMemberReference){this.Unsafe(operation.Syntax,"不明: 解析上限、未解決操作、またはdynamic経路");return;}
         switch(operation){
             case IInvocationOperation call:this.Call(call.TargetMethod,call);break;
             case IObjectCreationOperation creation:
-                if(creation.Constructor is null){this.unsafeAccess=true;}else{this.Method(creation.Constructor);}break;
+                if(creation.Constructor is null){this.unknownAccess=this.unsafeAccess=true;}else{this.Method(creation.Constructor);}break;
             case IMethodReferenceOperation reference:this.Method(reference.Method);break;
             case IPropertyReferenceOperation property:
+                if(this.Path(property) is{} path){this.reads.Add(path);}
+                else if(IsView(property.Type)&&IsScope(property.Instance?.Type)){this.Unsafe(property.Syntax,"不明: 表の経路を解決できない");}
                 if(IsView(property.Instance?.Type)||IsScope(property.Instance?.Type)){this.Note(property.Syntax,"行/取引ビュー参照: "+property.Syntax+"。この参照だけでは物理走査しない");}
                 else if(property.Property.GetMethod is { } getter){this.Method(getter);}break;
             case IAssignmentOperation assignment:
                 // [関係代入] 表のプロパティへの代入(tx.dbo.T = …)は、差分を書く書き込み。
-                if(assignment.Target is IPropertyReferenceOperation{Type:var assigned}&&IsView(assigned)){this.Unsafe(assignment.Syntax,"書込み: 関係代入 "+assignment.Target.Syntax+"。差分を確定まで私有化");}
-                if(assignment.Target is IPropertyReferenceOperation target&&IsView(target.Instance?.Type)){this.Unsafe(assignment.Syntax,"書込み: "+assignment.Target.Syntax+"。キーは実行時に依存記録し、変更を確定まで私有化");}
+                if(assignment.Target is IPropertyReferenceOperation{Type:var assigned}&&IsView(assigned)){this.RecordWrite(assignment.Target,assignment.Syntax);}
+                if(assignment.Target is IPropertyReferenceOperation target&&IsView(target.Instance?.Type)){this.RecordWrite(target.Instance,assignment.Syntax);}
                 if(assignment.Target is not ILocalReferenceOperation&&(IsView(assignment.Value.Type)||IsScope(assignment.Value.Type))){this.Unsafe(assignment.Syntax,"不明: 取引または行ビューがローカル変数の外へ渡る");}break;
             case IIncrementOrDecrementOperation increment:
-                if(increment.Target is IPropertyReferenceOperation incrementTarget&&IsView(incrementTarget.Instance?.Type)){this.Unsafe(increment.Syntax,"書込み: 行ビューへの増減演算");}
+                if(increment.Target is IPropertyReferenceOperation incrementTarget&&IsView(incrementTarget.Instance?.Type)){this.RecordWrite(incrementTarget.Instance,increment.Syntax);}
                 if(increment.OperatorMethod is { } incrementMethod){this.Method(incrementMethod);}break;
             case IBinaryOperation{OperatorMethod:{ } binary}:this.Method(binary);break;
             case IUnaryOperation{OperatorMethod:{ } unary}:this.Method(unary);break;
@@ -103,7 +142,7 @@ internal sealed class DatabaseTransactionAccessAnalysis{
             case IUsingOperation resource:this.Disposal(resource.Resources.Type,resource.Resources);break;
             case IUsingDeclarationOperation declaration:this.Disposal(null,declaration.DeclarationGroup);break;
             case IReturnOperation{ReturnedValue:{ } returned}:
-                if(IsView(returned.Type)||IsScope(returned.Type)){this.unsafeAccess=true;}break;
+                if(IsView(returned.Type)||IsScope(returned.Type)){this.unknownAccess=this.unsafeAccess=true;}break;
             case IFieldReferenceOperation field when field.Field.IsStatic:
                 this.TypeInitialization(field.Field.ContainingType);break;
         }
@@ -112,10 +151,11 @@ internal sealed class DatabaseTransactionAccessAnalysis{
     private void Call(IMethodSymbol method,IInvocationOperation operation){
         if(IsView(operation.Instance?.Type)){
             if(method.Name=="Iterate"){
-                if(method.TypeArguments.FirstOrDefault() is not INamedTypeSymbol strategy){this.unsafeAccess=true;return;}
-                var invoke=strategy.GetMembers("Invoke").OfType<IMethodSymbol>().FirstOrDefault();if(invoke is null){this.unsafeAccess=true;}else{this.Method(invoke);}return;
+                if(method.TypeArguments.FirstOrDefault() is not INamedTypeSymbol strategy){this.unknownAccess=this.unsafeAccess=true;return;}
+                var invoke=strategy.GetMembers("Invoke").OfType<IMethodSymbol>().FirstOrDefault();if(invoke is null){this.unknownAccess=this.unsafeAccess=true;}else{this.Method(invoke);}return;
             }
-            if(method.Name is not("TryGetValue" or "ContainsKey" or "Contains" or "GetEnumerator" or "Where" or "Union" or "Except" or "Intersect")){this.Unsafe(operation.Syntax,"書込み/不明: 行ビューの"+method.Name);}
+            if(method.Name is "Add" or "Remove" or "Replace" or "Assign" or "AssignUnion" or "AssignExcept" or "AssignIntersect" or "Clear"){this.RecordWrite(operation.Instance,operation.Syntax);}
+            else if(method.Name is not("TryGetValue" or "ContainsKey" or "Contains" or "GetEnumerator" or "Where" or "Union" or "Except" or "Intersect")){this.Unsafe(operation.Syntax,"不明: 行ビューの"+method.Name);}
             else{this.Note(operation.Syntax,"読取り: "+operation.Syntax+"。点検索はキー依存、列挙は表依存でsnapshotを選ぶ");}return;
         }
         if(IsScope(operation.Instance?.Type)){
@@ -141,16 +181,16 @@ internal sealed class DatabaseTransactionAccessAnalysis{
         ||operation is IInvocationOperation invocation&&(invocation.TargetMethod.ReducedFrom??invocation.TargetMethod).ContainingType.ToDisplayString() is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable";
     private void Method(IMethodSymbol method){
         if(this.remaining<=0){return;}
-        if(method.MethodKind==MethodKind.DelegateInvoke||method.IsAbstract||method.IsVirtual&&!method.IsSealed||method.IsOverride&&!method.IsSealed){this.unsafeAccess=true;this.steps.Add("[アクセス] 不明: 動的呼出し先 "+Clean(method.ToDisplayString()));return;}
+        if(method.MethodKind==MethodKind.DelegateInvoke||method.IsAbstract||method.IsVirtual&&!method.IsSealed||method.IsOverride&&!method.IsSealed){this.unknownAccess=this.unsafeAccess=true;this.steps.Add("[アクセス] 不明: 動的呼出し先 "+Clean(method.ToDisplayString()));return;}
         var type=method.ContainingType;var ns=type.ContainingNamespace.ToDisplayString();
         if(ns=="System"&&(IsScalar(type)||type.Name is "Object" or "Exception" or "InvalidOperationException" or "ArgumentException")
             ||ns=="System.Threading"&&type.Name=="CancellationToken"
             ||ns=="System.Threading.Tasks"&&type.Name is "Task" or "ValueTask"
             ||ns=="System.Runtime.CompilerServices"&&type.Name.EndsWith("Awaitable",StringComparison.Ordinal)){return;}
         if(method.IsImplicitlyDeclared&&method.MethodKind is MethodKind.PropertyGet or MethodKind.Constructor&&method.DeclaringSyntaxReferences.Length==0){
-            if(type.DeclaringSyntaxReferences.Length==0){this.unsafeAccess=true;}else{this.TypeInitialization(type);}return;
+            if(type.DeclaringSyntaxReferences.Length==0){this.unknownAccess=this.unsafeAccess=true;}else{this.TypeInitialization(type);}return;
         }
-        if(method.DeclaringSyntaxReferences.Length==0||!this.visiting.Add(method.OriginalDefinition)){this.unsafeAccess=true;this.steps.Add("[アクセス] 不明: 本体なし/循環呼出し "+Clean(method.ToDisplayString()));return;}
+        if(method.DeclaringSyntaxReferences.Length==0||!this.visiting.Add(method.OriginalDefinition)){this.unknownAccess=this.unsafeAccess=true;this.steps.Add("[アクセス] 不明: 本体なし/循環呼出し "+Clean(method.ToDisplayString()));return;}
         try{
             if(method.MethodKind==MethodKind.Constructor){this.TypeInitialization(type);}
             foreach(var reference in method.DeclaringSyntaxReferences){
@@ -169,7 +209,7 @@ internal sealed class DatabaseTransactionAccessAnalysis{
                 };
                 if(body is null){
                     if(syntax is AccessorDeclarationSyntax{SemicolonToken.RawKind:(int)SyntaxKind.SemicolonToken}||syntax is ParameterSyntax){continue;}
-                    this.unsafeAccess=true;return;
+                    this.unknownAccess=this.unsafeAccess=true;return;
                 }
                 while(body is ParenthesizedExpressionSyntax or CheckedExpressionSyntax){
                     if(body is ParenthesizedExpressionSyntax parenthesized){body=parenthesized.Expression;}
@@ -183,7 +223,7 @@ internal sealed class DatabaseTransactionAccessAnalysis{
     }
     private void TypeInitialization(INamedTypeSymbol type){
         var ns=type.ContainingNamespace.ToDisplayString();if(type.DeclaringSyntaxReferences.Length==0&&(ns=="System"||ns.StartsWith("System.",StringComparison.Ordinal))){return;}
-        if(!this.initializing.Add(type)){this.unsafeAccess=true;return;}
+        if(!this.initializing.Add(type)){this.unknownAccess=this.unsafeAccess=true;return;}
         try{
         foreach(var initializer in type.StaticConstructors.Where(static method=>!method.IsImplicitlyDeclared)){this.Method(initializer);}
         foreach(var reference in type.DeclaringSyntaxReferences){
@@ -192,7 +232,7 @@ internal sealed class DatabaseTransactionAccessAnalysis{
             foreach(var field in declaration.Members.OfType<FieldDeclarationSyntax>()){
                 foreach(var variable in field.Declaration.Variables){if(variable.Initializer is { } initializer){this.Visit(model.GetOperation(initializer.Value,this.cancellationToken));}}
             }
-            if(type.BaseType is {SpecialType:SpecialType.None}){this.unsafeAccess=true;}
+            if(type.BaseType is {SpecialType:SpecialType.None}){this.unknownAccess=this.unsafeAccess=true;}
         }
         }finally{this.initializing.Remove(type);}
     }
@@ -205,8 +245,8 @@ internal sealed class DatabaseTransactionAccessAnalysis{
             return;
         }
         if(IsScope(type)){return;}
-        if(type is not INamedTypeSymbol named){this.unsafeAccess=true;return;}
+        if(type is not INamedTypeSymbol named){this.unknownAccess=this.unsafeAccess=true;return;}
         var disposal=named.GetMembers().OfType<IMethodSymbol>().FirstOrDefault(static method=>method.Name is "Dispose" or "DisposeAsync");
-        if(disposal is null){this.unsafeAccess=true;}else{this.Method(disposal);}
+        if(disposal is null){this.unknownAccess=this.unsafeAccess=true;}else{this.Method(disposal);}
     }
 }

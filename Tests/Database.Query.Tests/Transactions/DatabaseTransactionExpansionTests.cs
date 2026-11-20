@@ -346,6 +346,47 @@ public sealed partial class DatabaseTransactionExpansionTests{
         }finally{load.Unload();}
     }
     [Fact]
+    public void PlannedTransactionIncludesWritesThroughBranchAndChildMethod(){
+        const string source="""
+            using System.Threading.Tasks;
+            using Seamless.Database;
+            using Seamless.FLinq;
+            using Account=Seamless.Database.Transactions.Tests.Account;
+            namespace PlannedScope;
+            internal static partial class DatabaseGenerator;
+            public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options){
+                public Table<int,Account> Left=>this.Table<int,Account>(row=>row.Id);
+                public Table<int,Account> Right{get=>this.Table<int,Account>(row=>row.Id);set=>this.Right.Assign(value);}
+                public Table<int,Account> Unused=>this.Table<int,Account>(row=>row.Id);
+            }
+            [LinqIntercept(true)]
+            public sealed class Entry{
+                private static void Update(Database.TypedTransaction tx,Account row){tx.Right += [row];}
+                public static void Remove(Database.TypedTransaction tx,Account[] rows){tx.Right -= rows;}
+                public static void Keep(Database.TypedTransaction tx,Account[] rows){tx.Right &= rows;}
+                public static async Task Run(Database db,Account row,bool write){
+                    await using var tx=await db.BeginTransactionAsync();
+                    if(tx.Left.ContainsKey(1)&&write){Update(tx,row);}
+                    await tx.CommitAsync();
+                }
+            }
+            public static class CallSite{
+                public static void Run(Database.TypedTransaction tx,Account[] rows){
+                    Entry.Remove(tx,rows);
+                    Entry.Keep(tx,rows);
+                }
+            }
+            """;
+        var(output,generated)=Generate(source,"PlannedScope");
+        Assert.Contains(generated,text=>text.Contains("BeginTransactionAsync(new string[]{\"Left\"},new string[]{\"Right\"},cancellationToken)",StringComparison.Ordinal));
+        Assert.Contains(generated,text=>text.Contains(".AssignExcept(",StringComparison.Ordinal));
+        Assert.Contains(generated,text=>text.Contains(".AssignIntersect(",StringComparison.Ordinal));
+        using var image=new MemoryStream();
+        var emitted=output.Emit(image);
+        Assert.True(emitted.Success,string.Join(Environment.NewLine,emitted.Diagnostics));
+    }
+
+    [Fact]
     public async Task AsyncTransactionOwnerExpandsItsInlineQueryAndKeepsReadonlyAndAsyncDisposal(){
         const string source="""
             using System;

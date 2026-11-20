@@ -2,7 +2,9 @@
     @if(this.案内 is not null){<p role="alert">@this.案内</p>}
     @foreach(var 診断 in this.診断一覧){<p class="構造診断" role="alert"><code>@診断.Code</code> @診断.Message</p>}
     @if(this.基準 is{} 設計){
-        @if(this.内部表示=="Source"){
+        @if(this.内部表示=="Source"&&this.対象.Kind=="Table"){
+            <構造クラス表示 定義="定義" テーブル="設計"/>
+        }else if(this.内部表示=="Source"){
             <div class="コード見出し"><select aria-label="@表示文言.取得("対象の部分宣言")" disabled="@this.同期中か" @bind:get="this.選択部分ID" @bind:set="this.部分選択時Async">@foreach(var 部分 in 設計.Parts){<option value="@部分.Id">@部分.Path · @表示文言.取得(部分.Role) · @部分.Start</option>}</select><span>@表示文言.取得(this.コード編集案内)</span></div>
             <コードエディター @key="this.選択部分ID" 追加クラス="DBコード枠" ラベル="対象のC#" 値="@this.入力コード" 外側宣言="this.外側宣言" 補完範囲="this.選択補完範囲" 読み取り専用か="@(!this.編集可能か||this.同期中か||this.コード読み取り専用か)" 値変更時="this.コード変更時Async"/>
         }else if(!設計.StructureAvailable){

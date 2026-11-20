@@ -15,6 +15,14 @@ public sealed partial class TransactionContext{
     internal TransactionContext(Guid id,bool readOnly){this.Id=id;this.IsReadOnly=readOnly;}
     public Guid Id{get;}
     public bool IsReadOnly{get;}
+    internal IReadOnlyDictionary<ITransactionParticipant,bool>? TableAccess{get;init;}
+    internal bool CanWriteTable(ITransactionParticipant participant)=>this.TableAccess is null||this.TableAccess.TryGetValue(participant,out var write)&&write;
+    internal void CheckTableAccess(ITransactionParticipant participant,bool write){
+        if(this.TableAccess is not null&&(!this.TableAccess.TryGetValue(participant,out var writable)||write&&!writable)){
+            this.Abort(TransactionAbortReason.UndeclaredTableAccess);
+            throw new TransactionAbortedException(this.Id,TransactionAbortReason.UndeclaredTableAccess);
+        }
+    }
     public long ReadVersion{get;internal set;}
     internal bool IsAborted=>Volatile.Read(ref this.abortReason)!=0;
     internal bool IsClosed=>Volatile.Read(ref this.closed)!=0;

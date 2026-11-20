@@ -69,7 +69,9 @@ public abstract partial class DatabaseContainer:IDisposable {
     protected bool IsLegacyWriteTransactionActive=>this.ambientTransaction.Value is not null;
 
     /// <summary>DB全体writerを直列化し、変更をcommitまでstagingする。</summary>
-    public DatabaseTransaction BeginTransaction(global::System.Threading.CancellationToken cancellationToken=default) {
+    public DatabaseTransaction BeginTransaction(global::System.Threading.CancellationToken cancellationToken=default)=>this.BeginLegacyTransaction(null,cancellationToken);
+    internal DatabaseTransaction BeginPlannedRowTransaction(string[] tables,global::System.Threading.CancellationToken cancellationToken)=>this.BeginLegacyTransaction(tables,cancellationToken);
+    private DatabaseTransaction BeginLegacyTransaction(string[]? writeTables,global::System.Threading.CancellationToken cancellationToken) {
         if(this.Options.TransactionHistory is not null){throw new NotSupportedException("Use the generated BeginTransactionAsync or BeginReadOnlyTransactionAsync entry for the versioned profile.");}
         if(this.Options.GatewayProfile is not null){throw new InvalidOperationException("Use the owning Gateway transaction to update this database.");}
         this.EnsureAvailable();
@@ -78,7 +80,8 @@ public abstract partial class DatabaseContainer:IDisposable {
             if(this.ambientReadSession.Value is not null) {
                 throw new InvalidOperationException("A read session cannot be promoted to a write transaction. Dispose the read session first.");
             }
-            var shared=this.BeginTransactionScopeAsync(cancellationToken).AsTask().GetAwaiter().GetResult();
+            var shared=(writeTables is null?this.BeginTransactionScopeAsync(cancellationToken):
+                this.BeginPlannedTransactionScopeAsync([],writeTables,cancellationToken)).AsTask().GetAwaiter().GetResult();
             state=new(this.Options.TransactionMemoryLimit,new SharedScopeLease(shared)){SharedScope=shared};
             this.ambientTransaction.Value=state;
         }
@@ -103,13 +106,13 @@ public abstract partial class DatabaseContainer:IDisposable {
         }
         try {
             if(!state.Aborted) {
-                try{this.ValidateRelations();}catch{state.Aborted=true;throw;}
                 if(state.GatewayOwner is not null){
                     if(!state.GatewayApplied){throw new InvalidOperationException("The common Gateway WAL must commit before applying this database.");}
                     return;
                 }
+                try{this.ValidateRelationChanges(null,state);}catch{state.Aborted=true;throw;}
                 if(state.SharedScope is not null){
-                    state.SharedScope.Enlist(new SharedLegacyChanges(this,state.Overlays.Values.ToArray()));
+                    state.SharedScope.EnlistLegacyChanges(new SharedLegacyChanges(this,state.Overlays.Values.ToArray()));
                     state.SharedScope.CommitAsync(state.CommitMetadata).AsTask().GetAwaiter().GetResult();
                     return;
                 }
@@ -163,6 +166,7 @@ public abstract partial class DatabaseContainer:IDisposable {
         if(state is null) {
             return null;
         }
+        if(state.SharedScope?.HasTablePlan==true){state.SharedScope.CheckTableAccess(this.ResolveParticipant(table.Name),create);}
         if(state.Overlays.TryGetValue(table,out var existing)) {
             return (TableTransactionOverlay<TKey,TRecord>)existing;
         }

@@ -100,12 +100,22 @@ public sealed partial class VersionedTransactionalTable<TKey,TRecord>:ITransacti
         public (bool Found,TRecord Row) Read(TKey key){
             this.context.ThrowIfUnavailable();using var encoded=this.table.resources.Encode(key);this.context.ObserveRead(this.table,encoded.Memory.Span);
             if(this.changes.TryGetValue(key,out var own)){if(own.Deleted){return(false,default!);}return(true,this.table.Clone(own.Record));}
+            return this.ReadBase(key,encoded.Memory.Span);
+        }
+        private (bool Found,TRecord Row) ReadBase(TKey key,ReadOnlySpan<byte> encoded){
             using var working=this.table.resources.Budget.ReserveMemory(checked(this.table.data.PageBytes*4));using var access=this.table.Access();
             // Canonicalでは競合判定と履歴索引が同じキー表現を使う。
             var visible=this.table.encoding==VersionedRecordEncoding.Canonical
-                ?access.ReadVisibleRecord(encoded.Memory.Span,this.context.ReadVersion)
+                ?access.ReadVisibleRecord(encoded,this.context.ReadVersion)
                 :this.table.ReadStored(access,key,this.context.ReadVersion);
             if(!visible.HasValue||visible.Value.Deleted){return(false,default!);}return(true,this.table.DecodeStoreRow(visible.Value.Row));
+        }
+        public void VisitFinalChanges(Action<TKey,(bool Found,TRecord Row),(bool Found,TRecord Row)> visit){
+            foreach(var pair in this.changes.Enumerate()){
+                this.context.ThrowIfUnavailable();
+                using var encoded=this.table.resources.Encode(pair.Key);
+                visit(pair.Key,this.ReadBase(pair.Key,encoded.Memory.Span),(!pair.Value.Deleted,pair.Value.Record));
+            }
         }
         public void Set(TKey key,TRecord row){
             this.context.EnsureWritable();if(!this.table.resources.Codecs.GetEqualityComparer<TKey>().Equals(key,this.table.keyOf(row))){throw new ArgumentException("Record key does not match the indexer key.",nameof(row));}

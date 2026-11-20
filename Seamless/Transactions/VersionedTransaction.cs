@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 namespace Seamless.Transactions;
 
-public enum TransactionAbortReason{Conflict=1,HistoryPressure,CallerCancellation,JoinedRollback,ResourceLimit}
+public enum TransactionAbortReason{Conflict=1,HistoryPressure,CallerCancellation,JoinedRollback,ResourceLimit,UndeclaredTableAccess}
 
 public sealed class TransactionAbortedException(Guid id,TransactionAbortReason reason,Exception? inner=null)
     :InvalidOperationException("The transaction was aborted: "+reason,inner){
