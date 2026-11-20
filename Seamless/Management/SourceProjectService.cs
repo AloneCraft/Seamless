@@ -261,7 +261,7 @@ public sealed partial class SourceProjectService:IManagementSourceOperations,IDi
     internal static string DotnetHost(){
         var bundled=Path.Combine(AppContext.BaseDirectory,"toolchain","dotnet");
         if(Directory.Exists(bundled)){
-            var host=Path.Combine(bundled,"dotnet.exe");
+            var host=Path.Combine(bundled,OperatingSystem.IsWindows()?"dotnet.exe":"dotnet");
             if(!File.Exists(host)||!Directory.Exists(Path.Combine(bundled,"sdk"))){throw new ManagementException("Unavailable","同梱SDKの構成が不完全です。");}
             return host;
         }

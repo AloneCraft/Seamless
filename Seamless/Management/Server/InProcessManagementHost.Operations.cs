@@ -47,6 +47,8 @@ public sealed partial class InProcessManagementHost{
     public ChangePreview Preview(DraftKey key)=>this.Invoke((service,user)=>service.Preview(user,key));
     public Task<ChangePreview> PreviewAsync(DraftKey key,CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.Preview(user,key),cancellationToken).AsTask();
+    public Task<bool> CancelConfirmationAsync(DraftKey key,CancellationToken cancellationToken=default)=>
+        this.InvokeAsync((service,user)=>service.CancelConfirmation(user,key),cancellationToken).AsTask();
     public OperationInfo Apply(ApplyRequest request)=>this.Invoke((service,user)=>service.Apply(user,request));
     public Task<OperationInfo> ApplyAsync(ApplyRequest request,CancellationToken cancellationToken=default)=>
         this.InvokeAsync((service,user)=>service.Apply(user,request),cancellationToken).AsTask();

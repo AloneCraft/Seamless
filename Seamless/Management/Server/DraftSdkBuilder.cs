@@ -23,6 +23,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     private readonly Lock gate=new();
 
     internal CompiledSource Build(Definition definition,CancellationToken cancellationToken=default,long draftRevision=0,long baseVersion=0,bool includeGenerated=false){
+        using var use=artifacts.Use();
         if(definition.Kind!=DefinitionKind.Database){throw new InvalidOperationException("SDK のビルドは DB 定義だけに使います。");}
         SourceEditor.Validate(definition.Source);
         lock(this.gate){
@@ -43,6 +44,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     /// 監査の情報(入口の識別と問い合わせの形)は、ビルドしたソースと生成ファイルを Roslyn で解析して作る(コンパイルはしない)。
     /// </summary>
     internal CompiledSource BuildQuery(Definition definition,byte[] database,CancellationToken cancellationToken=default){
+        using var use=artifacts.Use();
         if(definition.Kind!=DefinitionKind.Query||definition.EntryType is null||definition.EntryMember is null){throw new InvalidOperationException("登録クエリの定義と入口が必要です。");}
         SourceEditor.Validate(definition.Source);
         lock(this.gate){
@@ -149,6 +151,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
         public void Dispose(){
             SourceWorkspace.CheckLinks(this.Directory);
             System.IO.Directory.Delete(this.Directory,recursive:true);
+            RemoveEmptyRoot(Path.GetDirectoryName(this.Directory)!);
         }
         internal static string Recover(string root){
             root=Path.GetFullPath(root);
@@ -167,7 +170,19 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
                     System.Diagnostics.Trace.TraceWarning("SDKの一時ディレクトリを確認できません: {0}",error.Message);
                 }
             }
+            RemoveEmptyRoot(root);
             return root;
+        }
+        private static void RemoveEmptyRoot(string root){
+            try{
+                SourceWorkspace.CheckLinks(root);
+                if(System.IO.Directory.Exists(root)&&!System.IO.Directory.EnumerateFileSystemEntries(root).Any()){
+                    System.IO.Directory.Delete(root);
+                }
+            }catch(DirectoryNotFoundException){}
+            catch(Exception error)when(error is IOException or UnauthorizedAccessException){
+                Trace.TraceWarning("空のSDK作業フォルダーを回収できません: {0} / {1}",root,error.Message);
+            }
         }
     }
     private static DraftDirectory Prepare(string directory,SourceSnapshot source,CancellationToken cancellationToken,QueryBinding? query=null){
@@ -202,7 +217,7 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",
                 new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14"),new XElement("Nullable","enable"),new XElement("AllowUnsafeBlocks","true"),
-                new XElement("AssemblyName",name),new XElement("RootNamespace",name),new XElement("OutDir","$(MSBuildProjectDirectory)\\bin\\"),
+                new XElement("AssemblyName",name),new XElement("RootNamespace",name),new XElement("OutDir","$(MSBuildProjectDirectory)/bin/"),
                 new XElement("EnableDefaultCompileItems","false"),new XElement("DebugType","embedded"),new XElement("Deterministic","true"),
                 new XElement("PathMap","$(MSBuildProjectDirectory)="+PdbRoot),
                 new XElement("EnableNETAnalyzers","false"),new XElement("NuGetAudit","false"),new XElement("GenerateDocumentationFile","false"),
@@ -247,10 +262,14 @@ internal sealed partial class DraftSdkBuilder(string root,SourceBuildArtifactSto
     private static string? Run(BuildWorkspace workspace,string project,CancellationToken cancellationToken){
         var executable=SourceProjectService.DotnetHost();
         using var process=new Process{StartInfo=new(executable){
-            UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=Path.GetDirectoryName(project)!,
+            UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=AppContext.BaseDirectory,
             RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8
         }};
-        foreach(var argument in new[]{"build",project,"-nologo","-v:minimal","-m:1","-nodeReuse:false","-p:UseSharedCompilation=false","-p:Configuration=Release"}){process.StartInfo.ArgumentList.Add(argument);}
+        // A mounted work directory can have unrelated MSBuild settings in its parent directories.
+        foreach(var argument in new[]{"build",project,"-nologo","-v:minimal","-m:1","-nodeReuse:false","-p:UseSharedCompilation=false",
+            "-p:Configuration=Release","-p:ImportDirectoryBuildProps=false","-p:ImportDirectoryBuildTargets=false"}){
+            process.StartInfo.ArgumentList.Add(argument);
+        }
         workspace.Launching();
         if(!process.Start()){throw new ManagementException("Unavailable","SDKを起動できません。");}
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);deadline.CancelAfter(TimeSpan.FromMinutes(10));

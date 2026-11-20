@@ -18,7 +18,7 @@
                         @if(確認.CanApply&&確認.RequiresBackup){
                             <label class="変更内容"><input type="checkbox" @bind="適用文書.データ削除確認済みか" disabled="@操作中か"/> @表示文言.取得("適用前にバックアップを作成し、一覧に示したデータを削除します。")</label>
                         }
-                        <div class="適用操作"><button class="控えめボタン" @onclick="()=>適用文書.プレビュー=null"><操作アイコン 種類="閉じる"/>@(表示文言.取得("閉じる"))</button><button class="主要ボタン" disabled="@(!確認.CanApply||操作中か||確認.RequiresBackup&&!適用文書.データ削除確認済みか)" @onclick="()=>変更を適用Async(適用文書)"><操作アイコン 種類="この変更を適用"/>@(表示文言.取得("この変更を適用"))</button></div>
+                        <div class="適用操作"><button class="控えめボタン" disabled="@操作中か" @onclick="()=>変更確認を閉じるAsync(適用文書)"><操作アイコン 種類="閉じる"/>@(表示文言.取得("閉じる"))</button><button class="主要ボタン" disabled="@(!確認.CanApply||操作中か||確認.RequiresBackup&&!適用文書.データ削除確認済みか)" @onclick="()=>変更を適用Async(適用文書)"><操作アイコン 種類="この変更を適用"/>@(表示文言.取得("この変更を適用"))</button></div>
                     </section>
                 }
     </text>;

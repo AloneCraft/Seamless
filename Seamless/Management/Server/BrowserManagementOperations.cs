@@ -59,6 +59,7 @@ public sealed partial class BrowserManagementOperations:IManagementOperations,IM
         this.InvokeAsync(()=>this.operations.CreateValidationDraftAsync(key,cancellationToken));
     public Task DropValidationAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.DropValidationAsync(id,cancellationToken));
     public Task<ChangePreview> PreviewAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.PreviewAsync(key,cancellationToken));
+    public Task<bool> CancelConfirmationAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.CancelConfirmationAsync(key,cancellationToken));
     public Task<OperationInfo> ApplyAsync(ApplyRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.ApplyAsync(request,cancellationToken));
     public Task<OperationInfo> GetOperationAsync(Guid id,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.GetOperationAsync(id,cancellationToken));
     public Task<CatalogPage<FunctionSummary>> FunctionsAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.operations.FunctionsAsync(request,cancellationToken));

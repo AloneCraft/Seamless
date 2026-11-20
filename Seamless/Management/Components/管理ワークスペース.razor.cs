@@ -282,10 +282,22 @@ public partial class 管理ワークスペース{
                 if(結果.CanApply){this.案内=表示文言.取得(文書.DB変更 is{Delete:true}?"削除の対象とバックアップの確認をしてください。":"検証しました。変更内容を確認して適用してください。");}
                 else{this.案内=表示文言.取得("適用できません。変更の確認に表示された理由を確認してください。");}
             }
-            else{this.案内=表示文言.取得("検証中に追加の編集がありました。変更をもう一度確認してください。");}
+            else{
+                await this.変更確認成果物を解放Async(結果);
+                this.案内=表示文言.取得("検証中に追加の編集がありました。変更をもう一度確認してください。");
+            }
         }
         finally{if(検証 is not null){await this.管理操作.DropValidationAsync(検証.Id);}}
     });
+    private Task 変更確認を閉じるAsync(文書状態 文書)=>this.処理Async(async()=>{
+        if(文書.プレビュー is{} 確認){await this.変更確認成果物を解放Async(確認);}
+        文書.プレビュー=null;
+    });
+    private async Task 変更確認成果物を解放Async(ChangePreview 確認){
+        if(確認.BundleHash is{} ハッシュ){
+            await this.管理操作.CancelConfirmationAsync(new(確認.Id,確認.DraftRevision){BundleHash=ハッシュ},this.寿命.Token);
+        }
+    }
     private Task 変更を適用Async(文書状態 文書)=>this.処理Async(async()=>{
         this.ツリーの入力を確認(文書);
         if(文書.未保管か||文書.未確定操作 is not null){throw new InvalidOperationException("最新の変更を確認するか、操作結果を照会してください。");}

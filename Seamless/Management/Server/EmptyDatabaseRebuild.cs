@@ -46,7 +46,7 @@ internal static class EmptyDatabaseRebuild{
         var drafts=Records<Draft>(store,"draft").Where(draft=>draft.Definition.Id==id&&draft.BaseVersion==version)
             .Select(draft=>draft with{BaseVersion=nextVersion,Revision=checked(draft.Revision+1)}).ToArray();
         var operation=new OperationInfo(Guid.NewGuid(),"offline-maintenance",active.Database,id,OperationState.Running,null,null,DateTimeOffset.UtcNow,BackupPath:backup);
-        var builder=new DraftSdkBuilder(Path.Combine(store.Root,"sdk-drafts"),store.SourceBuilds);
+        var builder=new DraftSdkBuilder(store.SdkBuildWorkRoot,store.SourceBuilds);
         using var compiled=builder.Build(active.Definition,cancellation);
         using var runtime=new NativeRuntime(store,startAuditWorker:false);
         runtime.Publish(active.Definition,cancellation,publication=>{

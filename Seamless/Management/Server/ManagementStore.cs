@@ -50,7 +50,8 @@ public sealed partial class ManagementStore:IDisposable{
     private static ManagementStore InitializeCore(string root,string admin,string password,int format){
         ValidateAccountName(admin);if(password.Length<12){throw new ManagementException("Validation","初期パスワードは12文字以上にしてください。");}
         root=Path.GetFullPath(root);if(Directory.Exists(root)&&Directory.EnumerateFileSystemEntries(root).Any()){throw new ManagementException("Conflict","初期化先は空の専用ディレクトリにしてください。");}
-        Directory.CreateDirectory(root);File.WriteAllText(Path.Combine(root,"management.format"),format.ToString(System.Globalization.CultureInfo.InvariantCulture),Encoding.UTF8);var store=new ManagementStore(root,true);
+        var buildWorkRoot=ResolveBuildWorkRoot(root);
+        Directory.CreateDirectory(root);File.WriteAllText(Path.Combine(root,"management.format"),format.ToString(System.Globalization.CultureInfo.InvariantCulture),Encoding.UTF8);var store=new ManagementStore(root,true,buildWorkRoot:buildWorkRoot);
         try{var user=new UserAccount(admin,"",[new("*",ManagementPermission.All)]);user=user with{PasswordHash=new PasswordHasher<UserAccount>().HashPassword(user,password)};store.Write(()=>store.Put("user",Normalize(admin),user));return store;}
         catch{store.Dispose();throw;}
     }
@@ -58,8 +59,9 @@ public sealed partial class ManagementStore:IDisposable{
     internal ManagementStore(string root,FileStream exclusiveOwner):this(root,false,exclusiveOwner){}
     internal ManagementStore(string root,FileStream exclusiveOwner,bool leaveOwnerOpen):this(root,false,exclusiveOwner){this.leaveOwnerOpen=leaveOwnerOpen;}
     internal static ManagementStore OpenUpgradeRecovery(string root,FileStream owner){var store=new ManagementStore(root,false,owner,true);store.leaveOwnerOpen=true;return store;}
-    private ManagementStore(string root,bool initializing,FileStream? exclusiveOwner=null,bool skipUpgradeFence=false){
+    private ManagementStore(string root,bool initializing,FileStream? exclusiveOwner=null,bool skipUpgradeFence=false,string? buildWorkRoot=null){
         this.Root=Path.GetFullPath(root);
+        this.BuildWorkRoot=buildWorkRoot??ResolveBuildWorkRoot(this.Root);
         if(!skipUpgradeFence&&File.Exists(Path.Combine(this.Root,"management.audit-upgrade.json"))){throw new ManagementException("RecoveryRequired","監査テーブルの更新が中断しています。CLIのrollback-audit-upgradeで明示復旧してください。");}
         if(!skipUpgradeFence&&File.Exists(Path.Combine(this.Root,"management.prepared-wal-upgrade.json"))){throw new ManagementException("RecoveryRequired","分割WALへの更新が中断しています。CLIのrollback-prepared-wal-upgradeで明示復旧してください。");}
         if(!skipUpgradeFence&&File.Exists(Path.Combine(this.Root,"management.typed-upgrade.json"))){throw new ManagementException("RecoveryRequired","型付き管理領域への更新が中断しています。CLIのrollback-managed-types-upgradeで明示復旧してください。");}
@@ -76,6 +78,7 @@ public sealed partial class ManagementStore:IDisposable{
             if(saved is null&&!initializing){throw new ManagementException("RecoveryRequired","管理ヘッダーがありません。バックアップから復旧してください。");}
             if(saved is not null&&saved.Format!=this.Format){throw new ManagementException("MigrationRequired","管理DBの形式をCLIで明示的に更新してください。");}
             this.header=saved??new(this.Format,Guid.NewGuid(),0,0);if(saved is null){this.Write(()=>{});}
+            this.RecoverSourceBuilds();
         }catch(Exception error){try{opened?.Dispose();}catch(Exception cleanup){throw new AggregateException("管理DBの初期化と資源解放に失敗しました。",error,cleanup);}finally{this.owner.Dispose();}throw;}
     }
     internal string CurrentDatabase(Definition definition)=>this.Read<DefinitionVersion>("active",definition.Id)?.Database??definition.Database;
@@ -148,7 +151,7 @@ public sealed partial class ManagementStore:IDisposable{
             return new(items.ToArray(),sequence,sequence<this.header.HistorySequence);
         }
     }
-    public void Dispose(){try{this.database.Dispose();}finally{if(!this.leaveOwnerOpen){this.owner.Dispose();}}}
+    public void Dispose(){try{this.database.Dispose();}finally{try{this.SourceBuilds.Stop();}finally{if(!this.leaveOwnerOpen){this.owner.Dispose();}}}}
     internal static string Normalize(string name)=>name.Normalize(NormalizationForm.FormC).ToUpperInvariant();
     internal static void ValidateAccountName(string name){if(name.Length is <1 or >64||name.Any(character=>!char.IsLetterOrDigit(character)&&character is not '_' and not '-' and not '.')){throw new ManagementException("Validation","利用者名が不正です。");}}
     internal static Guid Key(string kind,string subject)=>new(SHA256.HashData(Encoding.UTF8.GetBytes(kind+"\0"+subject)).AsSpan(0,16));

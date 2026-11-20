@@ -139,7 +139,7 @@ public sealed class SourceBuildArtifactStorage{
         Assert.Equal("BuildMismatch",Assert.Throws<ManagementException>(()=>store.Store(fixture.Build,fixture.Buffers,CancellationToken.None)).Code);
         Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(root,"source-builds")));
     }
-    [Fact]public void BindingSurvivesReopenAndRemainsPrivateToTheSameDraft(){
+    [Fact]public void BindingRemainsPrivateAndExpiresWhenTheManagementAreaReopens(){
         var root=Root();var definition=Seamless.Management.DatabaseDesigner.Empty("stored","Stored");
         var owner=new UserAccount("admin","",[new("*",ManagementPermission.All)]);var fixture=Fixture(root,definition);
         DateTimeOffset importedAt;
@@ -149,13 +149,19 @@ public sealed class SourceBuildArtifactStorage{
             service.SourceBuilds.Store(fixture.Build,fixture.Buffers,CancellationToken.None);
             importedAt=service.BindImportedSourceBuild(owner,fixture.Build).ImportedAt;
             Assert.Equal(importedAt,service.BindImportedSourceBuild(owner,fixture.Build).ImportedAt);
-            var other=owner with{Name="other"};service.SaveDraft(other,new(definition,0,0));
+            service.ChangeUser(owner,new("other","TestPassword-123",[new("*",ManagementPermission.All)]));
+            var other=service.Authenticate(service.Login(new("other","TestPassword-123")).Token);
+            service.SaveDraft(other,new(definition,0,0));
             Assert.Equal("NotFound",Assert.Throws<ManagementException>(()=>service.GetImportedSourceBuild(other,new(definition.Id,draft.Revision))).Code);
         }
+        Assert.False(Directory.Exists(Path.Combine(root,"source-builds")));
+        // 正常終了時の回収が走らなかった場合と同じ残存物を置く。
+        new SourceBuildArtifactStore(root,new object()).Store(fixture.Build,fixture.Buffers,CancellationToken.None);
         using var reopened=new ManagementStore(root);
         using var current=new Seamless.Management.Server.ManagementService(reopened,null,startAuditWorker:false);
-        var saved=current.GetImportedSourceBuild(owner,new(definition.Id,1));
-        Assert.Equal(importedAt,saved.ImportedAt);current.SourceBuilds.Verify(saved.Build);
+        Assert.Equal(1,current.GetDraft(owner,definition.Id).Revision);
+        Assert.False(Directory.Exists(Path.Combine(root,"source-builds")));
+        Assert.Equal("NotFound",Assert.Throws<ManagementException>(()=>current.GetImportedSourceBuild(owner,new(definition.Id,1))).Code);
         var change=definition with{Source=definition.Source with{Files=definition.Source.Files.Select(file=>file with{Text=file.Text+"\n// changed\n"}).ToArray()}};
         var edited=current.SaveDraft(owner,new(change,1,0));
         Assert.Equal("Conflict",Assert.Throws<ManagementException>(()=>current.BindImportedSourceBuild(owner,fixture.Build)).Code);

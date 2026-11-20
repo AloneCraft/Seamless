@@ -10,6 +10,7 @@ public sealed partial class ManagementService{
     /// 失敗したら公開しない(古い世代はそのまま動く)。下書きも、公開した定義と同じものに置き直す。
     /// </summary>
     internal OperationInfo ApplyExternalImport(UserAccount user,Definition candidate,Guid operationId,bool replace,Action<DatabaseInstance,CancellationToken> fill,CancellationToken cancellationToken=default){
+        using var use=this.SourceBuilds.Use();
         ArgumentNullException.ThrowIfNull(fill);
         candidate=candidate.Freeze();ValidateDefinition(candidate);
         if(candidate.Kind!=DefinitionKind.Database){throw new ManagementException("Validation","取り込みはDB定義だけです。");}
@@ -56,7 +57,10 @@ public sealed partial class ManagementService{
             var durable=this.store.Read<OperationInfo>("operation",operationId.ToString("N"));
             if(durable?.State==OperationState.Succeeded){operation=durable;}
             else{var state=OperationState.Failed;if(error is OperationCanceledException){state=OperationState.Cancelled;}operation=operation with{State=state,Error=error.GetBaseException().Message};this.store.Write(()=>this.store.Put("operation",operationId.ToString("N"),operation));}
-        }finally{this.running.TryRemove(operationId,out _);}
+        }finally{
+            this.running.TryRemove(operationId,out _);
+            if(operation.State==OperationState.Succeeded){this.ReleaseSourceBuilds(candidate.Id,active?.Version??0);}
+        }
         return operation;
     }
 

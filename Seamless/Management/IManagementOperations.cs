@@ -35,6 +35,7 @@ public interface IManagementOperations{
     Task<ValidationDatabase> CreateValidationDraftAsync(DraftKey key,CancellationToken cancellationToken=default);
     Task DropValidationAsync(string id,CancellationToken cancellationToken=default);
     Task<ChangePreview> PreviewAsync(DraftKey key,CancellationToken cancellationToken=default);
+    Task<bool> CancelConfirmationAsync(DraftKey key,CancellationToken cancellationToken=default)=>Task.FromResult(false);
     Task<OperationInfo> ApplyAsync(ApplyRequest request,CancellationToken cancellationToken=default);
     Task<OperationInfo> GetOperationAsync(Guid id,CancellationToken cancellationToken=default);
     Task<TableRows> ReadRowsAsync(TableRowsRequest request,CancellationToken cancellationToken=default);

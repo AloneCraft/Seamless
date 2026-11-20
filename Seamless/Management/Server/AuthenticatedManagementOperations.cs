@@ -43,6 +43,7 @@ internal sealed class AuthenticatedManagementOperations(ConcurrentManagementOper
     public Task<ValidationDatabase> CreateValidationDraftAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.CreateValidationDraft(user,key),cancellationToken);
     public Task DropValidationAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>{service.DropValidation(user,id);return true;},cancellationToken);
     public Task<ChangePreview> PreviewAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.Preview(user,key),cancellationToken);
+    public Task<bool> CancelConfirmationAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.CancelConfirmation(user,key),cancellationToken);
     public Task<OperationInfo> ApplyAsync(ApplyRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.Apply(user,request),cancellationToken);
     public Task<OperationInfo> GetOperationAsync(Guid id,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.GetOperation(user,id),cancellationToken);
     public Task<CatalogPage<FunctionSummary>> FunctionsAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync((service,user)=>service.Functions(user,request),cancellationToken);

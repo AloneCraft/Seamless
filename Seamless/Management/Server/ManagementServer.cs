@@ -215,6 +215,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
                 "analyze"=>this.service.Analyze(user,ManagementJson.Read<Definition>(request.Payload)),
                 "version"=>this.service.Version(user,Id(request.Payload),request.Payload.GetProperty("version").GetInt64()),
                 "preview"=>this.service.Preview(user,ManagementJson.Read<DraftKey>(request.Payload)),
+                "cancelConfirmation"=>this.service.CancelConfirmation(user,ManagementJson.Read<DraftKey>(request.Payload)),
                 "previewTable"=>this.service.PreviewTable(user,ManagementJson.Read<TableDraftKey>(request.Payload)),
                 "apply"=>this.service.Apply(user,ManagementJson.Read<ApplyRequest>(request.Payload)),
                 "applyTable"=>this.service.ApplyTable(user,ManagementJson.Read<ApplyTableRequest>(request.Payload)),
@@ -297,6 +298,7 @@ public sealed partial class ManagementServer:IAsyncDisposable{
     private sealed class ResponseDeliveryAborted(string message,Exception? cause=null):IOException(message,cause);
     private async Task<ImportedSourceBuild> ImportOwnerSourceBuildAsync(SourceProjectBuildImportRequest request,LocalOwnerIdentity owner,CancellationToken cancellationToken){
         var user=owner.Account();var artifacts=this.service.SourceBuilds;
+        using var use=artifacts.Use();
         var build=await this.sourceProjects.InspectBuildAsync(request.Build,
             (id,token)=>{token.ThrowIfCancellationRequested();return Task.FromResult(this.service.GetDraft(user,id));},
             (context,path,token)=>artifacts.Capture(context,path,request.ExpectedBundleHash,token),cancellationToken);

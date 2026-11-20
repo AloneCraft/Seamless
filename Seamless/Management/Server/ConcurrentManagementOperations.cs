@@ -74,6 +74,7 @@ public sealed partial class ConcurrentManagementOperations:IManagementOperations
     public Task<ValidationDatabase> CreateValidationDraftAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.CreateValidationDraft(this.owner,key),cancellationToken);
     public Task DropValidationAsync(string id,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>{this.service.DropValidation(this.owner,id);return true;},cancellationToken);
     public Task<ChangePreview> PreviewAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Preview(this.owner,key),cancellationToken);
+    public Task<bool> CancelConfirmationAsync(DraftKey key,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.CancelConfirmation(this.owner,key),cancellationToken);
     public Task<OperationInfo> ApplyAsync(ApplyRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Apply(this.owner,request),cancellationToken);
     public Task<OperationInfo> GetOperationAsync(Guid id,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.GetOperation(this.owner,id),cancellationToken);
     public Task<CatalogPage<FunctionSummary>> FunctionsAsync(CatalogRequest request,CancellationToken cancellationToken=default)=>this.InvokeAsync(()=>this.service.Functions(this.owner,request),cancellationToken);
@@ -123,6 +124,7 @@ public sealed partial class ConcurrentManagementOperations:IManagementOperations
         this.sources.InspectBuildAsync(request,this.GetDraftAsync,SourceBuildArtifactInspector.Inspect,cancellationToken);
     public async Task<ImportedSourceBuild> ImportSourceProjectBuildAsync(SourceProjectBuildImportRequest request,CancellationToken cancellationToken=default){
         var artifacts=this.service.SourceBuilds;
+        using var use=artifacts.Use();
         var build=await this.sources.InspectBuildAsync(request.Build,this.GetDraftAsync,
             (context,path,token)=>artifacts.Capture(context,path,request.ExpectedBundleHash,token),cancellationToken).ConfigureAwait(false);
         return await this.InvokeAsync(()=>this.service.BindImportedSourceBuild(this.owner,build),cancellationToken).ConfigureAwait(false);

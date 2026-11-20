@@ -43,6 +43,8 @@ public sealed partial class ManagementClient{
         this.CallAsync<JsonElement>("dropValidation","",new{id},cancellationToken);
     public Task<ChangePreview> PreviewAsync(DraftKey key,CancellationToken cancellationToken=default)=>
         this.CallAsync<ChangePreview>("preview","",key,cancellationToken);
+    public Task<bool> CancelConfirmationAsync(DraftKey key,CancellationToken cancellationToken=default)=>
+        this.CallAsync<bool>("cancelConfirmation","",key,cancellationToken);
     public Task<OperationInfo> ApplyAsync(ApplyRequest request,CancellationToken cancellationToken=default)=>
         this.CallAsync<OperationInfo>("apply","",request,cancellationToken);
     public Task<OperationInfo> GetOperationAsync(Guid id,CancellationToken cancellationToken=default)=>

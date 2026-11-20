@@ -26,7 +26,7 @@ public sealed partial class ManagementService:IDisposable{
     internal WeakReference? LastQueryContext=>this.runtime.LastQueryContext;
     public ManagementService(ManagementStore store):this(store,null){}
     /// <summary>DB 定義の下書きを dotnet SDK でビルドする(11/12 の決定)。製品の入口で有効にする。無効なら内蔵のコンパイル(試験の既定)。</summary>
-    public bool UseSdkBuilds{get=>this.runtime.SdkBuilder is not null;set{this.runtime.SdkBuilder=value?this.runtime.SdkBuilder??new DraftSdkBuilder(System.IO.Path.Combine(this.store.Root,"sdk-drafts"),this.store.SourceBuilds):null;}}
+    public bool UseSdkBuilds{get=>this.runtime.SdkBuilder is not null;set{this.runtime.SdkBuilder=value?this.runtime.SdkBuilder??new DraftSdkBuilder(this.store.SdkBuildWorkRoot,this.store.SourceBuilds):null;}}
     internal DraftSdkBuilder? SdkBuilder=>this.runtime.SdkBuilder;
     public ManagementService(ManagementStore store,ReadAuditOptions? readAudit):this(store,readAudit,true){}
     internal ManagementService(ManagementStore store,ReadAuditOptions? readAudit,bool startAuditWorker,bool startReadAuditWorker=true){readAudit?.Validate();if(readAudit is not null&&store.Format<5){throw new ManagementException("MigrationRequired","通常読み取りの集計はupgrade-auditで形式5へ明示更新してから設定してください。");}this.store=store;store.LoadDatabasePlacement();this.runtime=new(store,startAuditWorker);this.InitializeExecutionHistory();if(readAudit is not null){this.readAuditBuffer=new(readAudit,(id,rows,cancellation)=>{cancellation.ThrowIfCancellationRequested();this.ReadAuditPersisting?.Invoke(Environment.CurrentManagedThreadId);store.ApplyReadSummaryBatch(id,rows);return ValueTask.CompletedTask;},startWorker:startReadAuditWorker,flushOnDispose:startReadAuditWorker);this.runtime.ReadCompleted=sample=>{var ticks=sample.At.UtcTicks;var start=ticks-ticks%readAudit.Window.Ticks;this.readAuditBuffer.Record(new(new(start,TimeSpan.Zero),new(start+readAudit.Window.Ticks,TimeSpan.Zero),store.InstanceId,sample.SubjectId,sample.Database,sample.QueryId,sample.CodeVersion,null));};}}
@@ -105,7 +105,10 @@ public sealed partial class ManagementService:IDisposable{
             };
             if(definition.Kind==DefinitionKind.Database){this.WriteDraftFile(draft);}
             var managed=this.WriteManagedSource(actor,draft,active);
-            this.store.Write(()=>{this.store.Put("draft",key,draft);if(managed is not null){this.store.Put("managedSource",definition.Id,managed);}this.store.AddHistory(user.Name,this.store.CurrentDatabase(definition),"DraftSaved",definition.Id,draft.Revision);});return draft;
+            this.store.Write(()=>{this.store.Put("draft",key,draft);if(managed is not null){this.store.Put("managedSource",definition.Id,managed);}this.store.AddHistory(user.Name,this.store.CurrentDatabase(definition),"DraftSaved",definition.Id,draft.Revision);});
+            this.ReleaseConfirmation(key);
+            this.ReleaseImportedBuild(key);
+            return draft;
         }
     }
     private static QueryDraftRename[]? CheckedQueryRenames(Definition definition,long baseVersion,QueryDraftRename[]? renames){
@@ -126,7 +129,10 @@ public sealed partial class ManagementService:IDisposable{
             var key=DraftSubject(user.Name,id);
             var draft=this.store.Read<Draft>("draft",key);
             if(draft is not null){Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Edit);}
-            return IsManagedSourceOwner(user)?this.ReadManagedSource(user,id,key,draft):draft;
+            var latest=IsManagedSourceOwner(user)?this.ReadManagedSource(user,id,key,draft):draft;
+            if(this.store.ConfirmedSourceBuilds.TryGetValue(key,out var confirmed)&&confirmed.Build.DraftRevision!=latest?.Revision){this.ReleaseConfirmation(key);}
+            if(this.store.ImportedSourceBuilds.TryGetValue(key,out var imported)&&imported.Build.DraftRevision!=latest?.Revision){this.ReleaseImportedBuild(key);}
+            return latest;
         }
     }
     public Draft GetDraft(UserAccount user,string id,long? revision=null){
@@ -136,7 +142,7 @@ public sealed partial class ManagementService:IDisposable{
     public Page<DefinitionSummary> Definitions(UserAccount user,long cursor=0)=>this.store.SelectPage<DefinitionVersion,DefinitionSummary>("active",cursor,100,item=>Can(user,this.store.CurrentDatabase(item.Definition),ManagementPermission.View),item=>new(new(item.Definition.Id,this.store.CurrentDatabase(item.Definition),item.Definition.Kind,item.Definition.EntryType,item.Definition.EntryMember,item.Definition.WritesData),item.Version,item.Owner,item.CreatedAt,item.ArtifactHash));
     public Page<DraftSummary> Drafts(UserAccount user,long cursor=0)=>this.store.SelectPage<Draft,DraftSummary>("draft",cursor,100,item=>ManagementStore.Normalize(item.Owner)==ManagementStore.Normalize(user.Name)&&Can(user,this.store.CurrentDatabase(item.Definition),ManagementPermission.Edit),item=>new(new(item.Definition.Id,this.store.CurrentDatabase(item.Definition),item.Definition.Kind,item.Definition.EntryType,item.Definition.EntryMember,item.Definition.WritesData),item.Revision,item.BaseVersion,item.SavedAt));
     public DefinitionVersion GetDefinition(UserAccount user,string id){var definition=this.Published(id);RequireSource(user,definition);return definition;}
-    public BuildResult Build(UserAccount user,DraftKey key){var draft=this.GetDraft(user,key.Id,key.Revision);Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Validate);using var compiled=this.ReadDraftBuild(user,draft,key);return compiled.Result;}
+    public BuildResult Build(UserAccount user,DraftKey key){using var use=this.SourceBuilds.Use();var draft=this.GetDraft(user,key.Id,key.Revision);Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Validate);using var compiled=this.ReadDraftBuild(user,draft,key);return compiled.Result;}
     public AnalysisResult Analyze(UserAccount user,Definition definition){ValidateDefinition(definition);Require(user,this.store.CurrentDatabase(definition),ManagementPermission.Edit|ManagementPermission.Validate);return this.runtime.Analyze(definition);}
     public DefinitionVersion Version(UserAccount user,string id,long version){var value=this.store.Read<DefinitionVersion>("version",id+":"+version)??throw new ManagementException("NotFound","指定した版がありません。");RequireSource(user,value);return value;}
     internal void RequestStop(){foreach(var item in this.running.Values){item.Cancel();}}
@@ -171,9 +177,11 @@ public sealed partial class ManagementService:IDisposable{
         return DatabaseDesigner.PrepareTablePublication(active.Definition,draft.Definition,table);
     }
     private ChangePreview PreviewPublication(UserAccount user,Draft draft,DefinitionVersion? active,Definition candidate,string? table,string? bundleHash=null){
+        using var use=this.SourceBuilds.Use();
         this.CheckDatabaseDraft(this.CurrentActor(user),draft.Definition,draft.DatabaseChange,active);
         if(draft.DatabaseChange is{Delete:true}){return this.PreviewDatabaseDeletion(draft,active!);}
         var buildForConfirmation=table is null&&bundleHash is null&&candidate.Kind==DefinitionKind.Database?this.SdkBuilder:null;
+        if(buildForConfirmation is not null){lock(this.store.Gate){this.ReleaseConfirmation(DraftSubject(user.Name,draft.Definition.Id));}}
         var confirmed=table is null&&bundleHash is not null?this.FindConfirmedDatabaseBuild(user,draft,candidate):null;
         var reuseConfirmation=confirmed is not null&&confirmed.Build.BundleHash==bundleHash;
         using var build=reuseConfirmation
@@ -247,6 +255,7 @@ public sealed partial class ManagementService:IDisposable{
         return this.ApplyPublication(user,request.Apply,request.Table);
     }
     private OperationInfo ApplyPublication(UserAccount user,ApplyRequest request,string? table){
+        using var use=this.SourceBuilds.Use();
         var payload=System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(request,ManagementJson.Options);
         if(table is not null){payload=System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new ApplyTableRequest(request,table),ManagementJson.Options);}
         var intent=Convert.ToHexString(SHA256.HashData(payload));
@@ -262,6 +271,9 @@ public sealed partial class ManagementService:IDisposable{
         var candidate=plan?.Candidate??(externalBuild?draft.Definition:this.DatabasePublicationCandidate(draft));
         var bundleHash=request.BundleHash;
         var confirmed=table is null?this.FindConfirmedDatabaseBuild(user,draft,candidate):null;
+        if(table is null&&bundleHash is not null&&confirmed?.Build.BundleHash!=bundleHash&&!externalBuild){
+            throw new ManagementException("Conflict","確認用の成果物がありません。変更をもう一度確認してください。");
+        }
         if(table is null&&bundleHash is null&&this.SdkBuilder is not null&&candidate.Kind==DefinitionKind.Database&&draft.DatabaseChange is not{Delete:true}){
             if(confirmed is null){throw new ManagementException("Conflict","変更影響を再確認してください。");}
             bundleHash=confirmed.Build.BundleHash;
@@ -279,7 +291,10 @@ public sealed partial class ManagementService:IDisposable{
                 this.store.Write(()=>this.store.Put("operation",operation.Id.ToString("N"),operation));
                 registered=true;
             }
-            if(draft.DatabaseChange is{Delete:true}){return this.DeleteDatabase(user,draft,baseline!,preview,operation,cancellation.Token);}
+            if(draft.DatabaseChange is{Delete:true}){
+                operation=this.DeleteDatabase(user,draft,baseline!,preview,operation,cancellation.Token);
+                return operation;
+            }
             if(bundleHash is not null){
                 selected=confirmed?.Build.BundleHash==bundleHash
                     ?NativeRuntime.FromImported(this.SourceBuilds.Read(confirmed!.Build))
@@ -336,7 +351,19 @@ public sealed partial class ManagementService:IDisposable{
             if(durable?.State==OperationState.Succeeded){operation=durable;}
             else{var state=OperationState.Failed;if(error is OperationCanceledException){state=OperationState.Cancelled;}operation=operation with{State=state,Error=error.GetBaseException().Message};this.store.Write(()=>this.store.Put("operation",operation.Id.ToString("N"),operation));}
         }
-        finally{selected?.Dispose();this.running.TryRemove(operation.Id,out _);}
+        finally{
+            selected?.Dispose();this.running.TryRemove(operation.Id,out _);
+            if(operation.State==OperationState.Succeeded){
+                this.ReleaseSourceBuilds(request.Id,preview.CurrentVersion);
+            }else if(operation.State==OperationState.Cancelled){
+                lock(this.store.Gate){
+                    var subject=DraftSubject(user.Name,request.Id);
+                    if(this.store.ConfirmedSourceBuilds.TryGetValue(subject,out var current)&&ReferenceEquals(current,confirmed)){
+                        this.ReleaseConfirmation(subject);
+                    }
+                }
+            }
+        }
         return operation;
     }
     private OperationInfo? ExistingApply(UserAccount user,Guid id,string intent){
@@ -359,7 +386,7 @@ public sealed partial class ManagementService:IDisposable{
     }
     public void Cancel(UserAccount user,Guid id){var operation=this.GetOperation(user,id);Require(user,operation.Database,ManagementPermission.Apply);if(this.running.TryGetValue(id,out var source)){source.Cancel();}}
     public ValidationDatabase CreateValidation(UserAccount user,string databaseDefinitionId){var definition=this.Published(databaseDefinitionId);Require(user,definition.Database,ManagementPermission.View);Require(user,definition.Database,ManagementPermission.Validate);return this.runtime.CreateValidation(definition,user.Name);}
-    public ValidationDatabase CreateValidationDraft(UserAccount user,DraftKey key){var draft=this.GetDraft(user,key.Id,key.Revision);Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Validate);using var compiled=this.ReadDraftBuild(user,draft,key);var validation=this.runtime.CreateValidation(draft,user.Name,compiled);this.RecordValidation(user,draft.Definition,key.Revision,validation.Id,true,null,validation.BundleHash);return validation;}
+    public ValidationDatabase CreateValidationDraft(UserAccount user,DraftKey key){using var use=this.SourceBuilds.Use();var draft=this.GetDraft(user,key.Id,key.Revision);Require(user,this.store.CurrentDatabase(draft.Definition),ManagementPermission.Validate);using var compiled=this.ReadDraftBuild(user,draft,key);var validation=this.runtime.CreateValidation(draft,user.Name,compiled);this.RecordValidation(user,draft.Definition,key.Revision,validation.Id,true,null,validation.BundleHash);return validation;}
     public BuildResult Plans(UserAccount user,string id){
         var result=this.runtime.PublishedPlans(this.GetDefinition(user,id));
         return result with{Plans=result.Plans.Select(plan=>plan with{GeneratedCode=null,ProfiledGeneratedCode=null}).ToArray()};

@@ -9,6 +9,91 @@ namespace Management.Tests;
 [Collection(SourceBuildBudgetCollection.Name)]
 public sealed class DraftSdkBuilds{
     [Fact]
+    public void ConfiguredWorkRootKeepsEachManagementAreaAndItsRecoverySeparate(){
+        const string setting="SEAMLESS_BUILD_WORK_ROOT";
+        var basePath=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"work-location-"+Guid.NewGuid().ToString("N"));
+        var work=Directory.CreateDirectory(Path.Combine(basePath,"build")).FullName;
+        var data=Path.GetFullPath(Path.Combine(basePath,"data"));
+        var previous=Environment.GetEnvironmentVariable(setting);
+        try{
+            Environment.SetEnvironmentVariable(setting,Path.Combine(work,"missing"));
+            Assert.Equal("Unavailable",Assert.Throws<ManagementException>(()=>ManagementStore.Initialize(data,"admin","TestPassword-123")).Code);
+            Assert.False(Directory.Exists(data));
+            Environment.SetEnvironmentVariable(setting,work);
+            string configured;
+            using(var store=ManagementStore.Initialize(data,"admin","TestPassword-123")){
+                configured=store.BuildWorkRoot;
+                Assert.Equal(work,Path.GetDirectoryName(configured));
+                Assert.Equal(Path.Combine(configured,"sdk-drafts"),store.SdkBuildWorkRoot);
+                Assert.Equal(data,store.Root);
+            }
+            using var other=ManagementStore.Initialize(Path.Combine(basePath,"other"),"admin","TestPassword-123");
+            Assert.NotEqual(configured,other.BuildWorkRoot);
+            var otherPackage=Directory.CreateDirectory(Path.Combine(other.BuildWorkRoot,"source-builds","in-use")).FullName;
+            var stale=Directory.CreateDirectory(Path.Combine(configured,"source-builds","interrupted")).FullName;
+            var legacy=Directory.CreateDirectory(Path.Combine(data,"source-builds","old")).FullName;
+            using var reopened=new ManagementStore(data);
+            Assert.Equal(configured,reopened.BuildWorkRoot);
+            Assert.False(Directory.Exists(stale));
+            Assert.False(Directory.Exists(legacy));
+            Assert.True(Directory.Exists(otherPackage));
+        }finally{Environment.SetEnvironmentVariable(setting,previous);}
+    }
+
+    [Fact]
+    public async Task ConfirmationArtifactsAreReclaimedAndTheDraftCanBeConfirmedAfterRestart(){
+        var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"confirmation-"+Guid.NewGuid().ToString("N"));
+        var artifacts=Path.Combine(root,"source-builds");
+        var user=LocalOwnerIdentity.Capture().Account();
+        var id="db-"+Guid.NewGuid().ToString("N");
+        var definition=Seamless.Management.DatabaseDesigner.EmptyManagedDatabase(id,"ReviewDb");
+        definition=Seamless.Management.DatabaseDesigner.Apply(definition,new("Rows","",[new("Id","int",true)],[]));
+        ApplyRequest oldRequest;
+        using(var store=ManagementStore.Initialize(root,"admin","TestPassword-123"))
+        using(var service=new Seamless.Management.Server.ManagementService(store){UseSdkBuilds=true}){
+            var saved=service.SaveDraft(user,new(definition,0,0){DatabaseChange=new(null)});
+            var confirmation=service.Preview(user,new(id,saved.Revision));
+            Assert.True(confirmation.CanApply,string.Join("\n",confirmation.Diagnostics.Select(item=>item.Message)));
+            var other=Seamless.Management.DatabaseDesigner.EmptyManagedDatabase("db-"+Guid.NewGuid().ToString("N"),"OtherDb");
+            var otherDraft=service.SaveDraft(user,new(other,0,0){DatabaseChange=new(null)});
+            var otherConfirmation=service.Preview(user,new(other.Id,otherDraft.Revision));
+            Assert.True(otherConfirmation.CanApply,string.Join("\n",otherConfirmation.Diagnostics.Select(item=>item.Message)));
+            Assert.True(service.CancelConfirmation(user,new(other.Id,otherDraft.Revision){BundleHash=otherConfirmation.BundleHash}));
+            Assert.True(Directory.Exists(artifacts));
+            var published=service.Apply(user,new(id,saved.Revision,confirmation.Token,Guid.NewGuid()){BundleHash=confirmation.BundleHash});
+            Assert.True(published.State==OperationState.Succeeded,published.Error);
+            Assert.False(Directory.Exists(artifacts));
+            await service.CommitRowsAsync(user,new(definition.Database,1,Guid.NewGuid(),[new("Rows",TableRowChangeKind.Insert,Values:ManagementJson.Element(new{Id=42}))]));
+            var next=Seamless.Management.DatabaseDesigner.AddSchema(definition,"Extra");
+            var draft=service.SaveDraft(user,new(next,saved.Revision,1));
+            var nextConfirmation=service.Preview(user,new(id,draft.Revision));
+            Assert.True(nextConfirmation.CanApply,string.Join("\n",nextConfirmation.Diagnostics.Select(item=>item.Message)));
+            oldRequest=new(id,draft.Revision,nextConfirmation.Token,Guid.NewGuid()){BundleHash=nextConfirmation.BundleHash};
+            Assert.True(Directory.Exists(artifacts));
+        }
+        Assert.False(Directory.Exists(artifacts));
+        var incomplete=Path.Combine(artifacts,".incoming-interrupted");
+        Directory.CreateDirectory(incomplete);
+        File.WriteAllText(Path.Combine(incomplete,"manifest.json"),"interrupted");
+        using var reopened=new ManagementStore(root);
+        using var restarted=new Seamless.Management.Server.ManagementService(reopened){UseSdkBuilds=true};
+        Assert.False(Directory.Exists(artifacts));
+        Assert.Equal(oldRequest.DraftRevision,restarted.GetDraft(user,id).Revision);
+        Assert.Equal(42,Assert.Single((await restarted.ReadRowsAsync(user,new(definition.Database,"Rows"))).Rows).Values.GetProperty("id").GetInt32());
+        Assert.Equal("Conflict",Assert.Throws<ManagementException>(()=>restarted.Apply(user,oldRequest)).Code);
+        var fresh=restarted.Preview(user,new(id,oldRequest.DraftRevision));
+        Assert.True(fresh.CanApply,string.Join("\n",fresh.Diagnostics.Select(item=>item.Message)));
+        Assert.True(restarted.CancelConfirmation(user,new(id,oldRequest.DraftRevision){BundleHash=fresh.BundleHash}));
+        Assert.False(Directory.Exists(artifacts));
+        fresh=restarted.Preview(user,new(id,oldRequest.DraftRevision));
+        var applied=restarted.Apply(user,new(id,oldRequest.DraftRevision,fresh.Token,Guid.NewGuid()){BundleHash=fresh.BundleHash});
+        Assert.True(applied.State==OperationState.Succeeded,applied.Error);
+        Assert.Equal(2,applied.PublishedVersion);
+        Assert.Equal(42,Assert.Single((await restarted.ReadRowsAsync(user,new(definition.Database,"Rows"))).Rows).Values.GetProperty("id").GetInt32());
+        Assert.False(Directory.Exists(artifacts));
+    }
+
+    [Fact]
     public async Task DatabaseDraftsAreBuiltWithTheSdkAndRejectInvalidCode(){
         var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"sdk-drafts-"+Guid.NewGuid().ToString("N"));
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
@@ -28,12 +113,13 @@ public sealed class DraftSdkBuilds{
         var confirmation=service.Preview(user,new(definition.Id,saved.Revision));
         Assert.True(confirmation.CanApply,string.Join("\n",confirmation.Diagnostics.Select(item=>item.Message)));
         Assert.NotNull(confirmation.BundleHash);
+        Assert.True(Directory.Exists(Path.Combine(root,"source-builds",confirmation.BundleHash)));
         Assert.Contains(confirmation.GeneratedSources,file=>file.Kind=="Database"&&file.Text.Contains("Rows",StringComparison.Ordinal));
         Assert.DoesNotContain(Directory.EnumerateDirectories(Path.Combine(root,"sdk-drafts")),path=>Path.GetFileName(path).StartsWith("build-",StringComparison.Ordinal));
         var applied=service.Apply(user,new(definition.Id,saved.Revision,confirmation.Token,Guid.NewGuid()){BundleHash=confirmation.BundleHash});
         Assert.True(applied.State==OperationState.Succeeded,applied.Error);
         Assert.Equal(new byte[]{1,2,3},File.ReadAllBytes(previousModule));
-        // 公開した成果物は SDK のビルドを検査・保管したもの(保管の場所に同じハッシュの包みがある)。
+        // 確認済みの成果物を公開世代へ保管し、確認用のコピーを回収する。
         var published=service.GetDefinition(user,definition.Id);
         Assert.Equal(Path.Combine("generations","SdkDraft","v000001"),published.StoragePath);
         var generation=Path.Combine(root,published.StoragePath);
@@ -45,8 +131,9 @@ public sealed class DraftSdkBuilds{
             Assert.Contains(pe.ReadDebugDirectory(),entry=>entry.Type==System.Reflection.PortableExecutable.DebugDirectoryEntryType.EmbeddedPortablePdb);
         }
         Assert.Equal(64,published.ArtifactHash.Length);
-        Assert.True(Directory.Exists(Path.Combine(root,"source-builds",published.ArtifactHash)),"SDK のビルドの成果物が保管されていません。");
+        Assert.False(Directory.Exists(Path.Combine(root,"source-builds")));
         Assert.True(Directory.Exists(Path.Combine(root,"sdk-drafts")));
+        Assert.Equal(new[]{sourceHash[..32]},Directory.EnumerateDirectories(Path.Combine(root,"sdk-drafts")).Select(Path.GetFileName).ToArray());
         // 生成コードの表示は、同じソースの SDK のビルドが書き出した生成ファイルを読む(ビルドを使い回す)。
         var generated=service.SdkBuilder!.GenerateSources(definition.Source);
         Assert.Contains(generated,file=>file.Kind=="User");
@@ -128,16 +215,18 @@ public sealed class DraftSdkBuilds{
         var sum=Query("sum","return context.GetDatabase<Db>().Rows.Sum(row=>row.Value);");
         NativeWorkflow.Publish(service,user,sum);
         var published=service.GetDefinition(user,"sum");
-        Assert.True(Directory.Exists(Path.Combine(root,"source-builds",published.ArtifactHash)),"登録クエリの SDK のビルドの成果物が保管されていません。");
+        Assert.False(Directory.Exists(Path.Combine(root,"source-builds")));
+        Assert.False(Directory.Exists(Path.Combine(root,"sdk-drafts")));
+        var publishedQuery=Path.Combine(root,published.StoragePath);
         // 共有依存は版とハッシュを記録し、利用者の成果物へ重複保存しない。
-        var bundled=Directory.EnumerateFiles(Path.Combine(root,"source-builds",published.ArtifactHash),"*",SearchOption.AllDirectories).ToArray();
+        var bundled=Directory.EnumerateFiles(publishedQuery,"*",SearchOption.AllDirectories).ToArray();
         Assert.DoesNotContain(bundled,file=>Path.GetFileName(file) is "Server.dll"||Path.GetFileName(file).StartsWith("Microsoft.CodeAnalysis",StringComparison.Ordinal));
         Assert.True(bundled.Sum(file=>new FileInfo(file).Length)<20L<<20,"登録クエリの成果物が大きすぎます。");
-        using var packageManifest=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(root,"source-builds",published.ArtifactHash,"manifest.json")));
+        using var packageManifest=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(publishedQuery,"source-build.json")));
         Assert.Equal(2,packageManifest.RootElement.GetProperty("format").GetInt32());
         var sharedFiles=packageManifest.RootElement.GetProperty("files").EnumerateArray().Where(file=>file.GetProperty("shared").GetBoolean()).ToArray();
         Assert.Contains(sharedFiles,file=>file.GetProperty("name").GetString()=="Database");
-        Assert.All(sharedFiles,file=>Assert.False(File.Exists(Path.Combine(root,"source-builds",published.ArtifactHash,file.GetProperty("file").GetString()!))));
+        Assert.All(sharedFiles,file=>Assert.False(File.Exists(Path.Combine(publishedQuery,file.GetProperty("file").GetString()!))));
         Assert.Equal(9,Assert.Single(service.Execute(user,Request("sum"),CancellationToken.None)).Value.GetInt32());
         var method=service.DefinitionInfo(user,"sum").Method;
         Assert.NotNull(method);

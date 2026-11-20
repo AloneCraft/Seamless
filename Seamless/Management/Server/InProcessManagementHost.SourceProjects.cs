@@ -15,6 +15,7 @@ public sealed partial class InProcessManagementHost:IManagementSourceOperations{
         this.sourceProjects.InspectBuildAsync(request,this.GetDraftAsync,SourceBuildArtifactInspector.Inspect,cancellationToken);
     public async Task<ImportedSourceBuild> ImportSourceProjectBuildAsync(SourceProjectBuildImportRequest request,CancellationToken cancellationToken=default){
         var artifacts=this.service!.SourceBuilds;
+        using var use=artifacts.Use();
         var build=await this.sourceProjects.InspectBuildAsync(request.Build,this.GetDraftAsync,
             (context,path,token)=>artifacts.Capture(context,path,request.ExpectedBundleHash,token),cancellationToken).ConfigureAwait(false);
         return await this.InvokeAsync((service,user)=>service.BindImportedSourceBuild(user,build),cancellationToken).ConfigureAwait(false);

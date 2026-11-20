@@ -9,8 +9,67 @@ internal sealed partial class SourceBuildArtifactStore(string root,object gate,l
     private const long MaximumFileBytes=64L<<20;
     private readonly string directory=Path.Combine(Path.GetFullPath(root),"source-builds");
     private readonly ResourceBudget budget=new(128L<<20,maximumStorageBytes);
+    private readonly HashSet<(string Kind,string Subject)> retained=[];
+    private int users;
+    private bool stopping;
     private sealed record PackageFile(string File,string Sha256,string Name="",string Version="",bool Shared=false);
     private sealed record PackageManifest(int Format,PackageFile[] Files);
+
+    internal IDisposable Use(){
+        lock(gate){
+            ObjectDisposedException.ThrowIf(this.stopping,this);
+            this.users++;
+            return new UseScope(this);
+        }
+    }
+    private sealed class UseScope(SourceBuildArtifactStore store):IDisposable{
+        private SourceBuildArtifactStore? current=store;
+        public void Dispose(){
+            var owner=Interlocked.Exchange(ref this.current,null);
+            if(owner is null){return;}
+            lock(owner.SyncGate){
+                owner.users--;
+                if(!owner.stopping){owner.CleanIfUnused();}
+            }
+        }
+    }
+    private object SyncGate=>gate;
+
+    internal void Retain(string kind,string subject){
+        lock(gate){ObjectDisposedException.ThrowIf(this.stopping,this);this.retained.Add((kind,subject));}
+    }
+    internal void Release(string kind,string subject){
+        lock(gate){this.retained.Remove((kind,subject));if(!this.stopping){this.CleanIfUnused();}}
+    }
+    internal void CleanSession(){
+        lock(gate){this.CleanIfUnused();}
+    }
+    internal void Stop(){
+        lock(gate){
+            this.stopping=true;
+            this.retained.Clear();
+            this.CleanIfUnused();
+        }
+    }
+    private void CleanIfUnused(){
+        if(this.users!=0||this.retained.Count!=0){return;}
+        try{
+            SourceWorkspace.CheckLinks(this.directory);
+            if(!Directory.Exists(this.directory)){return;}
+            var pending=new Queue<string>();
+            pending.Enqueue(this.directory);
+            while(pending.TryDequeue(out var current)){
+                foreach(var entry in Directory.EnumerateFileSystemEntries(current)){
+                    var attributes=File.GetAttributes(entry);
+                    if((attributes&FileAttributes.ReparsePoint)!=0){throw new IOException("成果物の保管領域にリンクがあります: "+entry);}
+                    if((attributes&FileAttributes.Directory)!=0){pending.Enqueue(entry);}
+                }
+            }
+            Directory.Delete(this.directory,true);
+        }catch(Exception error)when(error is IOException or UnauthorizedAccessException or ManagementException){
+            Console.Error.WriteLine("確認用ビルド成果物を回収できませんでした: "+this.directory+" / "+error.Message);
+        }
+    }
 
     internal static string BundleHash(SourceProjectBuild build)=>Convert.ToHexString(SHA256.HashData(ManifestBytes(build)));
     private static PackageFile[] Files(SourceProjectBuild build)=>[
@@ -56,6 +115,7 @@ internal sealed partial class SourceBuildArtifactStore(string root,object gate,l
 
     internal void Store(SourceProjectBuild build,IReadOnlyDictionary<string,byte[]> captured,CancellationToken cancellationToken){
         lock(gate){
+            ObjectDisposedException.ThrowIf(this.stopping,this);
             cancellationToken.ThrowIfCancellationRequested();
             var destination=this.PathFor(build);
             if(Directory.Exists(destination)){this.VerifyDirectory(build,destination,cancellationToken);return;}
